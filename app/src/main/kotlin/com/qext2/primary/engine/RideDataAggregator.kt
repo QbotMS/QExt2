@@ -1,0 +1,1292 @@
+package com.qext2.primary.engine
+
+import android.util.Log
+import com.qext2.primary.data.AthleteData
+import com.qext2.primary.data.AthleteDataStore
+import com.qext2.primary.core.LabRideStateRepository
+import com.qext2.primary.engine.hrdecoupling.HrDecouplingBuffer
+import com.qext2.primary.engine.hrdecoupling.HrSample
+import com.qext2.primary.engine.hrdecoupling.HrStrainAdvisor
+import com.qext2.primary.model.PrimaryRideSnapshot
+import com.qext2.primary.model.StatsRideSnapshot
+import com.qext2.primary.util.QExt2DebugConfig
+import com.qext2.primary.weather.WeatherClient
+import io.hammerhead.karooext.KarooSystemService
+import io.hammerhead.karooext.models.DataType
+import io.hammerhead.karooext.models.OnNavigationState
+import io.hammerhead.karooext.models.OnLocationChanged
+import io.hammerhead.karooext.models.OnStreamState
+import io.hammerhead.karooext.models.StreamState
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import java.util.Calendar
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.math.roundToInt
+import pl.qbot.karoo.core.FieldColor
+import pl.qbot.karoo.core.RideSample
+
+private const val TAG = "QExt2Agg"
+private const val SLEEP_REFRESH_MIN_STOP_SEC = 90 * 60L
+private const val RESERVE_PERSIST_INTERVAL_MS = 15_000L
+
+data class KarooClimb(
+    val index: Int,
+    val startDistance: Double,
+    val length: Double,
+    val totalElevation: Double,
+    val grade: Double,
+)
+
+class RideDataAggregator(private val karooSystem: KarooSystemService) {
+
+    private var scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var tickJob: Job? = null
+
+    private val hrRef = AtomicReference(0)
+    private val cadenceRef = AtomicReference(0)
+    private val powerRef = AtomicReference(0)
+    private val speedRef = AtomicReference(0.0)
+    private val gearFrontRef = AtomicReference(0)
+    private val gearRearRef = AtomicReference(0)
+    private val gradeRef = AtomicReference(0.0)
+    private val filteredGradeRef = AtomicReference(0.0)
+    private val distanceMetersRef = AtomicReference(0.0)
+    private val elapsedSecRef = AtomicReference(0L)
+    private val temperatureRef = AtomicReference(20f)
+    private val distanceToDestinationMetersRef = AtomicReference(0.0)
+    private val ascentDoneMRef = AtomicReference(0)
+    private val ascentLeftMRef = AtomicReference(0)
+    private val batteryPctRef = AtomicReference<Int?>(null)
+    private val batteryChargingRef = AtomicReference<Boolean?>(null)
+    private val rearDerailleurBatteryRef = AtomicReference<Int?>(null)
+    private val weatherSourceReadyRef = AtomicReference(false)
+    private val weatherFreshRef = AtomicReference(false)
+    private val weatherTemperatureCRef = AtomicReference<Float?>(null)
+    private val weatherWindSpeedMpsRef = AtomicReference<Float?>(null)
+    private val weatherWindDirectionDegRef = AtomicReference<Int?>(null)
+    private val weatherHumidityPctRef = AtomicReference<Int?>(null)
+    private val weatherRain1hMmRef = AtomicReference<Float?>(null)
+    private val weatherConditionRef = AtomicReference<String?>(null)
+    private val weatherSourceRef = AtomicReference<String?>(null)
+    private val sunsetTimestampRef = AtomicReference(0L)
+    private val deadlineHourRef = AtomicReference(21)
+    private val deadlineMinuteRef = AtomicReference(0)
+    private val capTwilightRef = AtomicReference(false)
+    private val civilDuskMsRef = AtomicReference(0L)
+    private val maxHrRef = AtomicReference(180)
+    private val todayFactorRef = AtomicReference(1.0f)
+    private val tssRef = AtomicReference(0f)
+    private val kcalRef = AtomicReference(0)
+    private val npRef = AtomicReference(0)
+    private val ifRef = AtomicReference(0f)
+    private val viRef = AtomicReference(0f)
+
+    private val hrFreshnessRef = AtomicReference(0L)
+    private val cadenceFreshnessRef = AtomicReference(0L)
+    private val powerFreshnessRef = AtomicReference(0L)
+    private val speedFreshnessRef = AtomicReference(0L)
+    private val gearFreshnessRef = AtomicReference(0L)
+    private val gradeFreshnessRef = AtomicReference(0L)
+
+    private val consumerIds = mutableListOf<String>()
+
+    private val _snapshot = MutableStateFlow(PrimaryRideSnapshot())
+    val snapshot: StateFlow<PrimaryRideSnapshot> = _snapshot
+    private val _statsSnapshot = MutableStateFlow(StatsRideSnapshot())
+    val statsSnapshot: StateFlow<StatsRideSnapshot> = _statsSnapshot
+
+    private val statsCalc = StatsCalculator(ftpWatts = AthleteDataStore.load().ftp)
+    private val hrBuffer = HrDecouplingBuffer()
+    private val hrAdvisor = HrStrainAdvisor(hrBuffer)
+    private val etaCalc = EtaCalculator()
+    private val lastEtaMsRef = AtomicReference(0L)
+    private val lastDeadlineMsRef = AtomicReference(0L)
+    private val carbNeededTotalGRef = AtomicReference(0.0)
+    private val carbBalanceGRef = AtomicReference(0)
+    private val carbLastElapsedSecRef = AtomicReference(0L)
+    private val carbSessionInitializedRef = AtomicReference(false)
+    private val wasMovingRef = AtomicReference(false)
+    private val rideStartMsRef = AtomicReference(0L)
+    private val karooElapsedReceivedRef = AtomicReference(false)
+    private val rideStartWallMsRef = AtomicReference(0L)
+    private val lastChosenElapsedRef = AtomicReference(0L)
+    private val lastSdkElapsedRef = AtomicReference(0L)
+
+    private val navRouteActiveRef = AtomicReference(false)
+    private val navRouteNameRef = AtomicReference("")
+    private val navRouteKeyRef = AtomicReference("")
+    private val navClimbsRef = AtomicReference<List<KarooClimb>>(emptyList())
+    private val navLastUpdateMsRef = AtomicReference(0L)
+    private val dailyTssBaseRef = AtomicReference(0f)
+    private val sleepRefreshPendingRef = AtomicReference(false)
+    private val stopStartedMsRef = AtomicReference(0L)
+    private val wasActiveUntilMsRef = AtomicReference(0L)
+    private val sessionTssRef = AtomicReference(0f)
+    private val reservePersistLastMsRef = AtomicReference(0L)
+
+    internal data class RouteStateDecision(
+        val rawRoute: Boolean,
+        val effectiveRoute: Boolean,
+        val source: String,
+    )
+
+    internal data class ParsedElapsed(
+        val chosenSec: Long,
+        val asIsSec: Long,
+        val asMsSec: Long,
+        val unit: String,
+    )
+
+    internal data class TssLogDecision(
+        val chosen: String,
+        val source: String,
+    )
+
+    internal data class StartPlan(
+        val stopBeforeStart: Boolean,
+        val recreateScope: Boolean,
+    )
+
+    internal companion object {
+        fun routeStateDecision(rawRoute: Boolean, lastRouteSeenMs: Long, nowMs: Long, graceMs: Long): RouteStateDecision {
+            if (rawRoute) return RouteStateDecision(rawRoute = true, effectiveRoute = true, source = "NAV")
+            val ago = if (lastRouteSeenMs <= 0L) Long.MAX_VALUE else nowMs - lastRouteSeenMs
+            return if (ago in 0 until graceMs) {
+                RouteStateDecision(rawRoute = false, effectiveRoute = true, source = "GRACE")
+            } else {
+                RouteStateDecision(rawRoute = false, effectiveRoute = false, source = "MISSING")
+            }
+        }
+
+        fun parseElapsed(raw: Double, localGuessSec: Long): ParsedElapsed {
+            val asIsSec = raw.toLong()
+            val asMsSec = (raw / 1000.0).toLong()
+            val chooseAsIs = kotlin.math.abs(asIsSec - localGuessSec) <= kotlin.math.abs(asMsSec - localGuessSec)
+            val chosen = if (chooseAsIs) asIsSec else asMsSec
+            val unit = if (chooseAsIs) "sec" else "ms"
+            return ParsedElapsed(chosenSec = chosen, asIsSec = asIsSec, asMsSec = asMsSec, unit = unit)
+        }
+
+        fun isSdkElapsedPlausible(karooElapsedSec: Long, lastSdkElapsedSec: Long, localElapsedSec: Long, lastChosenElapsedSec: Long): Boolean {
+            return karooElapsedSec > 0L &&
+                karooElapsedSec - lastSdkElapsedSec in 0L..(localElapsedSec - lastChosenElapsedSec + 30L).coerceAtLeast(30L) &&
+                karooElapsedSec <= localElapsedSec + 30L
+        }
+
+        fun tssLogDecision(sdkTss: Float): TssLogDecision {
+            return if (sdkTss > 0f) {
+                TssLogDecision(chosen = "%.1f".format(sdkTss), source = "SDK")
+            } else {
+                TssLogDecision(chosen = "--", source = "MISSING")
+            }
+        }
+
+        fun resolveHasRoute(effectiveRoute: Boolean, distanceToDestinationMeters: Double): Boolean {
+            return effectiveRoute || distanceToDestinationMeters > 0.0
+        }
+
+        fun planStart(hasConsumers: Boolean, tickActive: Boolean, scopeActive: Boolean): StartPlan {
+            return StartPlan(
+                stopBeforeStart = hasConsumers || tickActive,
+                recreateScope = !scopeActive,
+            )
+        }
+    }
+
+    init {
+        applyAthleteData(AthleteDataStore.load().applyBaroAdjustment(AthleteDataStore.loadBaroSensitive()), resetStats = false)
+        statsCalc.captureStartReserve()
+        val (h, m) = AthleteDataStore.loadDeadline()
+        deadlineHourRef.set(h)
+        deadlineMinuteRef.set(m)
+        capTwilightRef.set(AthleteDataStore.loadCapTwilight())
+    }
+
+    fun startStreaming() {
+        val startPlan = planStart(
+            hasConsumers = consumerIds.isNotEmpty(),
+            tickActive = tickJob?.isActive == true,
+            scopeActive = scope.coroutineContext[Job]?.isActive == true,
+        )
+        if (startPlan.stopBeforeStart) {
+            stopStreamingInternal("restart_before_start")
+        }
+        if (startPlan.recreateScope) {
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        }
+        Log.i(TAG, "QEXT_AGGREGATOR_START scopeActive=${scope.coroutineContext[Job]?.isActive == true}")
+        Log.d(TAG, "startStreaming: subscribing to streams")
+        rideStartMsRef.set(System.currentTimeMillis())
+        karooElapsedReceivedRef.set(false)
+        rideStartWallMsRef.set(System.currentTimeMillis())
+        sanitizeCarbIntake()
+        carbNeededTotalGRef.set(sanitizeCarbNeeded(AthleteDataStore.loadCarbNeededTotal()))
+        carbBalanceGRef.set(0)
+        carbLastElapsedSecRef.set(sanitizeCarbElapsed(AthleteDataStore.loadCarbLastElapsedSec()))
+        carbSessionInitializedRef.set(false)
+        dailyTssBaseRef.set(AthleteDataStore.loadReserveDailyTssBase())
+        if (dailyTssBaseRef.get() > 500f) {
+            dailyTssBaseRef.set(0f)
+            AthleteDataStore.saveReserveDailyTssBase(0f)
+            Log.w(TAG, "QEXT_RSRV_CLEANUP corrupted dailyTssBase reset to 0")
+        }
+        sleepRefreshPendingRef.set(AthleteDataStore.loadSleepRefreshPending())
+        stopStartedMsRef.set(0L)
+        sessionTssRef.set(0f)
+        reservePersistLastMsRef.set(0L)
+        consumerIds.add(
+            karooSystem.addConsumer<OnStreamState>(
+                params = OnStreamState.StartStreaming(DataType.Type.DISTANCE),
+                onEvent = { event ->
+                    val s = event.state
+                    if (s is StreamState.Streaming) {
+                        val v = s.dataPoint.singleValue
+                            ?: (s.dataPoint.values[DataType.Field.DISTANCE] as? Double)
+                        if (v != null) distanceMetersRef.set(v)
+                    }
+                }
+            )
+        )
+
+        consumerIds.add(
+            karooSystem.addConsumer<OnStreamState>(
+                params = OnStreamState.StartStreaming(DataType.Type.ELAPSED_TIME),
+                onEvent = { event ->
+                    val s = event.state
+                    if (s is StreamState.Streaming) {
+                        val v = s.dataPoint.singleValue
+                            ?: (s.dataPoint.values[DataType.Field.ELAPSED_TIME] as? Double)
+                        if (v != null) {
+                            if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "ELAPSED_TIME raw=$v")
+                            val localGuess = ((System.currentTimeMillis() - rideStartWallMsRef.get()) / 1000L).coerceAtLeast(1L)
+                            val parsed = parseElapsed(v, localGuess)
+                            if (QExt2DebugConfig.DEBUG_LOGGING || QExt2DebugConfig.DEBUG_ACTIVE_PRODUCER_DIAG) {
+                                Log.i(TAG, "QEXT_TIME_RAW raw=$v asIs=${parsed.asIsSec}s asMs=${parsed.asMsSec}s local=$localGuess " +
+                                    "chosen=${parsed.chosenSec} unit=${parsed.unit}")
+                            }
+                            elapsedSecRef.set(parsed.chosenSec)
+                            karooElapsedReceivedRef.set(true)
+                        } else {
+                            if (QExt2DebugConfig.DEBUG_LOGGING) Log.w(TAG, "ELAPSED_TIME null value single=${s.dataPoint.singleValue} values=${s.dataPoint.values}")
+                        }
+                    }
+                }
+            )
+        )
+
+        consumerIds.add(
+            karooSystem.addConsumer<OnStreamState>(
+                params = OnStreamState.StartStreaming(DataType.Type.TEMPERATURE),
+                onEvent = { event ->
+                    val s = event.state
+                    if (s is StreamState.Streaming) {
+                        val v = s.dataPoint.singleValue
+                        if (v != null) temperatureRef.set(v.toFloat())
+                    }
+                }
+            )
+        )
+
+        consumerIds.add(
+            karooSystem.addConsumer<OnStreamState>(
+                params = OnStreamState.StartStreaming(DataType.Type.DISTANCE_TO_DESTINATION),
+                onEvent = { event ->
+                    val s = event.state
+                    if (s is StreamState.Streaming) {
+                        val dp = s.dataPoint
+                        val direct = dp.singleValue
+                            ?: (dp.values[DataType.Field.DISTANCE_TO_DESTINATION] as? Double)
+                        if (direct != null && direct >= 0.0) {
+                            distanceToDestinationMetersRef.set(direct)
+                        }
+                    }
+                }
+            )
+        )
+
+        consumerIds.add(
+            karooSystem.addConsumer<OnStreamState>(
+                params = OnStreamState.StartStreaming(DataType.Type.ELEVATION_REMAINING),
+                onEvent = { event ->
+                    val s = event.state
+                    if (s is StreamState.Streaming) {
+                        val v = s.dataPoint.singleValue
+                            ?: (s.dataPoint.values[DataType.Field.ASCENT_REMAINING] as? Double)
+                        if (v != null && v >= 0.0) {
+                            ascentLeftMRef.set(v.toInt())
+                            if (QExt2DebugConfig.DEBUG_ACTIVE_PRODUCER_DIAG) {
+                                Log.i(TAG, "QEXT_SDK_PROBE type=ELEVATION_REMAINING raw=$v value=${v.toInt()}m")
+                            }
+                        }
+                    }
+                }
+            )
+        )
+
+        consumerIds.add(
+            karooSystem.addConsumer<OnStreamState>(
+                params = OnStreamState.StartStreaming(DataType.Type.ELEVATION_GAIN),
+                onEvent = { event ->
+                    val s = event.state
+                    if (s is StreamState.Streaming) {
+                        val v = s.dataPoint.singleValue
+                        if (v != null && v >= 0.0) {
+                            ascentDoneMRef.set(v.toInt())
+                        }
+                    }
+                }
+            )
+        )
+
+        consumerIds.add(
+            karooSystem.addConsumer<OnStreamState>(
+                params = OnStreamState.StartStreaming(DataType.Type.HEART_RATE),
+                onEvent = { event ->
+                    val s = event.state
+                    if (s is StreamState.Streaming) {
+                        val v = s.dataPoint.singleValue
+                        if (v != null) {
+                            hrRef.set(v.toInt())
+                            hrFreshnessRef.set(System.currentTimeMillis())
+                            if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "HR=$v")
+                        }
+                    }
+                }
+            )
+        )
+
+        consumerIds.add(
+            karooSystem.addConsumer<OnStreamState>(
+                params = OnStreamState.StartStreaming(DataType.Type.CADENCE),
+                onEvent = { event ->
+                    val s = event.state
+                    if (s is StreamState.Streaming) {
+                        val v = s.dataPoint.singleValue
+                        if (v != null) {
+                            cadenceRef.set(v.toInt())
+                            cadenceFreshnessRef.set(System.currentTimeMillis())
+                            if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "CAD=$v")
+                        }
+                    }
+                }
+            )
+        )
+
+        consumerIds.add(
+            karooSystem.addConsumer<OnStreamState>(
+                params = OnStreamState.StartStreaming(DataType.Type.SMOOTHED_3S_AVERAGE_POWER),
+                onEvent = { event ->
+                    val s = event.state
+                    if (s is StreamState.Streaming) {
+                        if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "PWR_3S values=${s.dataPoint.values}")
+                        val v = s.dataPoint.singleValue
+                            ?: (s.dataPoint.values[DataType.Field.SMOOTHED_3S_AVERAGE_POWER] as? Double)
+                        if (v != null) {
+                            updatePower(v, "PWR_3S")
+                        }
+                    }
+                }
+            )
+        )
+
+        consumerIds.add(
+            karooSystem.addConsumer<OnStreamState>(
+                params = OnStreamState.StartStreaming(DataType.Type.POWER),
+                onEvent = { event ->
+                    val s = event.state
+                    if (s is StreamState.Streaming) {
+                        if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "PWR_RAW values=${s.dataPoint.values}")
+                        val v = s.dataPoint.singleValue
+                            ?: (s.dataPoint.values[DataType.Field.POWER] as? Double)
+                        if (v != null) {
+                            powerFreshnessRef.set(System.currentTimeMillis())
+                        }
+                    }
+                }
+            )
+        )
+
+        consumerIds.add(
+            karooSystem.addConsumer<OnStreamState>(
+                params = OnStreamState.StartStreaming(DataType.Type.SPEED),
+                onEvent = { event ->
+                    val s = event.state
+                    if (s is StreamState.Streaming) {
+                        val v = s.dataPoint.singleValue
+                        if (v != null) {
+                            speedRef.set(v * 3.6)
+                            speedFreshnessRef.set(System.currentTimeMillis())
+                            if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "SPD=${v * 3.6}")
+                        }
+                    }
+                }
+            )
+        )
+
+        consumerIds.add(
+            karooSystem.addConsumer<OnStreamState>(
+                params = OnStreamState.StartStreaming(DataType.Type.SHIFTING_GEARS),
+                onEvent = { event ->
+                    val s = event.state
+                    if (s is StreamState.Streaming) {
+                        val values = s.dataPoint.values
+                        val front = (values[DataType.Field.SHIFTING_FRONT_GEAR_TEETH] as? Double)?.toInt()
+                            ?: (values[DataType.Field.SHIFTING_FRONT_GEAR] as? Double)?.toInt() ?: 0
+                        val rear = (values[DataType.Field.SHIFTING_REAR_GEAR_TEETH] as? Double)?.toInt()
+                            ?: (values[DataType.Field.SHIFTING_REAR_GEAR] as? Double)?.toInt() ?: 0
+                        val rearBattery = listOf(
+                            "FIELD_REAR_DERAILLEUR_BATTERY_ID",
+                            "FIELD_SHIFTING_REAR_BATTERY_ID",
+                            "FIELD_REAR_BATTERY_ID",
+                            "FIELD_REAR_DERAILLEUR_BATTERY_PERCENT_ID"
+                        ).firstNotNullOfOrNull { key ->
+                            (values[key] as? Double)?.toInt()
+                        }
+                        gearFrontRef.set(front)
+                        gearRearRef.set(rear)
+                        if (rearBattery != null) rearDerailleurBatteryRef.set(rearBattery.coerceIn(0, 100))
+                        gearFreshnessRef.set(System.currentTimeMillis())
+                        if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "GEAR=${front}x${rear}")
+                    }
+                }
+            )
+        )
+
+        consumerIds.add(
+            karooSystem.addConsumer<OnStreamState>(
+                params = OnStreamState.StartStreaming(DataType.Type.ELEVATION_GRADE),
+                onEvent = { event ->
+                    val s = event.state
+                    if (s is StreamState.Streaming) {
+                        val v = s.dataPoint.singleValue
+                        if (v != null && v in -35.0..35.0) {
+                            gradeRef.set(v)
+                            filteredGradeRef.set(v)
+                            gradeFreshnessRef.set(System.currentTimeMillis())
+                            if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "GRADE raw=$v")
+                        }
+                    }
+                }
+            )
+        )
+
+        consumerIds.add(
+            karooSystem.addConsumer<OnStreamState>(
+                params = OnStreamState.StartStreaming(DataType.Type.TRAINING_STRESS_SCORE),
+                onEvent = { event ->
+                    val s = event.state
+                    if (s is StreamState.Streaming) {
+                        val v = s.dataPoint.singleValue
+                            ?: (s.dataPoint.values[DataType.Field.TRAINING_STRESS_SCORE] as? Double)
+                        if (v != null) tssRef.set(v.toFloat())
+                    }
+                }
+            )
+        )
+
+        consumerIds.add(
+            karooSystem.addConsumer<OnStreamState>(
+                params = OnStreamState.StartStreaming(DataType.Type.CALORIES),
+                onEvent = { event ->
+                    val s = event.state
+                    if (s is StreamState.Streaming) {
+                        val v = s.dataPoint.singleValue
+                            ?: (s.dataPoint.values[DataType.Field.CALORIES] as? Double)
+                        if (v != null) kcalRef.set(v.toInt())
+                    }
+                }
+            )
+        )
+
+        consumerIds.add(
+            karooSystem.addConsumer<OnStreamState>(
+                params = OnStreamState.StartStreaming(DataType.Type.CIVIL_DUSK),
+                onEvent = { event ->
+                    val s = event.state
+                    if (s is StreamState.Streaming) {
+                        val v = s.dataPoint.singleValue
+                            ?: (s.dataPoint.values[DataType.Field.CIVIL_DUSK] as? Double)
+                        if (v != null) civilDuskMsRef.set(v.toLong())
+                    }
+                }
+            )
+        )
+
+        consumerIds.add(
+            karooSystem.addConsumer<OnStreamState>(
+                params = OnStreamState.StartStreaming(DataType.Type.NORMALIZED_POWER),
+                onEvent = { event ->
+                    val s = event.state
+                    if (s is StreamState.Streaming) {
+                        val v = s.dataPoint.singleValue
+                            ?: (s.dataPoint.values[DataType.Field.NORMALIZED_POWER] as? Double)
+                        if (v != null) npRef.set(v.toInt())
+                    }
+                }
+            )
+        )
+
+        consumerIds.add(
+            karooSystem.addConsumer<OnStreamState>(
+                params = OnStreamState.StartStreaming(DataType.Type.INTENSITY_FACTOR),
+                onEvent = { event ->
+                    val s = event.state
+                    if (s is StreamState.Streaming) {
+                        val v = s.dataPoint.singleValue
+                            ?: (s.dataPoint.values[DataType.Field.INTENSITY_FACTOR] as? Double)
+                        if (v != null) ifRef.set(v.toFloat())
+                    }
+                }
+            )
+        )
+
+        consumerIds.add(
+            karooSystem.addConsumer<OnLocationChanged>(
+                onEvent = { event ->
+                    val lat = event.lat
+                    val lng = event.lng
+                    AthleteDataStore.saveLocation(lat, lng)
+                }
+            )
+        )
+
+        consumerIds.add(
+            karooSystem.addConsumer<OnStreamState>(
+                params = OnStreamState.StartStreaming(DataType.Type.VARIABILITY_INDEX),
+                onEvent = { event ->
+                    val s = event.state
+                    if (s is StreamState.Streaming) {
+                        val v = s.dataPoint.singleValue
+                            ?: (s.dataPoint.values[DataType.Field.VARIABILITY_INDEX] as? Double)
+                        if (v != null) viRef.set(v.toFloat())
+                    }
+                }
+            )
+        )
+
+        Log.i(TAG, "QEXT_NAV_CONSUMER_START")
+        val navConsumerId = try {
+            karooSystem.addConsumer<OnNavigationState>(
+                onEvent = { event ->
+                    val ns = event.state
+                    val now = System.currentTimeMillis()
+                    navLastUpdateMsRef.set(now)
+                    when (ns) {
+                        is OnNavigationState.NavigationState.Idle -> {
+                            navRouteActiveRef.set(false)
+                            navRouteNameRef.set("")
+                            navRouteKeyRef.set("")
+                            navClimbsRef.set(emptyList())
+                            Log.i(TAG, "QEXT_NAV_STATE type=Idle name= routeDistance=-- climbs=0")
+                        }
+                        is OnNavigationState.NavigationState.NavigatingRoute -> {
+                            navRouteActiveRef.set(true)
+                            navRouteNameRef.set(ns.name ?: "")
+                            val routeKey = "route:${ns.name ?: ""}|dist=${"%.0f".format(ns.routeDistance)}"
+                            navRouteKeyRef.set(routeKey)
+                            val parsed = ns.climbs.mapIndexed { idx, c ->
+                                KarooClimb(
+                                    index = idx,
+                                    startDistance = c.startDistance,
+                                    length = c.length,
+                                    totalElevation = c.totalElevation,
+                                    grade = c.grade,
+                                )
+                            }
+                            navClimbsRef.set(parsed)
+                            Log.i(TAG, "QEXT_NAV_STATE type=NavigatingRoute name=${ns.name ?: ""} routeDistance=${"%.0f".format(ns.routeDistance)} climbs=${parsed.size}")
+                            for (c in parsed) {
+                                Log.i(TAG, "QEXT_ROUTE_CLIMB index=${c.index} start=${c.startDistance} len=${c.length} elev=${c.totalElevation} grade=${c.grade}%")
+                            }
+                        }
+                        is OnNavigationState.NavigationState.NavigatingToDestination -> {
+                            navRouteActiveRef.set(true)
+                            val destName = ns.destination.name ?: ""
+                            navRouteNameRef.set(destName)
+                            val routeKey = "destination:${ns.destination.id}|name=$destName"
+                            navRouteKeyRef.set(routeKey)
+                            val parsed = ns.climbs.mapIndexed { idx, c ->
+                                KarooClimb(
+                                    index = idx,
+                                    startDistance = c.startDistance,
+                                    length = c.length,
+                                    totalElevation = c.totalElevation,
+                                    grade = c.grade,
+                                )
+                            }
+                            navClimbsRef.set(parsed)
+                            Log.i(TAG, "QEXT_NAV_STATE type=NavigatingToDestination name=$destName routeDistance=-- climbs=${parsed.size}")
+                            for (c in parsed) {
+                                Log.i(TAG, "QEXT_ROUTE_CLIMB index=${c.index} start=${c.startDistance} len=${c.length} elev=${c.totalElevation} grade=${c.grade}%")
+                            }
+                        }
+                    }
+                }
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "QEXT_NAV_CONSUMER_ERROR error=${e.message}")
+            null
+        }
+        if (navConsumerId != null) {
+            consumerIds.add(navConsumerId)
+            Log.i(TAG, "QEXT_NAV_CONSUMER_OK id=$navConsumerId")
+        }
+
+        tickJob = scope.launch {
+            while (isActive) {
+                delay(1000)
+                val now = System.currentTimeMillis()
+
+                val speedKmh = speedRef.get()
+                val karooElapsedSec = elapsedSecRef.get()
+                val localElapsedSec = ((now - rideStartWallMsRef.get()) / 1000L).coerceAtLeast(0L)
+                val lastChosen = lastChosenElapsedRef.get()
+                val lastSdk = lastSdkElapsedRef.get()
+
+                val sdkPlausible = isSdkElapsedPlausible(karooElapsedSec, lastSdk, localElapsedSec, lastChosen)
+                val elapsedSec = if (sdkPlausible) karooElapsedSec else localElapsedSec
+                lastChosenElapsedRef.set(elapsedSec)
+                if (karooElapsedSec > 0L) lastSdkElapsedRef.set(karooElapsedSec)
+
+                logTimeState(now, karooElapsedSec, localElapsedSec, elapsedSec, sdkPlausible)
+
+                val fakeMode = QExt2DebugConfig.DEBUG_FAKE_RIDE_MODE
+                if (fakeMode) applyFakeRideData(now, elapsedSec)
+
+                hrBuffer.add(HrSample(
+                    timestampMs = now,
+                    hr = hrRef.get(),
+                    power = powerRef.get(),
+                    cadence = cadenceRef.get(),
+                    speedKmh = speedKmh,
+                    elapsedSec = elapsedSec,
+                ))
+
+                val hrResult = hrAdvisor.assess(now, maxHrRef.get())
+
+                val outputs = LabRideStateRepository.update(
+                    RideSample(
+                        tSec = elapsedSec.toDouble(),
+                        speedKmh = speedKmh,
+                        powerW = powerRef.get().toDouble(),
+                        hrBpm = hrRef.get().toDouble(),
+                        cadenceRpm = cadenceRef.get().toDouble(),
+                        altitudeM = null,
+                        distanceM = distanceMetersRef.get(),
+                        gradePct = gradeRef.get(),
+                        gearFront = gearFrontRef.get().takeIf { it > 0 },
+                        gearRear = gearRearRef.get().takeIf { it > 0 },
+                        batteryHeadunitPct = batteryPctRef.get()?.toDouble(),
+                        batterySensorsPct = rearDerailleurBatteryRef.get()?.toDouble(),
+                    )
+                )
+                val speedOut = outputs["SPEED"]
+                val powerOut = outputs["POWER"]
+                val hrOut = outputs["HR"]
+                val cadOut = outputs["CADENCE"]
+                val gradeOut = outputs["GRADE"]
+                val gearOut = outputs["GEAR"]
+                _snapshot.value = PrimaryRideSnapshot(
+                    hr = hrRef.get(),
+                    cadence = cadenceRef.get(),
+                    power3s = powerRef.get(),
+                    speedKmh = speedKmh,
+                    gearFront = gearFrontRef.get(),
+                    gearRear = gearRearRef.get(),
+                    gradePercent = filteredGradeRef.get(),
+                    hrFreshnessMs = now - hrFreshnessRef.get(),
+                    cadenceFreshnessMs = now - cadenceFreshnessRef.get(),
+                    powerFreshnessMs = now - powerFreshnessRef.get(),
+                    speedFreshnessMs = now - speedFreshnessRef.get(),
+                    gearFreshnessMs = now - gearFreshnessRef.get(),
+                    gradeFreshnessMs = now - gradeFreshnessRef.get(),
+                    powerColor = powerOut?.color.toAndroidColor(),
+                    hrColor = hrOut?.color.toAndroidColor(),
+                    cadenceColor = cadOut?.color.toAndroidColor(),
+                    speedColor = speedOut?.color.toAndroidColor(),
+                    gradeColor = gradeOut?.color.toAndroidColor(),
+                    gearColor = gearOut?.color.toAndroidColor(),
+                    speedValue = speedOut?.value ?: "WAIT",
+                    powerValue = powerOut?.value ?: "WAIT",
+                    hrValue = hrOut?.value ?: "WAIT",
+                    cadenceValue = cadOut?.value ?: "WAIT",
+                    gradeValue = gradeOut?.value ?: "WAIT",
+                    gearValue = gearOut?.value ?: "WAIT",
+                    fieldStatuses = outputs.mapValues { it.value.status.name },
+                    fieldReasons = outputs.mapValues { it.value.reason },
+                )
+
+                val powerWatts = powerRef.get()
+                val hr = hrRef.get()
+                val cadence = cadenceRef.get()
+                statsCalc.update(powerWatts, hr, elapsedSec, elapsedSec)
+                val hrdResult = statsCalc.updateHRD(
+                    nowMs = now,
+                    elapsedSec = elapsedSec,
+                    movingSec = elapsedSec,
+                    powerWatts = powerWatts,
+                    hrBpm = hr,
+                    cadenceRpm = cadence,
+                )
+                val npWhole = statsCalc.npWatts()
+                val ifWhole = statsCalc.ifValue()
+                val adjFtp = (statsCalc.ftpWatts * todayFactorRef.get().coerceIn(0.5f, 1.1f)).toInt().coerceAtLeast(50)
+                val adjIf = if (adjFtp > 0 && npWhole > 0) (npWhole.toFloat() / adjFtp).coerceAtMost(2.0f) else 0f
+                val vi = statsCalc.viValue()
+                val sessionTss = statsCalc.tssValue(elapsedSec)
+                var sessionTssForReserve = sessionTss
+                sessionTssRef.set(sessionTssForReserve)
+                val decoupling = statsCalc.decouplingPercent()
+                var decouplingForReserve = decoupling
+                val wBalance = statsCalc.wBalancePercent(now)
+                val carbs = statsCalc.carbsGPerH(adjIf, elapsedSec, vi, temperatureRef.get(), statsCalc.bodyWeightKg)
+                val fluid = statsCalc.fluidLPerH(adjIf, temperatureRef.get())
+                if (!carbSessionInitializedRef.get()) {
+                    val storedLastElapsed = carbLastElapsedSecRef.get()
+                    val looksLikeNewRide = elapsedSec <= 30L || (storedLastElapsed > 0L && elapsedSec + 120L < storedLastElapsed)
+                    if (looksLikeNewRide || (carbNeededTotalGRef.get() > 100 && elapsedSec < 120L)) {
+                        AthleteDataStore.resetCarbSessionState()
+                        carbNeededTotalGRef.set(0.0)
+                        carbLastElapsedSecRef.set(elapsedSec)
+                        Log.i(TAG, "CARB session reset needed=${carbNeededTotalGRef.get()} elapsed=$elapsedSec")
+                    }
+                    carbSessionInitializedRef.set(true)
+                }
+
+                val lastElapsed = carbLastElapsedSecRef.get()
+                val rawGapSec = if (lastElapsed > 0L) elapsedSec - lastElapsed else 0L
+                if (rawGapSec > 7200L) {
+                    AthleteDataStore.resetCarbSessionState()
+                    carbNeededTotalGRef.set(0.0)
+                    carbLastElapsedSecRef.set(elapsedSec)
+                    Log.d(TAG, "CARB long pause (${rawGapSec}s), session reset")
+                }
+                val dtSec = rawGapSec.coerceIn(0L, 30L)
+                carbLastElapsedSecRef.set(elapsedSec)
+
+                val powerRaw = powerRef.get()
+                val cadenceRaw = cadenceRef.get()
+                val speedFromSensor = speedKmh > 0.5
+                val fallbackMoving = !speedFromSensor && powerRaw > 0 && cadenceRaw > 0
+                val rawMoving = speedKmh > 1.0 || fallbackMoving
+                val wasMoving = wasMovingRef.get()
+                val isMoving = if (wasMoving) rawMoving || speedKmh > 0.8 else speedKmh > 1.4 || fallbackMoving
+                wasMovingRef.set(isMoving)
+
+                if (isMoving) {
+                    stopStartedMsRef.set(0L)
+                } else if (stopStartedMsRef.get() == 0L) {
+                    stopStartedMsRef.set(now)
+                }
+                val stopDurationSec = stopStartedMsRef.get()
+                    .takeIf { it > 0L }
+                    ?.let { ((now - it).coerceAtLeast(0L)) / 1000L }
+                    ?: 0L
+
+                if (ReservePolicy.shouldApplySleepRefresh(
+                        sleepRefreshPending = sleepRefreshPendingRef.get(),
+                        isMoving = isMoving,
+                        elapsedSec = elapsedSec,
+                        stopDurationSec = stopDurationSec,
+                        minStopForRefreshSec = SLEEP_REFRESH_MIN_STOP_SEC,
+                    )
+                ) {
+                    dailyTssBaseRef.set(0f)
+                    AthleteDataStore.saveReserveDailyTssBase(0f)
+                    sessionTssRef.set(0f)
+                    sessionTssForReserve = 0f
+                    AthleteDataStore.consumeSleepRefreshPending()
+                    sleepRefreshPendingRef.set(false)
+                    statsCalc.reset()
+                    statsCalc.captureStartReserve()
+                    decouplingForReserve = 0f
+                    Log.i(TAG, "RSRV sleep refresh applied marker=${AthleteDataStore.loadSleepDataDateMarker()} stop=${stopDurationSec}s")
+                }
+
+                val effectiveTss = ReservePolicy.effectiveTss(dailyTssBaseRef.get(), sessionTssForReserve)
+                maybePersistReserveBase(effectiveTss, now)
+                val reserve = statsCalc.rideReservePercent(effectiveTss, ifWhole, decouplingForReserve, elapsedSec)
+
+                val recentlyActive = isMoving || (now - wasActiveUntilMsRef.get() < 120_000L)
+                if (isMoving) wasActiveUntilMsRef.set(now)
+                if (dtSec > 0L && recentlyActive && carbs > 0) {
+                    val addNeeded = carbs.toDouble() * (dtSec.toDouble() / 3600.0)
+                    carbNeededTotalGRef.set((carbNeededTotalGRef.get() + addNeeded).coerceAtLeast(0.0))
+                    AthleteDataStore.saveCarbNeededTotal(carbNeededTotalGRef.get())
+                }
+                AthleteDataStore.saveCarbLastElapsedSec(elapsedSec)
+                val carbIntakeTotal = AthleteDataStore.loadCarbIntakeTotal()
+                val carbNeededTotal = carbNeededTotalGRef.get().roundToInt().coerceAtLeast(0)
+                val carbBalance = carbIntakeTotal - carbNeededTotal
+                carbBalanceGRef.set(carbBalance)
+                logCarbTelemetry(now, isMoving, dtSec, carbs, carbIntakeTotal, carbNeededTotal, carbBalance)
+                val remainingMeters = distanceToDestinationMetersRef.get().coerceAtLeast(0.0)
+                val speedKmhNow = speedRef.get().coerceAtLeast(0.0)
+                val hasRoute = resolveHasRoute(getEffectiveRoute(), remainingMeters)
+                val routeClimbSourceReady = navRouteActiveRef.get()
+
+                logFieldDiagnostics(now, elapsedSec, carbs, carbIntakeTotal, carbNeededTotal, carbBalance,
+                    wBalance, tssRef.get(), reserve, speedKmhNow, hasRoute,
+                    ascentDoneMRef.get(), ascentLeftMRef.get(), remainingMeters)
+                if (QExt2DebugConfig.DEBUG_ACTIVE_PRODUCER_DIAG) {
+                    val localTss = sessionTss
+                    val sdkTss = tssRef.get()
+                    val tssDecision = tssLogDecision(sdkTss)
+                    Log.i(TAG, "QEXT_TSS_SOURCE sdk=${"%.1f".format(sdkTss)} local=${"%.1f".format(localTss)} " +
+                            "chosen=${tssDecision.chosen} source=${tssDecision.source}")
+                }
+
+                val remainingKm = (remainingMeters / 1000.0).toFloat()
+                val distanceKm = (distanceMetersRef.get() / 1000.0).toFloat()
+
+                etaCalc.update(now, speedKmhNow.toFloat(), isMoving, elapsedSec * 1000L, elapsedSec * 1000L)
+                val netMovingAvg = if (elapsedSec > 0L && distanceMetersRef.get() > 0.0) {
+                    (distanceKm / (elapsedSec / 3600.0)).toFloat()
+                } else 0f
+                val smartAvg = etaCalc.smartAvgKph(netMovingAvg)
+                val predictedSpeed = when {
+                    elapsedSec < 60L -> 0f
+                    smartAvg >= 3f -> smartAvg
+                    speedKmhNow >= 3f -> speedKmhNow.toFloat()
+                    else -> 0f
+                }
+                val etaMs = etaCalc.calculateEtaMs(now, remainingKm, distanceKm, predictedSpeed)
+                lastEtaMsRef.set(etaMs)
+                val predictedStops = etaCalc.predictedStopsSec(remainingKm, distanceKm)
+                val deadlineTs = resolveDeadlineMs(now)
+                lastDeadlineMsRef.set(deadlineTs)
+                val requiredSpeed = if (hasRoute && deadlineTs > now) {
+                    etaCalc.requiredSpeedKph(now, remainingKm, deadlineTs, predictedStops)
+                } else 0f
+                val deadlineDelta = if (hasRoute && smartAvg > 1f && requiredSpeed > 0f) {
+                    (requiredSpeed - smartAvg)
+                } else 0f
+                val deadlineStatus = when {
+                    !hasRoute || etaMs <= 0L || deadlineTs <= now -> "--"
+                    etaMs <= deadlineTs -> "OK"
+                    deadlineDelta > 2.5f -> "IMPOSSIBLE"
+                    else -> "LATE"
+                }
+                statsCalc.updateBattery(batteryPctRef.get(), batteryChargingRef.get(), now)
+                val drainPerHour = statsCalc.batteryDrainPctPerHour(now)
+                val batteryPctNow = batteryPctRef.get()
+                val batterySourceReady = batteryPctNow != null
+                val batteryDrainReady = batterySourceReady && drainPerHour != null && drainPerHour.isFinite() && drainPerHour > 0f
+                val batteryLeftSec = if (drainPerHour != null && batteryPctNow != null && drainPerHour > 0f) {
+                    ((batteryPctNow / drainPerHour) * 3600f).toLong().coerceAtLeast(0L)
+                } else null
+                val batteryEstimateReady = batterySourceReady && batteryLeftSec != null && batteryLeftSec > 0L
+                val hasActivity = isMoving
+                val wPrimeModelReady = wBalance >= 0
+                val etaModelReady = hasRoute && etaMs > 0L
+                val rsrvModelReady = hasActivity && reserve >= 0 && reserve <= 100
+                val carbModelReady = npRef.get() > 0 && elapsedSec > 60L
+                val fluidModelReady = elapsedSec > 60L && hasActivity
+                _statsSnapshot.value = StatsRideSnapshot(
+                    npWholeWatts = npRef.get(),
+                    ifWholeRide = ifRef.get(),
+                    viValue = viRef.get(),
+                    tssValue = tssRef.get(),
+                    caloriesKcal = kcalRef.get(),
+                    decouplingPercent = decoupling,
+                    carbsGPerH = carbs,
+                    carbIntakeTotalG = carbIntakeTotal,
+                    carbNeededTotalG = carbNeededTotal,
+                    carbBalanceG = carbBalance,
+                    fluidLPerH = fluid,
+                    rideReservePercent = reserve,
+                    wBalancePercent = wBalance,
+                    wBalanceTrend = statsCalc.wBalanceTrend(),
+                    hrdStatus = hrdResult.status,
+                    hrdPct = hrdResult.pct,
+                    hrdPhase = hrdResult.phase,
+                    hrdValid = hrdResult.valid,
+                    etaTimestamp = etaMs,
+                    deadlineTimestamp = civilDuskMsRef.get().takeIf { it > 0L } ?: sunsetTimestampRef.get(),
+                    deadlineDeltaKph = deadlineDelta,
+                    deadlineStatus = deadlineStatus,
+                    ascentDoneM = ascentDoneMRef.get(),
+                    ascentLeftM = ascentLeftMRef.get(),
+                    hasRoute = hasRoute,
+                    routeClimbSourceReady = routeClimbSourceReady,
+                    batterySourceReady = batterySourceReady,
+                    batteryDrainReady = batteryDrainReady,
+                    batteryEstimateReady = batteryEstimateReady,
+                    wPrimeModelReady = wPrimeModelReady,
+                    etaModelReady = etaModelReady,
+                    rsrvModelReady = rsrvModelReady,
+                    carbModelReady = carbModelReady,
+                    fluidModelReady = fluidModelReady,
+                    hasActivity = hasActivity,
+                    weatherSourceReady = weatherSourceReadyRef.get(),
+                    weatherFresh = weatherFreshRef.get(),
+                    weatherTemperatureC = weatherTemperatureCRef.get(),
+                    weatherWindSpeedMps = weatherWindSpeedMpsRef.get(),
+                    weatherWindDirectionDeg = weatherWindDirectionDegRef.get(),
+                    weatherHumidityPct = weatherHumidityPctRef.get(),
+                    weatherRain1hMm = weatherRain1hMmRef.get(),
+                    weatherCondition = weatherConditionRef.get(),
+                    weatherSource = weatherSourceRef.get(),
+                    batterySource = if (batterySourceReady) "headunit_polling" else null,
+                    batteryDrainPctPerHour = drainPerHour,
+                    batteryTimeLeftSec = batteryLeftSec,
+                    batteryIsCharging = batteryChargingRef.get(),
+                    batteryPctCurrent = batteryPctNow,
+                    rearDerailleurBatteryPercent = rearDerailleurBatteryRef.get(),
+                    elapsedSec = elapsedSec,
+                    movingSec = elapsedSec,
+                    distanceKm = (distanceMetersRef.get() / 1000.0).toFloat(),
+                    updatedAtMs = now,
+                )
+                if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "HR_DECOUPLING reason=${hrResult.reasonCode} decouplingPct=${hrResult.decouplingPct} color=${hrResult.color}")
+            }
+        }
+    }
+
+    fun stopStreaming() {
+        stopStreamingInternal("stop_streaming")
+    }
+
+    private fun stopStreamingInternal(reason: String) {
+        Log.i(TAG, "QEXT_AGGREGATOR_STOP reason=$reason")
+        Log.d(TAG, "QEXT_NAV_CONSUMER_STOP")
+        Log.d(TAG, "stopStreaming: removing ${consumerIds.size} consumers")
+        val committedDailyTss = ReservePolicy.effectiveTss(dailyTssBaseRef.get(), sessionTssRef.get())
+        AthleteDataStore.saveReserveDailyTssBase(committedDailyTss)
+        dailyTssBaseRef.set(committedDailyTss)
+        consumerIds.forEach { id -> karooSystem.removeConsumer(id) }
+        consumerIds.clear()
+        tickJob?.cancel()
+        tickJob = null
+        carbLastElapsedSecRef.set(0L)
+        carbSessionInitializedRef.set(false)
+        sessionTssRef.set(0f)
+        reservePersistLastMsRef.set(0L)
+        statsCalc.reset()
+        hrBuffer.clear()
+        hrAdvisor.reset()
+    }
+
+    fun updateAthleteData(data: AthleteData) {
+        applyAthleteData(data, resetStats = false)
+        val (h, m) = AthleteDataStore.loadDeadline()
+        deadlineHourRef.set(h)
+        deadlineMinuteRef.set(m)
+    }
+
+    fun updateBatteryStatus(percent: Int?, charging: Boolean?) {
+        batteryPctRef.set(percent)
+        batteryChargingRef.set(charging)
+    }
+
+    fun updateWeather(data: com.qext2.primary.weather.WeatherData) {
+        weatherSourceReadyRef.set(true)
+        weatherFreshRef.set(WeatherClient.isFresh(data))
+        weatherTemperatureCRef.set(data.temperatureC)
+        weatherWindSpeedMpsRef.set(data.windSpeedMps)
+        weatherWindDirectionDegRef.set(data.windDirectionDeg)
+        weatherHumidityPctRef.set(data.humidityPct)
+        weatherRain1hMmRef.set(data.rain1hMm)
+        weatherConditionRef.set(data.condition)
+        weatherSourceRef.set(data.source)
+    }
+
+    fun fetchWeatherIfNeeded() {
+        if (!WeatherClient.isKeyConfigured()) return
+        val lat = AthleteDataStore.loadLocationLat() ?: return
+        val lon = AthleteDataStore.loadLocationLon() ?: return
+        WeatherClient.fetch(karooSystem, lat, lon) { data ->
+            if (data != null) updateWeather(data)
+        }
+    }
+
+    fun refreshDeadlineFromStore() {
+        val (h, m) = AthleteDataStore.loadDeadline()
+        deadlineHourRef.set(h)
+        deadlineMinuteRef.set(m)
+    }
+
+    fun refreshCapTwilightFromStore() {
+        capTwilightRef.set(AthleteDataStore.loadCapTwilight())
+    }
+
+    fun getCivilDuskMs(): Long = civilDuskMsRef.get()
+
+    fun getEtaMs(): Long = lastEtaMsRef.get()
+
+    fun getDeadlineMs(): Long = lastDeadlineMsRef.get()
+
+    fun getElapsedSec(): Long {
+        val karoo = elapsedSecRef.get()
+        val local = ((System.currentTimeMillis() - rideStartWallMsRef.get()) / 1000L).coerceAtLeast(0L)
+        val lastChosen = lastChosenElapsedRef.get()
+        val lastSdk = lastSdkElapsedRef.get()
+        val sdkPlausible = isSdkElapsedPlausible(karoo, lastSdk, local, lastChosen)
+        val effective = if (sdkPlausible) karoo else local
+        lastChosenElapsedRef.set(effective)
+        if (karoo > 0L) lastSdkElapsedRef.set(karoo)
+        return effective
+    }
+
+    fun getRideStartMs(): Long = rideStartMsRef.get()
+
+    fun getCarbBalanceG(): Int = carbBalanceGRef.get()
+
+    fun getCarbIntakeG(): Int = AthleteDataStore.loadCarbIntakeTotal()
+
+    fun getCarbNeededG(): Int = carbNeededTotalGRef.get().roundToInt().coerceAtLeast(0)
+
+    fun getSpeedKmh(): Double = speedRef.get()
+    fun getCadence(): Int = cadenceRef.get()
+    fun getHr(): Int = hrRef.get()
+    fun getPower(): Int = powerRef.get()
+    fun getHasRoute(): Boolean = getEffectiveRoute()
+    fun getDistanceMeters(): Double = distanceMetersRef.get()
+
+    private val lastRouteSeenMsRef = AtomicReference(0L)
+    private val routeGraceMs = 12_000L
+
+    fun getEffectiveRoute(): Boolean {
+        if (QExt2DebugConfig.DEBUG_FAKE_RIDE_MODE) return true
+        val now = System.currentTimeMillis()
+        val raw = navRouteActiveRef.get()
+        if (raw) {
+            lastRouteSeenMsRef.set(now)
+        }
+        val decision = routeStateDecision(raw, lastRouteSeenMsRef.get(), now, routeGraceMs)
+        return decision.effectiveRoute
+    }
+
+    fun getNavClimbs(): List<KarooClimb> = navClimbsRef.get()
+    fun getRouteKey(): String = navRouteKeyRef.get()
+
+    fun getRouteDiag(): String {
+        val now = System.currentTimeMillis()
+        val raw = navRouteActiveRef.get()
+        if (raw) {
+            lastRouteSeenMsRef.set(now)
+        }
+        val decision = routeStateDecision(raw, lastRouteSeenMsRef.get(), now, routeGraceMs)
+        val ago = if (lastRouteSeenMsRef.get() == 0L) -1L else now - lastRouteSeenMsRef.get()
+        return "rawRoute=${decision.rawRoute} effectiveRoute=${decision.effectiveRoute} " +
+            "lastSeenAgo=${if (ago < 0) "never" else "${ago}ms"} source=${decision.source}"
+    }
+
+    fun getEffectiveSpeedKmh(): Double {
+        if (QExt2DebugConfig.DEBUG_FAKE_RIDE_MODE) {
+            val sec = getElapsedSec()
+            return 22.0
+        }
+        return speedRef.get()
+    }
+
+    fun getEffectiveCadence(): Int {
+        if (QExt2DebugConfig.DEBUG_FAKE_RIDE_MODE) return 65
+        return cadenceRef.get()
+    }
+
+    fun getEffectiveHr(): Int {
+        if (QExt2DebugConfig.DEBUG_FAKE_RIDE_MODE) {
+            val sec = getElapsedSec(); val idx = ((sec % 30) / 10).toInt()
+            return when (idx) { 0 -> 120; 1 -> 145; else -> 165 }
+        }
+        return hrRef.get()
+    }
+
+    fun getEffectivePower(): Int {
+        if (QExt2DebugConfig.DEBUG_FAKE_RIDE_MODE) {
+            val sec = getElapsedSec(); val idx = ((sec % 30) / 10).toInt()
+            return when (idx) { 0 -> 120; 1 -> 240; else -> 320 }
+        }
+        return powerRef.get()
+    }
+
+    fun getEffectiveGrade(): Double {
+        if (QExt2DebugConfig.DEBUG_FAKE_RIDE_MODE) {
+            val sec = getElapsedSec(); val idx = ((sec % 30) / 10).toInt()
+            return when (idx) { 0 -> 0.0; 1 -> 3.0; else -> 7.0 }
+        }
+        return filteredGradeRef.get()
+    }
+
+    fun getPowerFreshnessMs(): Long {
+        val last = powerFreshnessRef.get()
+        if (last <= 0L) return Long.MAX_VALUE
+        return System.currentTimeMillis() - last
+    }
+    fun getCadenceFreshnessMs(): Long {
+        val last = cadenceFreshnessRef.get()
+        if (last <= 0L) return Long.MAX_VALUE
+        return System.currentTimeMillis() - last
+    }
+    fun getHrFreshnessMs(): Long {
+        val last = hrFreshnessRef.get()
+        if (last <= 0L) return Long.MAX_VALUE
+        return System.currentTimeMillis() - last
+    }
+
+    fun getDistanceToDestinationMeters(): Double = distanceToDestinationMetersRef.get()
+    fun getAscentLeftM(): Int = ascentLeftMRef.get()
+    fun getGradePercent(): Double = filteredGradeRef.get()
+
+    private var carbTelemetryLastLogMs = 0L
+
+    private var fieldDiagLastLogMs = 0L
+    private var timeStateLastLogMs = 0L
+    private var fakeRideLogLastMs = 0L
+
+    private fun applyFakeRideData(nowMs: Long, elapsedSec: Long) {
+        val cycleSec = (elapsedSec % 30).toInt()
+        val cycleIndex = cycleSec / 10
+        val fakePower = when (cycleIndex) { 0 -> 120; 1 -> 240; else -> 320 }
+        val fakeHr = when (cycleIndex) { 0 -> 120; 1 -> 145; else -> 165 }
+        val fakeGrade = when (cycleIndex) { 0 -> 0.0; 1 -> 3.0; else -> 7.0 }
+
+        speedRef.set(22.0)
+        powerRef.set(fakePower); powerFreshnessRef.set(nowMs)
+        hrRef.set(fakeHr); hrFreshnessRef.set(nowMs)
+        cadenceRef.set(65); cadenceFreshnessRef.set(nowMs)
+        gearFrontRef.set(40); gearRearRef.set(15); gearFreshnessRef.set(nowMs)
+        filteredGradeRef.set(fakeGrade); gradeFreshnessRef.set(nowMs)
+        distanceMetersRef.set(((elapsedSec * 22.0 / 3.6) / 1000.0).coerceAtLeast(0.0))  // approx km from speed
+        distanceToDestinationMetersRef.set(25000.0)
+        ascentDoneMRef.set(((elapsedSec / 60) * 5).coerceAtLeast(0).toInt())
+        ascentLeftMRef.set((400 - (elapsedSec / 60) * 5).coerceAtLeast(0).toInt())
+        temperatureRef.set(18f)
+
+        if (nowMs - fakeRideLogLastMs > 15_000L) {
+            fakeRideLogLastMs = nowMs
+            Log.i(TAG, "QEXT_FAKE_RIDE enabled=true elapsed=${elapsedSec}s power=${fakePower}W hr=${fakeHr} speed=22km/h grade=${fakeGrade}%")
+        }
+    }
+
+    private fun logTimeState(nowMs: Long, karooElapsed: Long, localElapsed: Long, chosenElapsed: Long, sdkPlausible: Boolean) {
+        if (timeStateLastLogMs == 0L) { timeStateLastLogMs = nowMs; return }
+        if (nowMs - timeStateLastLogMs < 15_000L) return
+        timeStateLastLogMs = nowMs
+        val source = when {
+            karooElapsed > 0L && sdkPlausible -> "SDK_ELAPSED_VALID"
+            karooElapsed > 0L -> "LOCAL_FALLBACK_SDK_OUTLIER"
+            !karooElapsedReceivedRef.get() -> "MISSING"
+            else -> "LOCAL_FALLBACK_SDK_ZERO"
+        }
+        Log.i(TAG, "QEXT_TIME_STATE karooElapsed=${karooElapsed}s localElapsed=${localElapsed}s " +
+                "chosenElapsed=${chosenElapsed}s source=$source")
+        Log.i(TAG, "QEXT_ROUTE_STATE ${getRouteDiag()}")
+    }
+
+    private fun logFieldDiagnostics(nowMs: Long, elapsed: Long, carbsGph: Int, intake: Int, needed: Int, balance: Int,
+                                     wPrime: Int, tss: Float, reserve: Int, speed: Double, route: Boolean,
+                                     ascentDone: Int, ascentLeft: Int, remainingM: Double) {
+        if (fieldDiagLastLogMs == 0L) { fieldDiagLastLogMs = nowMs; return }
+        if (nowMs - fieldDiagLastLogMs < 15_000L) return
+        fieldDiagLastLogMs = nowMs
+        Log.i(TAG, "QEXT_FIELD_DIAG elapsed=${elapsed}s speed=${"%.1f".format(speed)}kmh route=$route " +
+                "carbs=${carbsGph}g/h intake=${intake}g needed=${needed}g balance=${balance}g " +
+                "wPrime=${wPrime}% tss=${"%.0f".format(tss)} reserve=${reserve}% " +
+                "upDone=${ascentDone}m upLeft=${ascentLeft}m remain=${"%.0f".format(remainingM)}m")
+    }
+
+    private fun logCarbTelemetry(nowMs: Long, isMoving: Boolean, dtSec: Long, carbsGPerH: Int,
+                                  intake: Int, needed: Int, balance: Int) {
+        if (carbTelemetryLastLogMs == 0L) { carbTelemetryLastLogMs = nowMs; return }
+        if (nowMs - carbTelemetryLastLogMs < 60_000L) return
+        carbTelemetryLastLogMs = nowMs
+        if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "CARB_TELEM moving=$isMoving dt=${dtSec}s carbs/h=$carbsGPerH " +
+                "intake=${intake}g needed=${needed}g balance=${balance}g")
+    }
+
+    private fun sanitizeCarbIntake() {
+        val raw = AthleteDataStore.loadCarbIntakeTotal()
+        if (raw < 0 || raw > 5000) {
+            Log.w(TAG, "carb intake sanitized: $raw -> 0")
+            AthleteDataStore.resetCarbIntakeTotal()
+        }
+    }
+
+    private fun sanitizeCarbNeeded(raw: Double): Double {
+        if (raw.isNaN() || raw.isInfinite() || raw < 0.0 || raw > 5000.0) {
+            Log.w(TAG, "carb needed sanitized: $raw -> 0.0")
+            AthleteDataStore.saveCarbNeededTotal(0.0)
+            return 0.0
+        }
+        return raw
+    }
+
+    private fun sanitizeCarbElapsed(raw: Long): Long {
+        if (raw < 0L || raw > 86400L) {
+            Log.w(TAG, "carb elapsed sanitized: $raw -> 0")
+            AthleteDataStore.saveCarbLastElapsedSec(0L)
+            return 0L
+        }
+        return raw
+    }
+
+    private fun applyAthleteData(data: AthleteData, resetStats: Boolean) {
+        if (data.ftp > 0) statsCalc.ftpWatts = data.ftp
+        statsCalc.todayFactor = data.todayFactor
+        statsCalc.ctl = data.ctl
+        statsCalc.humidityPercent = data.humidityPercent
+        sunsetTimestampRef.set(data.sunsetTimestampMs)
+        maxHrRef.set(data.maxHr.coerceIn(100, 220))
+        todayFactorRef.set(data.todayFactor.coerceIn(0.5f, 1.1f))
+        statsCalc.bodyWeightKg = data.bodyWeightKg
+        if (data.wPrimeKj > 0.0 && data.ltpWatts > 0) {
+            statsCalc.setWPrimeParams(data.wPrimeKj.toFloat(), data.ltpWatts.toFloat())
+        }
+        if (resetStats) {
+            statsCalc.reset()
+            statsCalc.captureStartReserve()
+        }
+    }
+
+    private fun updatePower(value: Double, source: String) {
+        powerRef.set(value.toInt())
+        powerFreshnessRef.set(System.currentTimeMillis())
+        if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "$source=$value")
+    }
+
+    private fun maybePersistReserveBase(effectiveTss: Float, nowMs: Long) {
+        val last = reservePersistLastMsRef.get()
+        if (last > 0L && nowMs - last < RESERVE_PERSIST_INTERVAL_MS) return
+        AthleteDataStore.saveReserveDailyTssBase(effectiveTss)
+        reservePersistLastMsRef.set(nowMs)
+    }
+
+    private fun todayDeadlineMs(nowMs: Long): Long {
+        val c = Calendar.getInstance().apply {
+            timeInMillis = nowMs
+            set(Calendar.HOUR_OF_DAY, deadlineHourRef.get().coerceIn(0, 23))
+            set(Calendar.MINUTE, deadlineMinuteRef.get().coerceIn(0, 59))
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        return c.timeInMillis
+    }
+
+    private fun resolveDeadlineMs(nowMs: Long): Long {
+        val userDeadline = todayDeadlineMs(nowMs)
+        if (!capTwilightRef.get()) return userDeadline
+        val twilightMs = civilDuskMsRef.get().takeIf { it > 0L }
+            ?: sunsetTimestampRef.get().takeIf { it > 0L }
+            ?: return userDeadline
+        return minOf(userDeadline, twilightMs)
+    }
+
+    private fun FieldColor?.toAndroidColor(): Int = when (this) {
+        FieldColor.GREEN -> 0xFF22C55E.toInt()
+        FieldColor.AMBER -> 0xFFF59E0B.toInt()
+        FieldColor.ORANGE -> 0xFFF97316.toInt()
+        FieldColor.RED -> 0xFFEF4444.toInt()
+        FieldColor.BLUE -> 0xFF3B82F6.toInt()
+        FieldColor.GRAY -> 0xFF9CA3AF.toInt()
+        FieldColor.NEUTRAL, null -> 0xFFFFFFFF.toInt()
+    }
+}

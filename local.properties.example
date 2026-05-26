@@ -1,0 +1,10 @@
+# Android SDK location - replace with your actual path
+# sdk.dir=/path/to/android/sdk
+
+OPENWEATHER_API_KEY=
+OPENWEATHER_BASE_URL=https://api.openweathermap.org/data/2.5/weather
+WEATHER_LAT=
+WEATHER_LON=
+QEXT_READINESS_URL=https://qbot.cytr.us/ride-readiness
+QEXT_GATE_URL=https://qbot.cytr.us/gate/open
+QEXT_GATE_TOKEN=

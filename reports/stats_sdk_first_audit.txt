@@ -1,0 +1,16 @@
+Stats SDK-first audit
+TSS=156/OK/sdk_training_stress_score/sdk_training_stress_score
+KCAL=842/OK/sdk_calories/sdk_calories
+UP_LEFT_FLAT=0/OK/flat_route_or_zero_ascent/route_snapshot
+BAT_DRAIN=4.2/OK/battery_drain_from_headunit/headunit_polling
+BAT_LEFT=3:05/OK/battery_runtime_from_headunit/headunit_polling
+BLOCKED_FIELDS:
+ETA=WAIT/NO_DATA/sdk_field_not_available
+CARB=WAIT/NO_DATA/sdk_field_not_available
+CARB_BALANCE=WAIT/NO_DATA/sdk_field_not_available
+FLUID=WAIT/NO_DATA/sdk_field_not_available
+WPRIME=WAIT/NO_DATA/sdk_source_missing
+RSRV=WAIT/NO_DATA/sdk_source_missing
+PROBLEMS:
+(none)
+PASS=YES

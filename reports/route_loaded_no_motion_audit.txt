@@ -1,0 +1,15 @@
+scenario=route_loaded_no_motion
+ticks=300
+final_distance_m=0,00
+final_avg_gross=NaN
+final_avg_moving=NaN
+status_counts:
+SPEED: {OK=300}
+POWER: {OK=300}
+HR: {NO_DATA=1, OK=299}
+CADENCE: {OK=300}
+GRADE: {NO_DATA=300}
+GEAR: {NO_DATA=300}
+problems:
+(none)
+PASS=YES

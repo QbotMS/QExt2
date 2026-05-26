@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ExtensionInfo
+    id="qext2"
+    displayName="@string/extension_name"
+    icon="@drawable/ic_qext2_power"
+    configurable="true"
+    fitFile="false">
+
+    <DataType
+        typeId="qext2-primary"
+        displayName="@string/qext2_primary_name"
+        description="@string/qext2_primary_desc"
+        graphical="true"
+        icon="@drawable/ic_qext2_power" />
+
+    <DataType
+        typeId="qext2-active"
+        displayName="@string/qext2_active_name"
+        description="@string/qext2_active_desc"
+        graphical="true"
+        icon="@drawable/ic_qext2_power" />
+
+    <DataType
+        typeId="qext2-active-static"
+        displayName="@string/qext2_active_static_name"
+        description="@string/qext2_active_static_desc"
+        graphical="true"
+        icon="@drawable/ic_qext2_power" />
+
+    <DataType
+        typeId="qext2-stats"
+        displayName="@string/qext2_stats_name"
+        description="@string/qext2_stats_desc"
+        graphical="true"
+        icon="@drawable/ic_qext2_power" />
+
+</ExtensionInfo>

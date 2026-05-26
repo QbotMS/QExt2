@@ -1,0 +1,721 @@
+t,field,value,color,status,reason,raw
+0.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+0.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+0.0,HR,81,NEUTRAL,OK,hr_present,{age_s=0.0}
+0.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+0.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+0.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+1.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+1.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+1.0,HR,81,NEUTRAL,OK,hr_present,{age_s=0.0}
+1.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+1.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+1.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+2.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+2.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+2.0,HR,81,NEUTRAL,OK,hr_present,{age_s=0.0}
+2.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+2.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+2.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+3.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+3.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+3.0,HR,81,NEUTRAL,OK,hr_present,{age_s=0.0}
+3.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+3.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+3.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+4.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+4.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+4.0,HR,81,NEUTRAL,OK,hr_present,{age_s=0.0}
+4.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+4.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+4.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+5.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+5.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+5.0,HR,81,NEUTRAL,OK,hr_present,{age_s=0.0}
+5.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+5.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+5.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+6.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+6.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+6.0,HR,81,NEUTRAL,OK,hr_present,{age_s=0.0}
+6.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+6.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+6.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+7.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+7.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+7.0,HR,81,NEUTRAL,OK,hr_present,{age_s=0.0}
+7.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+7.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+7.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+8.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+8.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+8.0,HR,81,NEUTRAL,OK,hr_present,{age_s=0.0}
+8.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+8.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+8.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+9.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+9.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+9.0,HR,81,NEUTRAL,OK,hr_present,{age_s=0.0}
+9.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+9.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+9.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+10.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+10.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+10.0,HR,82,NEUTRAL,OK,hr_present,{age_s=0.0}
+10.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+10.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+10.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+11.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+11.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+11.0,HR,82,NEUTRAL,OK,hr_present,{age_s=0.0}
+11.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+11.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+11.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+12.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+12.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+12.0,HR,82,NEUTRAL,OK,hr_present,{age_s=0.0}
+12.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+12.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+12.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+13.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+13.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+13.0,HR,82,NEUTRAL,OK,hr_present,{age_s=0.0}
+13.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+13.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+13.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+14.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+14.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+14.0,HR,82,NEUTRAL,OK,hr_present,{age_s=0.0}
+14.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+14.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+14.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+15.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+15.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+15.0,HR,82,NEUTRAL,OK,hr_present,{age_s=0.0}
+15.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+15.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+15.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+16.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+16.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+16.0,HR,82,NEUTRAL,OK,hr_present,{age_s=0.0}
+16.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+16.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+16.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+17.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+17.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+17.0,HR,82,NEUTRAL,OK,hr_present,{age_s=0.0}
+17.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+17.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+17.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+18.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+18.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+18.0,HR,82,NEUTRAL,OK,hr_present,{age_s=0.0}
+18.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+18.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+18.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+19.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+19.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+19.0,HR,82,NEUTRAL,OK,hr_present,{age_s=0.0}
+19.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+19.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+19.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+20.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+20.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+20.0,HR,83,NEUTRAL,OK,hr_present,{age_s=0.0}
+20.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+20.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+20.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+21.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+21.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+21.0,HR,83,NEUTRAL,OK,hr_present,{age_s=0.0}
+21.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+21.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+21.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+22.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+22.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+22.0,HR,83,NEUTRAL,OK,hr_present,{age_s=0.0}
+22.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+22.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+22.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+23.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+23.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+23.0,HR,83,NEUTRAL,OK,hr_present,{age_s=0.0}
+23.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+23.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+23.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+24.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+24.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+24.0,HR,83,NEUTRAL,OK,hr_present,{age_s=0.0}
+24.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+24.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+24.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+25.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+25.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+25.0,HR,83,NEUTRAL,OK,hr_present,{age_s=0.0}
+25.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+25.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+25.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+26.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+26.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+26.0,HR,83,NEUTRAL,OK,hr_present,{age_s=0.0}
+26.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+26.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+26.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+27.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+27.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+27.0,HR,83,NEUTRAL,OK,hr_present,{age_s=0.0}
+27.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+27.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+27.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+28.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+28.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+28.0,HR,83,NEUTRAL,OK,hr_present,{age_s=0.0}
+28.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+28.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+28.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+29.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+29.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+29.0,HR,83,NEUTRAL,OK,hr_present,{age_s=0.0}
+29.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+29.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+29.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+30.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+30.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+30.0,HR,84,NEUTRAL,OK,hr_present,{age_s=0.0}
+30.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+30.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+30.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+31.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+31.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+31.0,HR,84,NEUTRAL,OK,hr_present,{age_s=0.0}
+31.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+31.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+31.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+32.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+32.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+32.0,HR,84,NEUTRAL,OK,hr_present,{age_s=0.0}
+32.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+32.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+32.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+33.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+33.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+33.0,HR,84,NEUTRAL,OK,hr_present,{age_s=0.0}
+33.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+33.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+33.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+34.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+34.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+34.0,HR,84,NEUTRAL,OK,hr_present,{age_s=0.0}
+34.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+34.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+34.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+35.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+35.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+35.0,HR,84,NEUTRAL,OK,hr_present,{age_s=0.0}
+35.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+35.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+35.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+36.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+36.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+36.0,HR,84,NEUTRAL,OK,hr_present,{age_s=0.0}
+36.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+36.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+36.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+37.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+37.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+37.0,HR,84,NEUTRAL,OK,hr_present,{age_s=0.0}
+37.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+37.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+37.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+38.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+38.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+38.0,HR,84,NEUTRAL,OK,hr_present,{age_s=0.0}
+38.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+38.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+38.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+39.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+39.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+39.0,HR,84,NEUTRAL,OK,hr_present,{age_s=0.0}
+39.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+39.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+39.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+40.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+40.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+40.0,HR,85,NEUTRAL,OK,hr_present,{age_s=0.0}
+40.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+40.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+40.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+41.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+41.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+41.0,HR,85,NEUTRAL,OK,hr_present,{age_s=0.0}
+41.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+41.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+41.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+42.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+42.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+42.0,HR,85,NEUTRAL,OK,hr_present,{age_s=0.0}
+42.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+42.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+42.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+43.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+43.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+43.0,HR,85,NEUTRAL,OK,hr_present,{age_s=0.0}
+43.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+43.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+43.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+44.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+44.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+44.0,HR,85,NEUTRAL,OK,hr_present,{age_s=0.0}
+44.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+44.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+44.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+45.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+45.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+45.0,HR,85,NEUTRAL,OK,hr_present,{age_s=0.0}
+45.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+45.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+45.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+46.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+46.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+46.0,HR,85,NEUTRAL,OK,hr_present,{age_s=0.0}
+46.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+46.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+46.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+47.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+47.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+47.0,HR,85,NEUTRAL,OK,hr_present,{age_s=0.0}
+47.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+47.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+47.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+48.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+48.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+48.0,HR,85,NEUTRAL,OK,hr_present,{age_s=0.0}
+48.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+48.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+48.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+49.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+49.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+49.0,HR,85,NEUTRAL,OK,hr_present,{age_s=0.0}
+49.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+49.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+49.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+50.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+50.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+50.0,HR,86,NEUTRAL,OK,hr_present,{age_s=0.0}
+50.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+50.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+50.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+51.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+51.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+51.0,HR,86,NEUTRAL,OK,hr_present,{age_s=0.0}
+51.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+51.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+51.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+52.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+52.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+52.0,HR,86,NEUTRAL,OK,hr_present,{age_s=0.0}
+52.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+52.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+52.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+53.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+53.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+53.0,HR,86,NEUTRAL,OK,hr_present,{age_s=0.0}
+53.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+53.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+53.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+54.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+54.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+54.0,HR,86,NEUTRAL,OK,hr_present,{age_s=0.0}
+54.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+54.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+54.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+55.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+55.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+55.0,HR,86,NEUTRAL,OK,hr_present,{age_s=0.0}
+55.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+55.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+55.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+56.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+56.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+56.0,HR,86,NEUTRAL,OK,hr_present,{age_s=0.0}
+56.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+56.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+56.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+57.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+57.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+57.0,HR,86,NEUTRAL,OK,hr_present,{age_s=0.0}
+57.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+57.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+57.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+58.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+58.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+58.0,HR,86,NEUTRAL,OK,hr_present,{age_s=0.0}
+58.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+58.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+58.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+59.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+59.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+59.0,HR,86,NEUTRAL,OK,hr_present,{age_s=0.0}
+59.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+59.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+59.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+60.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+60.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+60.0,HR,87,NEUTRAL,OK,hr_present,{age_s=0.0}
+60.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+60.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+60.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+61.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+61.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+61.0,HR,87,NEUTRAL,OK,hr_present,{age_s=0.0}
+61.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+61.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+61.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+62.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+62.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+62.0,HR,87,NEUTRAL,OK,hr_present,{age_s=0.0}
+62.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+62.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+62.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+63.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+63.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+63.0,HR,87,NEUTRAL,OK,hr_present,{age_s=0.0}
+63.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+63.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+63.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+64.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+64.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+64.0,HR,87,NEUTRAL,OK,hr_present,{age_s=0.0}
+64.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+64.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+64.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+65.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+65.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+65.0,HR,87,NEUTRAL,OK,hr_present,{age_s=0.0}
+65.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+65.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+65.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+66.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+66.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+66.0,HR,87,NEUTRAL,OK,hr_present,{age_s=0.0}
+66.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+66.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+66.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+67.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+67.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+67.0,HR,87,NEUTRAL,OK,hr_present,{age_s=0.0}
+67.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+67.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+67.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+68.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+68.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+68.0,HR,87,NEUTRAL,OK,hr_present,{age_s=0.0}
+68.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+68.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+68.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+69.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+69.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+69.0,HR,87,NEUTRAL,OK,hr_present,{age_s=0.0}
+69.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+69.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+69.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+70.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+70.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+70.0,HR,88,NEUTRAL,OK,hr_present,{age_s=0.0}
+70.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+70.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+70.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+71.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+71.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+71.0,HR,88,NEUTRAL,OK,hr_present,{age_s=0.0}
+71.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+71.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+71.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+72.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+72.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+72.0,HR,88,NEUTRAL,OK,hr_present,{age_s=0.0}
+72.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+72.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+72.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+73.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+73.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+73.0,HR,88,NEUTRAL,OK,hr_present,{age_s=0.0}
+73.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+73.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+73.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+74.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+74.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+74.0,HR,88,NEUTRAL,OK,hr_present,{age_s=0.0}
+74.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+74.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+74.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+75.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+75.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+75.0,HR,88,NEUTRAL,OK,hr_present,{age_s=0.0}
+75.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+75.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+75.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+76.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+76.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+76.0,HR,88,NEUTRAL,OK,hr_present,{age_s=0.0}
+76.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+76.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+76.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+77.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+77.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+77.0,HR,88,NEUTRAL,OK,hr_present,{age_s=0.0}
+77.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+77.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+77.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+78.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+78.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+78.0,HR,88,NEUTRAL,OK,hr_present,{age_s=0.0}
+78.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+78.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+78.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+79.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+79.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+79.0,HR,88,NEUTRAL,OK,hr_present,{age_s=0.0}
+79.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+79.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+79.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+80.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+80.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+80.0,HR,89,NEUTRAL,OK,hr_present,{age_s=0.0}
+80.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+80.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+80.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+81.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+81.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+81.0,HR,89,NEUTRAL,OK,hr_present,{age_s=0.0}
+81.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+81.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+81.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+82.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+82.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+82.0,HR,89,NEUTRAL,OK,hr_present,{age_s=0.0}
+82.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+82.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+82.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+83.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+83.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+83.0,HR,89,NEUTRAL,OK,hr_present,{age_s=0.0}
+83.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+83.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+83.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+84.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+84.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+84.0,HR,89,NEUTRAL,OK,hr_present,{age_s=0.0}
+84.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+84.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+84.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+85.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+85.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+85.0,HR,89,NEUTRAL,OK,hr_present,{age_s=0.0}
+85.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+85.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+85.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+86.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+86.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+86.0,HR,89,NEUTRAL,OK,hr_present,{age_s=0.0}
+86.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+86.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+86.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+87.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+87.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+87.0,HR,89,NEUTRAL,OK,hr_present,{age_s=0.0}
+87.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+87.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+87.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+88.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+88.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+88.0,HR,89,NEUTRAL,OK,hr_present,{age_s=0.0}
+88.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+88.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+88.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+89.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+89.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+89.0,HR,89,NEUTRAL,OK,hr_present,{age_s=0.0}
+89.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+89.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+89.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+90.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+90.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+90.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+90.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+90.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+90.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+91.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+91.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+91.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+91.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+91.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+91.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+92.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+92.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+92.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+92.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+92.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+92.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+93.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+93.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+93.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+93.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+93.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+93.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+94.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+94.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+94.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+94.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+94.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+94.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+95.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+95.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+95.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+95.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+95.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+95.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+96.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+96.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+96.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+96.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+96.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+96.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+97.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+97.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+97.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+97.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+97.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+97.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+98.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+98.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+98.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+98.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+98.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+98.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+99.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+99.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+99.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+99.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+99.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+99.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+100.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+100.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+100.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+100.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+100.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+100.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+101.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+101.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+101.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+101.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+101.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+101.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+102.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+102.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+102.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+102.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+102.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+102.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+103.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+103.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+103.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+103.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+103.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+103.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+104.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+104.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+104.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+104.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+104.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+104.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+105.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+105.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+105.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+105.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+105.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+105.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+106.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+106.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+106.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+106.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+106.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+106.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+107.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+107.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+107.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+107.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+107.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+107.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+108.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+108.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+108.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+108.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+108.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+108.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+109.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+109.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+109.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+109.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+109.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+109.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+110.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+110.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+110.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+110.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+110.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+110.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+111.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+111.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+111.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+111.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+111.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+111.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+112.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+112.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+112.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+112.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+112.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+112.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+113.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+113.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+113.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+113.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+113.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+113.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+114.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+114.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+114.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+114.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+114.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+114.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+115.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+115.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+115.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+115.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+115.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+115.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+116.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+116.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+116.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+116.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+116.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+116.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+117.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+117.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+117.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+117.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+117.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+117.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+118.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+118.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+118.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+118.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+118.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+118.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}
+119.0,SPEED,0.0,AMBER,OK,below_reference,"{reference_kmh=24.0, age_s=0.0}"
+119.0,POWER,0,NEUTRAL,OK,power_present,{age_s=0.0}
+119.0,HR,90,NEUTRAL,OK,hr_present,{age_s=0.0}
+119.0,CADENCE,0,GRAY,OK,coasting_or_stopped,{age_s=0.0}
+119.0,GRADE,WAIT,GRAY,NO_DATA,missing_grade,{}
+119.0,GEAR,WAIT,GRAY,NO_DATA,missing_gear,{}

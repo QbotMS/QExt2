@@ -1,0 +1,15 @@
+scenario=crank_start
+ticks=180
+final_distance_m=472,50
+final_avg_gross=9,5028
+final_avg_moving=11,4161
+status_counts:
+SPEED: {OK=180}
+POWER: {OK=180}
+HR: {OK=180}
+CADENCE: {OK=180}
+GRADE: {NO_DATA=128, OK=33, STALE=19}
+GEAR: {NO_DATA=180}
+problems:
+(none)
+PASS=YES

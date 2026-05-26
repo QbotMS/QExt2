@@ -1,0 +1,15 @@
+scenario=climb_descent
+ticks=900
+final_distance_m=5666,67
+final_avg_gross=22,6919
+final_avg_moving=22,6919
+status_counts:
+SPEED: {OK=900}
+POWER: {OK=900}
+HR: {OK=900}
+CADENCE: {OK=900}
+GRADE: {NO_DATA=1, OK=604, STALE=295}
+GEAR: {NO_DATA=900}
+problems:
+(none)
+PASS=YES

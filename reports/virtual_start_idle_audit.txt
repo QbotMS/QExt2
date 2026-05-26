@@ -1,0 +1,15 @@
+scenario=start_idle
+ticks=120
+final_distance_m=0,00
+final_avg_gross=NaN
+final_avg_moving=NaN
+status_counts:
+SPEED: {OK=120}
+POWER: {OK=120}
+HR: {OK=120}
+CADENCE: {OK=120}
+GRADE: {NO_DATA=120}
+GEAR: {NO_DATA=120}
+problems:
+(none)
+PASS=YES

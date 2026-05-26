@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">QExt2</string>
+    <string name="extension_name">QExt2</string>
+    <string name="qext2_primary_name">QExt2 Primary</string>
+    <string name="qext2_primary_desc">Speed, power, HR, cadence, gear, grade</string>
+    <string name="qext2_active_name">QExt2 Active</string>
+    <string name="qext2_active_desc">Distance, IF10, speed, temp, W prime balance, wind</string>
+    <string name="qext2_active_static_name">QExt2 Active Static</string>
+    <string name="qext2_active_static_desc">Distance, IF10, speed, temp, W prime balance, wind (no overlay)</string>
+    <string name="qext2_stats_name">QExt2 STATS</string>
+    <string name="qext2_stats_desc">NP, IF, VI, TSS, reserve, HRD, route, battery, deadline</string>
+</resources>

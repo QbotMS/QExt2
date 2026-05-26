@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="0dp"
+    android:background="#111315">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal">
+
+        <FrameLayout
+            android:id="@+id/stats_btn_carb"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="#1F2937"
+            android:clickable="true"
+            android:focusable="true">
+            <TextView
+                android:id="@+id/tv_btn_carb"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:text="CARB"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:fontFamily="monospace"
+                android:includeFontPadding="false"
+                android:clickable="false"
+                android:focusable="false" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/stats_btn_gate"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="#374151">
+            <TextView
+                android:id="@+id/tv_btn_gate"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:text="GATE"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:maxLines="1"
+                android:ellipsize="none"
+                android:textStyle="bold"
+                android:fontFamily="monospace"
+                android:includeFontPadding="false" />
+        </FrameLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal">
+
+        <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+            <TextView android:id="@+id/tv_np_unit" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="top|start" android:text="NP" android:textColor="#9CA3AF" android:textSize="9sp" android:includeFontPadding="false" />
+            <TextView android:id="@+id/tv_np" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="end|bottom" android:text="--" android:textColor="#FFFFFF" android:textSize="25sp" android:fontFamily="monospace" android:textStyle="bold" android:includeFontPadding="false" />
+        </FrameLayout>
+
+        <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+            <TextView android:id="@+id/tv_if_unit" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="top|start" android:text="IF" android:textColor="#9CA3AF" android:textSize="9sp" android:includeFontPadding="false" />
+            <TextView android:id="@+id/tv_if" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="end|bottom" android:text="--" android:textColor="#FFFFFF" android:textSize="25sp" android:fontFamily="monospace" android:textStyle="bold" android:includeFontPadding="false" />
+        </FrameLayout>
+
+        <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+            <TextView android:id="@+id/tv_vi_unit" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="top|start" android:text="VI" android:textColor="#9CA3AF" android:textSize="9sp" android:includeFontPadding="false" />
+            <TextView android:id="@+id/tv_vi" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="end|bottom" android:text="--" android:textColor="#FFFFFF" android:textSize="25sp" android:fontFamily="monospace" android:textStyle="bold" android:includeFontPadding="false" />
+        </FrameLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal">
+
+        <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+            <TextView android:id="@+id/tv_tss_unit" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="top|start" android:text="TSS" android:textColor="#9CA3AF" android:textSize="9sp" android:includeFontPadding="false" />
+            <TextView android:id="@+id/tv_tss" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="end|bottom" android:text="--" android:textColor="#FFFFFF" android:textSize="25sp" android:fontFamily="monospace" android:textStyle="bold" android:includeFontPadding="false" />
+        </FrameLayout>
+
+        <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+            <TextView android:id="@+id/tv_rsrv_unit" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="top|start" android:text="RSRV" android:textColor="#9CA3AF" android:textSize="9sp" android:includeFontPadding="false" />
+            <TextView android:id="@+id/tv_rsrv" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="end|bottom" android:text="--" android:textColor="#FFFFFF" android:textSize="25sp" android:fontFamily="monospace" android:textStyle="bold" android:includeFontPadding="false" />
+        </FrameLayout>
+
+        <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+            <TextView android:id="@+id/tv_eta_unit" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="top|start" android:text="ETA" android:textColor="#9CA3AF" android:textSize="9sp" android:includeFontPadding="false" />
+            <TextView android:id="@+id/tv_eta" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="end|bottom" android:text="--" android:textColor="#FFFFFF" android:textSize="25sp" android:fontFamily="monospace" android:textStyle="bold" android:includeFontPadding="false" />
+        </FrameLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal">
+
+        <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+            <TextView android:id="@+id/tv_carb_unit" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="top|start" android:text="CARB" android:textColor="#9CA3AF" android:textSize="9sp" android:includeFontPadding="false" />
+            <TextView android:id="@+id/tv_carb_balance" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="top|end" android:text="0g" android:textColor="#9CA3AF" android:textSize="10sp" android:fontFamily="monospace" android:includeFontPadding="false" />
+            <TextView android:id="@+id/tv_carb" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="end|bottom" android:text="--" android:textColor="#FFFFFF" android:textSize="25sp" android:fontFamily="monospace" android:textStyle="bold" android:includeFontPadding="false" />
+        </FrameLayout>
+
+        <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+            <TextView android:id="@+id/tv_fluid_unit" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="top|start" android:text="FLUID" android:textColor="#9CA3AF" android:textSize="9sp" android:includeFontPadding="false" />
+            <TextView android:id="@+id/tv_fluid" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="end|bottom" android:text="--" android:textColor="#FFFFFF" android:textSize="25sp" android:fontFamily="monospace" android:textStyle="bold" android:includeFontPadding="false" />
+        </FrameLayout>
+
+        <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+            <TextView android:id="@+id/tv_cal_unit" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="top|start" android:text="KCAL" android:textColor="#9CA3AF" android:textSize="9sp" android:includeFontPadding="false" />
+            <TextView android:id="@+id/tv_cal" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="end|bottom" android:text="--" android:textColor="#FFFFFF" android:textSize="25sp" android:fontFamily="monospace" android:textStyle="bold" android:includeFontPadding="false" />
+        </FrameLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal">
+
+        <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+            <TextView android:id="@+id/tv_asc_done_unit" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="top|start" android:text="UP" android:textColor="#9CA3AF" android:textSize="9sp" android:includeFontPadding="false" />
+            <TextView android:id="@+id/tv_asc_done" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="end|bottom" android:text="--" android:textColor="#FFFFFF" android:textSize="25sp" android:fontFamily="monospace" android:textStyle="bold" android:includeFontPadding="false" />
+        </FrameLayout>
+
+        <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+            <TextView android:id="@+id/tv_asc_left_unit" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="top|start" android:text="LEFT" android:textColor="#9CA3AF" android:textSize="9sp" android:includeFontPadding="false" />
+            <TextView android:id="@+id/tv_asc_left" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="end|bottom" android:text="--" android:textColor="#FFFFFF" android:textSize="25sp" android:fontFamily="monospace" android:textStyle="bold" android:includeFontPadding="false" />
+        </FrameLayout>
+
+        <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+            <TextView android:id="@+id/tv_avg_gross_unit" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="top|start" android:text="Vśr B" android:textColor="#9CA3AF" android:textSize="9sp" android:includeFontPadding="false" />
+            <TextView android:id="@+id/tv_avg_gross" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="end|bottom" android:text="--" android:textColor="#FFFFFF" android:textSize="25sp" android:fontFamily="monospace" android:textStyle="bold" android:includeFontPadding="false" />
+        </FrameLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal">
+
+        <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+            <TextView android:id="@+id/tv_bat_drain_unit" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="top|start" android:text="BAT/h" android:textColor="#9CA3AF" android:textSize="9sp" android:includeFontPadding="false" />
+            <TextView android:id="@+id/tv_bat_drain" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="end|bottom" android:text="--" android:textColor="#FFFFFF" android:textSize="25sp" android:fontFamily="monospace" android:textStyle="bold" android:includeFontPadding="false" />
+        </FrameLayout>
+
+        <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+            <TextView android:id="@+id/tv_bat_left_unit" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="top|start" android:text="LEFT" android:textColor="#9CA3AF" android:textSize="9sp" android:includeFontPadding="false" />
+            <TextView android:id="@+id/tv_bat_left" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="end|bottom" android:text="--" android:textColor="#FFFFFF" android:textSize="25sp" android:fontFamily="monospace" android:textStyle="bold" android:includeFontPadding="false" />
+        </FrameLayout>
+
+        <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+            <TextView android:id="@+id/tv_wprime_unit" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="top|start" android:text="W'" android:textColor="#9CA3AF" android:textSize="9sp" android:includeFontPadding="false" />
+            <TextView android:id="@+id/tv_wprime" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="end|bottom" android:text="--" android:textColor="#FFFFFF" android:textSize="25sp" android:fontFamily="monospace" android:textStyle="bold" android:includeFontPadding="false" />
+        </FrameLayout>
+    </LinearLayout>
+
+</LinearLayout>

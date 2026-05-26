@@ -1,0 +1,15 @@
+scenario=sensor_dropouts
+ticks=600
+final_distance_m=4000,00
+final_avg_gross=24,0401
+final_avg_moving=24,0401
+status_counts:
+SPEED: {OK=575, STALE=25}
+POWER: {OK=575, STALE=25}
+HR: {OK=575, STALE=25}
+CADENCE: {OK=575, STALE=25}
+GRADE: {NO_DATA=1, OK=599}
+GEAR: {NO_DATA=600}
+problems:
+(none)
+PASS=YES

@@ -1,0 +1,15 @@
+scenario=flat_ride
+ticks=1201
+final_distance_m=8165,00
+final_avg_gross=24,4950
+final_avg_moving=24,4950
+status_counts:
+SPEED: {OK=1201}
+POWER: {OK=1201}
+HR: {OK=1201}
+CADENCE: {OK=1201}
+GRADE: {NO_DATA=1, OK=1200}
+GEAR: {NO_DATA=1201}
+problems:
+(none)
+PASS=YES

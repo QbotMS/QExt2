@@ -1,0 +1,15 @@
+scenario=ui_recreate_pause_resume
+ticks=1323
+final_distance_m=8006,67
+final_avg_gross=21,8033
+final_avg_moving=24,0200
+status_counts:
+SPEED: {OK=1323}
+POWER: {OK=1323}
+HR: {OK=1323}
+CADENCE: {OK=1323}
+GRADE: {NO_DATA=1, OK=1205, STALE=117}
+GEAR: {NO_DATA=1323}
+problems:
+(none)
+PASS=YES
