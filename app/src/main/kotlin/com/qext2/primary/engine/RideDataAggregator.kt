@@ -550,9 +550,10 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         consumerIds.add(
             karooSystem.addConsumer<OnLocationChanged>(
                 onEvent = { event ->
-                    val lat = event.lat
-                    val lng = event.lng
-                    AthleteDataStore.saveLocation(lat, lng)
+                    val now = System.currentTimeMillis()
+                    if (now - lastLocationSaveMs.get() < 30_000L) return@addConsumer
+                    lastLocationSaveMs.set(now)
+                    AthleteDataStore.saveLocation(event.lat, event.lng)
                 }
             )
         )
@@ -1051,6 +1052,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     fun getDistanceMeters(): Double = distanceMetersRef.get()
 
     private val lastRouteSeenMsRef = AtomicReference(0L)
+    private val lastLocationSaveMs = AtomicReference(0L)
     private val routeGraceMs = 12_000L
 
     fun getEffectiveRoute(): Boolean {
