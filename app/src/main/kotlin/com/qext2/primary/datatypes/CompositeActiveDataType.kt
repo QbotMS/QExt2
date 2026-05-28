@@ -149,7 +149,7 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
     private var largeCell = false
 
     private var athleteData = AthleteDataStore.load()
-    private val wPrimeCalc = WPrimeCalculator(ftp = athleteData.ftp, wPrimeMax = athleteData.wPrimeJoules).also {
+    private val wPrimeCalc = WPrimeCalculator(ftp = athleteData.ftp, wPrimeMax = athleteData.wPrimeKj).also {
         it.ltpWatts = athleteData.ltpWatts.toDouble()
         it.todayFactor = athleteData.todayFactor
     }
@@ -492,11 +492,11 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
             athleteData = fresh
             if10Calc.ftp = fresh.ftp
             wPrimeCalc.ftp = fresh.ftp
-            wPrimeCalc.wPrimeMax = fresh.wPrimeJoules
+            wPrimeCalc.wPrimeMax = fresh.wPrimeKj
             wPrimeCalc.ltpWatts = fresh.ltpWatts.toDouble()
             wPrimeCalc.todayFactor = fresh.todayFactor
             wPrimeCalc.reset()
-            Log.d(TAG, "Athlete data refreshed: FTP=${fresh.ftp}, W'max=${fresh.wPrimeJoules}")
+            Log.d(TAG, "Athlete data refreshed: FTP=${fresh.ftp}, W'max=${fresh.wPrimeKj}")
         }
     }
 

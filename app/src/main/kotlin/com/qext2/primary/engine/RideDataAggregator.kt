@@ -125,6 +125,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val navRouteNameRef = AtomicReference("")
     private val navRouteKeyRef = AtomicReference("")
     private val navClimbsRef = AtomicReference<List<KarooClimb>>(emptyList())
+    private val movingElapsedSecRef = AtomicReference(0L)
     private val navLastUpdateMsRef = AtomicReference(0L)
     private val dailyTssBaseRef = AtomicReference(0f)
     private val sleepRefreshPendingRef = AtomicReference(false)
@@ -230,6 +231,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         rideStartWallMsRef.set(System.currentTimeMillis())
         elevationRemainingReceivedRef.set(false)
         elevationGainReceivedRef.set(false)
+        movingElapsedSecRef.set(0L)
         val (savedElapsed, savedDistance) = AthleteDataStore.loadElapsedSnapshot()
         if (savedElapsed > 0L) {
             rideStartWallMsRef.set(System.currentTimeMillis() - savedElapsed * 1000L)
@@ -237,28 +239,32 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
             AthleteDataStore.loadStatsCalcSnapshot()?.let { raw ->
                 try {
                     val parts = raw.split("|")
-                    if (parts.size >= 9) {
-                        statsCalc.restoreFromSnapshot(StatsCalculator.StatsCalcSnapshot(
-                            count4thPowers = parts[0].toLong(),
-                            sumOf4thPowers = parts[1].toDouble(),
-                            totalPowerSum = parts[2].toLong(),
-                            totalPowerCount = parts[3].toLong(),
-                            totalEnergyKj = parts[4].toDouble(),
-                            lastMovingSec = parts[5].toLong(),
-                            lastReserve = parts[6].toFloat(),
-                            startReserve = parts[7].toFloat(),
-                            wBalKj = parts[8].toFloat(),
-                            batteryPctStart = parts.getOrNull(9)?.toIntOrNull()?.takeIf { it >= 0 },
-                            batteryPctCurrent = parts.getOrNull(10)?.toIntOrNull()?.takeIf { it >= 0 },
-                            batteryStartMs = parts.getOrNull(11)?.toLongOrNull()?.takeIf { it >= 0 },
-                            batteryIsCharging = parts.getOrNull(12)?.takeIf { it != "null" }?.toBooleanStrictOrNull(),
-                        ))
+                    if (parts.getOrNull(0) != "v4") {
+                        Log.w(TAG, "QEXT_SNAPSHOT_VERSION_MISMATCH got=${parts.getOrNull(0)} expected=v4 — ignoring")
+                        return@let
                     }
-                    if (parts.size >= 15) {
-                        val savedRoute = parts[13].toBooleanStrict()
-                        val savedDtd = parts[14].toDoubleOrNull() ?: 0.0
+                    if (parts.size >= 16) {
+                        statsCalc.restoreFromSnapshot(StatsCalculator.StatsCalcSnapshot(
+                            count4thPowers = parts[1].toLong(),
+                            sumOf4thPowers = parts[2].toDouble(),
+                            totalPowerSum = parts[3].toLong(),
+                            totalPowerCount = parts[4].toLong(),
+                            totalEnergyKj = parts[5].toDouble(),
+                            lastMovingSec = parts[6].toLong(),
+                            lastReserve = parts[7].toFloat(),
+                            startReserve = parts[8].toFloat(),
+                            wBalKj = parts[9].toFloat(),
+                            batteryPctStart = parts.getOrNull(10)?.toIntOrNull()?.takeIf { it >= 0 },
+                            batteryPctCurrent = parts.getOrNull(11)?.toIntOrNull()?.takeIf { it >= 0 },
+                            batteryStartMs = parts.getOrNull(12)?.toLongOrNull()?.takeIf { it >= 0 },
+                            batteryIsCharging = parts.getOrNull(13)?.takeIf { it != "null" }?.toBooleanStrictOrNull(),
+                        ))
+                        val savedRoute = parts[14].toBooleanStrict()
+                        val savedDtd = parts[15].toDoubleOrNull() ?: 0.0
                         if (savedRoute) navRouteActiveRef.set(true)
                         if (savedDtd > 0.0) distanceToDestinationMetersRef.set(savedDtd)
+                        val savedMoving = parts.getOrNull(16)?.toLongOrNull() ?: 0L
+                        if (savedMoving > 0L) movingElapsedSecRef.set(savedMoving)
                     }
                 } catch (_: Exception) {}
             }
@@ -430,23 +436,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                             ?: (s.dataPoint.values[DataType.Field.SMOOTHED_3S_AVERAGE_POWER] as? Double)
                         if (v != null) {
                             updatePower(v, "PWR_3S")
-                        }
-                    }
-                }
-            )
-        )
-
-        consumerIds.add(
-            karooSystem.addConsumer<OnStreamState>(
-                params = OnStreamState.StartStreaming(DataType.Type.POWER),
-                onEvent = { event ->
-                    val s = event.state
-                    if (s is StreamState.Streaming) {
-                        if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "PWR_RAW values=${s.dataPoint.values}")
-                        val v = s.dataPoint.singleValue
-                            ?: (s.dataPoint.values[DataType.Field.POWER] as? Double)
-                        if (v != null) {
-                            powerFreshnessRef.set(System.currentTimeMillis())
                         }
                     }
                 }
@@ -700,7 +689,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     AthleteDataStore.saveElapsedSnapshot(elapsedSec, distanceMetersRef.get())
                     val snap = statsCalc.snapshotForCrashRecovery()
                     AthleteDataStore.saveStatsCalcSnapshot(
-                        "${snap.count4thPowers}|${snap.sumOf4thPowers}|${snap.totalPowerSum}|${snap.totalPowerCount}|${snap.totalEnergyKj}|${snap.lastMovingSec}|${snap.lastReserve}|${snap.startReserve}|${snap.wBalKj}|${snap.batteryPctStart ?: -1}|${snap.batteryPctCurrent ?: -1}|${snap.batteryStartMs ?: -1L}|${snap.batteryIsCharging ?: "null"}|${navRouteActiveRef.get()}|${distanceToDestinationMetersRef.get()}"
+                        "v4|${snap.count4thPowers}|${snap.sumOf4thPowers}|${snap.totalPowerSum}|${snap.totalPowerCount}|${snap.totalEnergyKj}|${snap.lastMovingSec}|${snap.lastReserve}|${snap.startReserve}|${snap.wBalKj}|${snap.batteryPctStart ?: -1}|${snap.batteryPctCurrent ?: -1}|${snap.batteryStartMs ?: -1L}|${snap.batteryIsCharging ?: "null"}|${navRouteActiveRef.get()}|${distanceToDestinationMetersRef.get()}|${movingElapsedSecRef.get()}"
                     )
                 }
 
@@ -773,19 +762,20 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val powerWatts = powerRef.get()
                 val hr = hrRef.get()
                 val cadence = cadenceRef.get()
-                statsCalc.update(powerWatts, hr, elapsedSec, elapsedSec)
+                val movingElapsedSec = movingElapsedSecRef.get()
+                statsCalc.update(powerWatts, hr, movingElapsedSec, elapsedSec)
                 val npWhole = statsCalc.npWatts()
                 val ifWhole = ifRef.get().takeIf { it > 0f } ?: statsCalc.ifValue()
                 val adjFtp = (statsCalc.ftpWatts * todayFactorRef.get().coerceIn(0.5f, 1.1f)).toInt().coerceAtLeast(50)
                 val adjIf = if (adjFtp > 0 && npWhole > 0) (npWhole.toFloat() / adjFtp).coerceAtMost(2.0f) else 0f
                 val vi = statsCalc.viValue()
-                val sessionTss = tssRef.get().takeIf { it > 0f } ?: statsCalc.tssValue(elapsedSec)
+                val sessionTss = tssRef.get().takeIf { it > 0f } ?: statsCalc.tssValue(movingElapsedSec)
                 var sessionTssForReserve = sessionTss
                 sessionTssRef.set(sessionTssForReserve)
                 val decoupling = statsCalc.decouplingPercent()
                 var decouplingForReserve = decoupling
                 val wBalance = statsCalc.wBalancePercent(now)
-                val carbs = statsCalc.carbsGPerH(adjIf, elapsedSec, vi, temperatureRef.get(), statsCalc.bodyWeightKg)
+                val carbs = statsCalc.carbsGPerH(adjIf, movingElapsedSec, vi, temperatureRef.get(), statsCalc.bodyWeightKg)
                 val fluid = statsCalc.fluidLPerH(adjIf, temperatureRef.get())
                 if (!carbSessionInitializedRef.get()) {
                     val storedLastElapsed = carbLastElapsedSecRef.get()
@@ -818,6 +808,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val wasMoving = wasMovingRef.get()
                 val isMoving = if (wasMoving) rawMoving || speedKmh > 0.8 else speedKmh > 1.4 || fallbackMoving
                 wasMovingRef.set(isMoving)
+                if (isMoving) movingElapsedSecRef.set(movingElapsedSecRef.get() + 1L)
 
                 if (isMoving) {
                     stopStartedMsRef.set(0L)
@@ -1009,13 +1000,12 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         weatherSourceRef.set(data.source)
     }
 
-    fun fetchWeatherIfNeeded() {
+    suspend fun fetchWeatherIfNeeded() {
         if (!WeatherClient.isKeyConfigured()) return
         val lat = AthleteDataStore.loadLocationLat() ?: return
         val lon = AthleteDataStore.loadLocationLon() ?: return
-        WeatherClient.fetch(karooSystem, lat, lon) { data ->
-            if (data != null) updateWeather(data)
-        }
+        val data = WeatherClient.fetch(karooSystem, lat, lon)
+        if (data != null) updateWeather(data)
     }
 
     fun refreshDeadlineFromStore() {

@@ -3,7 +3,7 @@ package com.qext2.primary.active
 class ActiveMessageManager(private val logger: (String) -> Unit = {}) {
 
     private var current: ActiveMessage? = null
-    private var suspended: ActiveMessage? = null
+    private val suspendedQueue = ArrayDeque<ActiveMessage>()
     private val lock = Any()
 
     fun show(message: ActiveMessage): Boolean {
@@ -16,8 +16,8 @@ class ActiveMessageManager(private val logger: (String) -> Unit = {}) {
                     return false
                 }
                 if (cur.resumePolicy != ActiveMessageResumePolicy.DROP_ON_INTERRUPT) {
-                    suspended = cur
-                    logger("INTERRUPT suspended=${cur.id} by=${message.id} resumePolicy=${cur.resumePolicy}")
+                    suspendedQueue.addLast(cur)
+                    logger("INTERRUPT suspended=${cur.id} by=${message.id} resumePolicy=${cur.resumePolicy} queueSize=${suspendedQueue.size}")
                 } else {
                     logger("DROP dropped=${cur.id} by=${message.id}")
                 }
@@ -55,25 +55,23 @@ class ActiveMessageManager(private val logger: (String) -> Unit = {}) {
     }
 
     private fun tryResume(nowMs: Long): ActiveMessage? {
-        val s = suspended ?: return null
-        if (s.resumePolicy != ActiveMessageResumePolicy.RESUME_IF_STILL_VALID) {
-            suspended = null
-            return null
+        suspendedQueue.removeAll { nowMs >= it.expiresAtMs }
+        val candidate = suspendedQueue
+            .filter { it.resumePolicy == ActiveMessageResumePolicy.RESUME_IF_STILL_VALID }
+            .maxByOrNull { it.priority.ordinal }
+        if (candidate != null) {
+            suspendedQueue.remove(candidate)
+            current = candidate
+            return candidate
         }
-        if (nowMs >= s.expiresAtMs) {
-            logger("DROP id=${s.id} reason=expired_suspended")
-            suspended = null
-            return null
-        }
-        suspended = null
-        current = s
-        return s
+        suspendedQueue.clear()
+        return null
     }
 
     fun clear() {
         synchronized(lock) {
             current = null
-            suspended = null
+            suspendedQueue.clear()
         }
     }
 }

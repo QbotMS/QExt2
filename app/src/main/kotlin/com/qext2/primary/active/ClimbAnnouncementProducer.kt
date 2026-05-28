@@ -7,16 +7,17 @@ data class ClimbState(
     val distanceToClimbM: Double,
     val climbElevationM: Int,
     val avgGradePercent: Double,
+    val climbIndex: Int,
     val nowMs: Long,
 )
 
 class ClimbAnnouncementProducer(private val logger: (String) -> Unit = {}) {
 
-    private var announcedApproachKey: Long = 0L
+    private var announcedApproachKey: Int = -1
     private var announcedActive = false
     private var announcedFinish = false
     private var onClimb = false
-    private var activeClimbKey: Long = 0L
+    private var lastResolvedIndex: Int = -1
     private var lastRejectMs = 0L
 
     private companion object {
@@ -37,12 +38,11 @@ class ClimbAnnouncementProducer(private val logger: (String) -> Unit = {}) {
     private fun checkPreClimb(s: ClimbState): ActiveMessage? {
         if (s.distanceToClimbM <= 0.0) { rejectLog("REJECT reason=distanceZero"); return null }
         if (s.distanceToClimbM > 500.0) { rejectLog("REJECT reason=distanceTooFar dist=${s.distanceToClimbM}"); return null }
-        val key = climbKey(s)
-        if (key == announcedApproachKey) { rejectLog("REJECT reason=alreadyAnnouncedPre"); return null }
-        announcedApproachKey = key
+        if (s.climbIndex == announcedApproachKey) { rejectLog("REJECT reason=alreadyAnnouncedPre"); return null }
+        announcedApproachKey = s.climbIndex
         announcedActive = false
         announcedFinish = false
-        activeClimbKey = key
+        lastResolvedIndex = s.climbIndex
         logger("TRIGGER type=climb_pre dist=${s.distanceToClimbM}m")
         return ActiveMessage(
             id = "climb_pre_${s.nowMs}",
@@ -105,9 +105,6 @@ class ClimbAnnouncementProducer(private val logger: (String) -> Unit = {}) {
         )
     }
 
-    private fun climbKey(state: ClimbState): Long =
-        (state.distanceToClimbM * 10).toLong() * 1_000_000L + state.climbElevationM.toLong()
-
     private fun formatLine1(state: ClimbState): String {
         val dist = if (state.distanceToClimbM < 1000) {
             String.format(Locale.US, "%.0f m", state.distanceToClimbM)
@@ -129,11 +126,11 @@ class ClimbAnnouncementProducer(private val logger: (String) -> Unit = {}) {
     }
 
     fun reset() {
-        announcedApproachKey = 0L
+        announcedApproachKey = -1
         announcedActive = false
         announcedFinish = false
         onClimb = false
-        activeClimbKey = 0L
+        lastResolvedIndex = -1
     }
 
     private fun rejectLog(msg: String) {

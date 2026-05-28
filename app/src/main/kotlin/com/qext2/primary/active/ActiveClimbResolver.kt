@@ -32,6 +32,7 @@ object ActiveClimbResolver {
                     distanceToClimbM = fakeDistance,
                     climbElevationM = ascentLeftM,
                     avgGradePercent = effectiveGrade,
+                    climbIndex = 0,
                     nowMs = nowMs,
                 ),
                 reason = "fake_synthetic",
@@ -43,16 +44,17 @@ object ActiveClimbResolver {
         }
 
         val candidate = navClimbs
-            .filter { it.startDistance + it.length >= distanceMeters - 25.0 }
+            .filter { it.startDistance + it.length >= distanceMeters - 100.0 }
             .minByOrNull { abs(it.startDistance - distanceMeters) }
             ?: return ActiveClimbResolution(state = null, reason = "no_active_sdk_climb")
 
         return ActiveClimbResolution(
             state = ClimbState(
                 hasRoute = true,
-                distanceToClimbM = candidate.startDistance - distanceMeters,
+                distanceToClimbM = (candidate.startDistance - distanceMeters).coerceAtLeast(0.0),
                 climbElevationM = candidate.totalElevation.toInt().coerceAtLeast(0),
                 avgGradePercent = effectiveGrade,
+                climbIndex = candidate.index,
                 nowMs = nowMs,
             ),
             reason = "sdk_climb",

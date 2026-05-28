@@ -118,5 +118,6 @@ class SensorMessageProducer(private val logger: (String) -> Unit = {}) {
     fun reset() {
         routeFired = false
         sensorsFired = false
+        cooldowns.clear()
     }
 }

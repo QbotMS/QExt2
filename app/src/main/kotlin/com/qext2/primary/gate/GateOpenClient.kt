@@ -83,11 +83,10 @@ class GateOpenClient(
         }
 
         val baseUrl = gateUrlProvider()
-        val urlWithToken = "$baseUrl?token=$token"
         logger("QEXT_GATE_REQUEST url=$baseUrl")
 
         sdkHttpCaller.call(
-            url = urlWithToken,
+            url = baseUrl,
             headers = mapOf(
                 "X-Gate-Token" to token,
                 "ngrok-skip-browser-warning" to "true",

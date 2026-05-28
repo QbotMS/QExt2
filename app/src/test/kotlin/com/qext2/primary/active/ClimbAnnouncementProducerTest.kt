@@ -15,12 +15,14 @@ class ClimbAnnouncementProducerTest {
         distanceToClimbM: Double = 300.0,
         climbElevationM: Int = 150,
         avgGradePercent: Double = 0.0,
+        climbIndex: Int = 0,
         nowMs: Long = 1_000_000L,
     ) = ClimbState(
         hasRoute = hasRoute,
         distanceToClimbM = distanceToClimbM,
         climbElevationM = climbElevationM,
         avgGradePercent = avgGradePercent,
+        climbIndex = climbIndex,
         nowMs = nowMs,
     )
 
@@ -74,13 +76,13 @@ class ClimbAnnouncementProducerTest {
 
     @Test
     fun `second climb can trigger again`() {
-        assertNotNull(producer.checkAndProduce(state(distanceToClimbM = 300.0, climbElevationM = 100)))
-        assertNotNull(producer.checkAndProduce(state(distanceToClimbM = 200.0, climbElevationM = 100, avgGradePercent = 3.0)))
-        assertNotNull(producer.checkAndProduce(state(distanceToClimbM = 150.0, climbElevationM = 100, avgGradePercent = 0.0)))
+        assertNotNull(producer.checkAndProduce(state(distanceToClimbM = 300.0, climbElevationM = 100, climbIndex = 0)))
+        assertNotNull(producer.checkAndProduce(state(distanceToClimbM = 200.0, climbElevationM = 100, avgGradePercent = 3.0, climbIndex = 0)))
+        assertNotNull(producer.checkAndProduce(state(distanceToClimbM = 150.0, climbElevationM = 100, avgGradePercent = 0.0, climbIndex = 0)))
 
-        assertNotNull(producer.checkAndProduce(state(distanceToClimbM = 400.0, climbElevationM = 200)))
-        assertNotNull(producer.checkAndProduce(state(distanceToClimbM = 350.0, climbElevationM = 200, avgGradePercent = 4.0)))
-        assertNotNull(producer.checkAndProduce(state(distanceToClimbM = 300.0, climbElevationM = 200, avgGradePercent = 0.0)))
+        assertNotNull(producer.checkAndProduce(state(distanceToClimbM = 400.0, climbElevationM = 200, climbIndex = 1)))
+        assertNotNull(producer.checkAndProduce(state(distanceToClimbM = 350.0, climbElevationM = 200, avgGradePercent = 4.0, climbIndex = 1)))
+        assertNotNull(producer.checkAndProduce(state(distanceToClimbM = 300.0, climbElevationM = 200, avgGradePercent = 0.0, climbIndex = 1)))
     }
 
     @Test

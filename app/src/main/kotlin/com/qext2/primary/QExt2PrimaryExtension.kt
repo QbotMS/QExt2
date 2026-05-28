@@ -291,7 +291,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", "0.1.0") {
     private fun startWeatherPolling() {
         if (!WeatherClient.isKeyConfigured()) return
         if (weatherPollJob?.isActive == true) return
-        weatherPollJob = serviceScope.launch(Dispatchers.IO) {
+        weatherPollJob = serviceScope.launch {
             while (_aggregator != null) {
                 _aggregator?.fetchWeatherIfNeeded()
                 kotlinx.coroutines.delay(600_000L)

@@ -92,7 +92,9 @@ object AthleteDataStore {
     }
 
     fun load(): AthleteData {
-        val p = prefs ?: return AthleteData()
+        val p = checkNotNull(prefs) {
+            "AthleteDataStore.init() must be called before load(). Call init(context) first."
+        }
         return AthleteData(
             ftp = p.getInt(KEY_FTP, 250),
             wPrimeKj = p.getDouble(KEY_WPRIME_KJ, 3.75),
@@ -267,6 +269,15 @@ object AthleteDataStore {
         saveCarbIntakeTotal(0)
     }
 
+    fun resetCarbSessionState() {
+        prefs?.edit()?.apply {
+            putInt("carb_intake_total", 0)
+            putFloat("carb_needed_total_g", 0f)
+            putLong("carb_last_elapsed_sec", 0L)
+            apply()
+        }
+    }
+
     fun markCarbTapNow() {
         prefs?.edit()?.putLong("carb_last_tap_ms", System.currentTimeMillis())?.apply()
     }
@@ -304,12 +315,6 @@ object AthleteDataStore {
         val next = (current - packetGrams).coerceAtLeast(0)
         saveCarbIntakeTotal(next)
         return next
-    }
-
-    fun resetCarbSessionState() {
-        resetCarbIntakeTotal()
-        saveCarbNeededTotal(0.0)
-        saveCarbLastElapsedSec(0L)
     }
 
     fun saveGateLastRequestMs(ts: Long) {

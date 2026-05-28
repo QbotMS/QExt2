@@ -177,10 +177,7 @@ class HrStrainAdvisor(private val buffer: HrDecouplingBuffer) {
     }
 
     private fun colorWithHysteresis(rawColor: StatusColor, nowMs: Long): StatusColor {
-        if (rawColor == lastColor) {
-            lastColorSinceMs = nowMs
-            return rawColor
-        }
+        if (rawColor == lastColor) return rawColor
 
         val isDowngrade = rawColor.ordinal < lastColor.ordinal
 
