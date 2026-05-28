@@ -366,4 +366,30 @@ object AthleteDataStore {
         val v = p.getDouble(KEY_LOCATION_LON, Double.NaN)
         return if (v.isNaN()) null else v
     }
+
+    private const val KEY_ELAPSED_SNAPSHOT_SEC = "elapsed_snapshot_sec"
+    private const val KEY_DISTANCE_SNAPSHOT_M = "distance_snapshot_m"
+
+    fun saveElapsedSnapshot(elapsedSec: Long, distanceM: Double) {
+        prefs?.edit()?.apply {
+            putLong(KEY_ELAPSED_SNAPSHOT_SEC, elapsedSec)
+            putDouble(KEY_DISTANCE_SNAPSHOT_M, distanceM)
+            apply()
+        }
+    }
+
+    fun loadElapsedSnapshot(): Pair<Long, Double> {
+        val p = prefs ?: return 0L to 0.0
+        return p.getLong(KEY_ELAPSED_SNAPSHOT_SEC, 0L) to p.getDouble(KEY_DISTANCE_SNAPSHOT_M, 0.0)
+    }
+
+    private const val KEY_STATSCALC_SNAPSHOT = "statscalc_snapshot"
+
+    fun saveStatsCalcSnapshot(data: String) {
+        prefs?.edit()?.putString(KEY_STATSCALC_SNAPSHOT, data)?.apply()
+    }
+
+    fun loadStatsCalcSnapshot(): String? {
+        return prefs?.getString(KEY_STATSCALC_SNAPSHOT, null)
+    }
 }

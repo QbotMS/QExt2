@@ -353,8 +353,57 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         batteryIsCharging = null
         hrdSamples.clear()
         hrdBaselineRatio = null
-        hrdStopStartMs = 0L
     }
+
+    fun snapshotForCrashRecovery(): StatsCalcSnapshot {
+        return StatsCalcSnapshot(
+            count4thPowers = count4thPowers,
+            sumOf4thPowers = sumOf4thPowers,
+            totalPowerSum = totalPowerSum,
+            totalPowerCount = totalPowerCount,
+            totalEnergyKj = totalEnergyKj,
+            lastMovingSec = lastMovingSec,
+            lastReserve = lastReserve,
+            startReserve = startReserve,
+            wBalKj = wBalKj,
+            batteryPctStart = batteryPctStart,
+            batteryPctCurrent = batteryPctCurrent,
+            batteryStartMs = batteryStartMs,
+            batteryIsCharging = batteryIsCharging,
+        )
+    }
+
+    fun restoreFromSnapshot(snap: StatsCalcSnapshot) {
+        count4thPowers = snap.count4thPowers
+        sumOf4thPowers = snap.sumOf4thPowers
+        totalPowerSum = snap.totalPowerSum
+        totalPowerCount = snap.totalPowerCount
+        totalEnergyKj = snap.totalEnergyKj
+        lastMovingSec = snap.lastMovingSec
+        lastReserve = snap.lastReserve
+        startReserve = snap.startReserve
+        wBalKj = snap.wBalKj
+        batteryPctStart = snap.batteryPctStart
+        batteryPctCurrent = snap.batteryPctCurrent
+        batteryStartMs = snap.batteryStartMs
+        batteryIsCharging = snap.batteryIsCharging
+    }
+
+    data class StatsCalcSnapshot(
+        val count4thPowers: Long,
+        val sumOf4thPowers: Double,
+        val totalPowerSum: Long,
+        val totalPowerCount: Long,
+        val totalEnergyKj: Double,
+        val lastMovingSec: Long,
+        val lastReserve: Float,
+        val startReserve: Float,
+        val wBalKj: Float,
+        val batteryPctStart: Int? = null,
+        val batteryPctCurrent: Int? = null,
+        val batteryStartMs: Long? = null,
+        val batteryIsCharging: Boolean? = null,
+    )
 
     private fun roundToNearest5(value: Float): Int = (kotlin.math.round(value / 5f) * 5).toInt()
 

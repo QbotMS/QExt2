@@ -226,6 +226,40 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         rideStartMsRef.set(System.currentTimeMillis())
         karooElapsedReceivedRef.set(false)
         rideStartWallMsRef.set(System.currentTimeMillis())
+        val (savedElapsed, savedDistance) = AthleteDataStore.loadElapsedSnapshot()
+        if (savedElapsed > 0L) {
+            rideStartWallMsRef.set(System.currentTimeMillis() - savedElapsed * 1000L)
+            if (savedDistance > 0.0) distanceMetersRef.set(savedDistance)
+            AthleteDataStore.loadStatsCalcSnapshot()?.let { raw ->
+                try {
+                    val parts = raw.split("|")
+                    if (parts.size >= 9) {
+                        statsCalc.restoreFromSnapshot(StatsCalculator.StatsCalcSnapshot(
+                            count4thPowers = parts[0].toLong(),
+                            sumOf4thPowers = parts[1].toDouble(),
+                            totalPowerSum = parts[2].toLong(),
+                            totalPowerCount = parts[3].toLong(),
+                            totalEnergyKj = parts[4].toDouble(),
+                            lastMovingSec = parts[5].toLong(),
+                            lastReserve = parts[6].toFloat(),
+                            startReserve = parts[7].toFloat(),
+                            wBalKj = parts[8].toFloat(),
+                            batteryPctStart = parts.getOrNull(9)?.toIntOrNull()?.takeIf { it >= 0 },
+                            batteryPctCurrent = parts.getOrNull(10)?.toIntOrNull()?.takeIf { it >= 0 },
+                            batteryStartMs = parts.getOrNull(11)?.toLongOrNull()?.takeIf { it >= 0 },
+                            batteryIsCharging = parts.getOrNull(12)?.takeIf { it != "null" }?.toBooleanStrictOrNull(),
+                        ))
+                    }
+                    if (parts.size >= 15) {
+                        val savedRoute = parts[13].toBooleanStrict()
+                        val savedDtd = parts[14].toDoubleOrNull() ?: 0.0
+                        if (savedRoute) navRouteActiveRef.set(true)
+                        if (savedDtd > 0.0) distanceToDestinationMetersRef.set(savedDtd)
+                    }
+                } catch (_: Exception) {}
+            }
+            Log.i(TAG, "QEXT_ELAPSED_RESTORED elapsed=${savedElapsed}s distance=${"%.0f".format(savedDistance)}m")
+        }
         sanitizeCarbIntake()
         carbNeededTotalGRef.set(sanitizeCarbNeeded(AthleteDataStore.loadCarbNeededTotal()))
         carbBalanceGRef.set(0)
@@ -643,6 +677,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         tickJob = scope.launch {
             while (isActive) {
                 delay(1000)
+                try {
                 val now = System.currentTimeMillis()
 
                 val speedKmh = speedRef.get()
@@ -655,6 +690,13 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val elapsedSec = if (sdkPlausible) karooElapsedSec else localElapsedSec
                 lastChosenElapsedRef.set(elapsedSec)
                 if (karooElapsedSec > 0L) lastSdkElapsedRef.set(karooElapsedSec)
+                if (elapsedSec % 5 == 0L && elapsedSec > 0L) {
+                    AthleteDataStore.saveElapsedSnapshot(elapsedSec, distanceMetersRef.get())
+                    val snap = statsCalc.snapshotForCrashRecovery()
+                    AthleteDataStore.saveStatsCalcSnapshot(
+                        "${snap.count4thPowers}|${snap.sumOf4thPowers}|${snap.totalPowerSum}|${snap.totalPowerCount}|${snap.totalEnergyKj}|${snap.lastMovingSec}|${snap.lastReserve}|${snap.startReserve}|${snap.wBalKj}|${snap.batteryPctStart ?: -1}|${snap.batteryPctCurrent ?: -1}|${snap.batteryStartMs ?: -1L}|${snap.batteryIsCharging ?: "null"}|${navRouteActiveRef.get()}|${distanceToDestinationMetersRef.get()}"
+                    )
+                }
 
                 logTimeState(now, karooElapsedSec, localElapsedSec, elapsedSec, sdkPlausible)
 
@@ -947,6 +989,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     updatedAtMs = now,
                 )
                 if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "HR_DECOUPLING reason=${hrResult.reasonCode} decouplingPct=${hrResult.decouplingPct} color=${hrResult.color}")
+                } catch (e: Exception) {
+                    Log.w(TAG, "QEXT_TICK_CRASH msg=${e.message}", e)
+                }
             }
         }
     }
@@ -957,6 +1002,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
 
     private fun stopStreamingInternal(reason: String) {
         Log.i(TAG, "QEXT_AGGREGATOR_STOP reason=$reason")
+        AthleteDataStore.saveElapsedSnapshot(lastChosenElapsedRef.get(), distanceMetersRef.get())
         Log.d(TAG, "QEXT_NAV_CONSUMER_STOP")
         Log.d(TAG, "stopStreaming: removing ${consumerIds.size} consumers")
         val committedDailyTss = ReservePolicy.effectiveTss(dailyTssBaseRef.get(), sessionTssRef.get())
