@@ -152,7 +152,7 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
             line1 = "MIERNIK MOCY",
             line2 = null,
             severity = ActiveMessageSeverity.INFO,
-            priority = ActiveMessagePriority.INFO_LOW,
+            priority = ActiveMessagePriority.CRITICAL,
             resumePolicy = ActiveMessageResumePolicy.DROP_ON_INTERRUPT,
             createdAtMs = System.currentTimeMillis(),
             expiresAtMs = Long.MAX_VALUE,
@@ -526,7 +526,7 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
                 elapsedSec = agg.getElapsedSec(),
                 nowMs = now,
             )
-            if (sensorState.elapsedSec > 0L) {
+            if (sensorState.speedKmh > 5.0) {
                 val cur = messageManager.getCurrent(now)
                 if (cur?.id == "pre_ride_calibration") messageManager.clear()
             }
