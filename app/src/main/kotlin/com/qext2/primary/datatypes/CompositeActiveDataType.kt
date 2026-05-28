@@ -119,7 +119,6 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
     })
     private val beepCooldown = BeepCooldownTracker()
     private val noSdkClimbLogGate = NoSdkClimbLogGate()
-    private var preRideCalibrationFired = false
 
     override fun startStream(emitter: Emitter<StreamState>) {
         Log.d(TAG, "QEXT_ACTIVE_STREAM_START")
@@ -516,20 +515,18 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
                 if (messageManager.show(sensorMsg)) beepForMessage(sensorMsg, "show")
             }
 
-            if (!preRideCalibrationFired && sensorState.elapsedSec == 0L) {
-                preRideCalibrationFired = true
-                val calMsg = ActiveMessage(
+            if (sensorState.elapsedSec == 0L) {
+                messageManager.show(ActiveMessage(
                     id = "pre_ride_calibration",
                     title = "SKALIBRUJ",
                     line1 = "MIERNIK MOCY",
                     line2 = null,
                     severity = ActiveMessageSeverity.INFO,
-                    priority = ActiveMessagePriority.INFO,
+                    priority = ActiveMessagePriority.INFO_LOW,
                     resumePolicy = ActiveMessageResumePolicy.DROP_ON_INTERRUPT,
                     createdAtMs = now,
-                    expiresAtMs = now + 120_000L,
-                )
-                messageManager.show(calMsg)
+                    expiresAtMs = now + 30_000L,
+                ))
             }
 
             val climbResolution = ActiveClimbResolver.resolve(
