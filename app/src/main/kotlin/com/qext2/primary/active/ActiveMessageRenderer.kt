@@ -10,43 +10,29 @@ private const val TAG = "QEXT_ACTIVE_MSG"
 
 object ActiveMessageRenderer {
 
-    private var lastId: String? = null
-    private var lastVisible = false
-
     fun bind(views: RemoteViews, message: ActiveMessage?) {
-        val messageId = message?.id
-        val visible = message != null
-
-        if (messageId == lastId && visible == lastVisible) return
-        lastId = messageId
-        lastVisible = visible
-
-        if (!visible) {
+        if (message == null) {
             views.setViewVisibility(R.id.message_overlay, View.GONE)
             Log.d(TAG, "BIND visible=false")
             return
         }
 
-        val msg = message!!
-        val (bgColor, textColor) = severityColors(msg.severity)
+        val (bgColor, textColor) = severityColors(message.severity)
 
         views.setViewVisibility(R.id.message_overlay, View.VISIBLE)
         views.setInt(R.id.message_overlay, "setBackgroundColor", bgColor)
-        views.setTextViewText(R.id.msg_title, msg.title)
+        views.setTextViewText(R.id.msg_title, message.title)
         views.setTextColor(R.id.msg_title, textColor)
-        views.setTextViewText(R.id.msg_line1, msg.line1)
+        views.setTextViewText(R.id.msg_line1, message.line1)
         views.setTextColor(R.id.msg_line1, textColor)
-        views.setTextViewText(R.id.msg_line2, msg.line2 ?: "")
+        views.setTextViewText(R.id.msg_line2, message.line2 ?: "")
         views.setTextColor(R.id.msg_line2, textColor)
-        views.setViewVisibility(R.id.msg_line2, if (msg.line2 != null) View.VISIBLE else View.GONE)
+        views.setViewVisibility(R.id.msg_line2, if (message.line2 != null) View.VISIBLE else View.GONE)
 
-        Log.d(TAG, "BIND visible=true severity=${msg.severity} id=${msg.id}")
+        Log.d(TAG, "BIND visible=true severity=${message.severity} id=${message.id}")
     }
 
-    fun resetTracker() {
-        lastId = null
-        lastVisible = false
-    }
+    fun resetTracker() {}
 
     private fun severityColors(severity: ActiveMessageSeverity): Pair<Int, Int> = when (severity) {
         ActiveMessageSeverity.INFO -> Pair(
