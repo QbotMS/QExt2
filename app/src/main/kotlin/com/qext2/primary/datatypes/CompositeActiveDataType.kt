@@ -535,7 +535,7 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
                 if (messageManager.show(sensorMsg)) beepForMessage(sensorMsg, "show")
             }
 
-            if (sensorState.elapsedSec == 0L && sensorState.speedKmh < 1.0) {
+            if (sensorState.elapsedSec == 0L) {
                 messageManager.show(ActiveMessage(
                     id = "pre_ride_calibration",
                     title = "SKALIBRUJ",
