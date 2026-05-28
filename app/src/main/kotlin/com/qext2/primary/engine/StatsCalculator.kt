@@ -59,7 +59,7 @@ class StatsCalculator(var ftpWatts: Int = 200) {
     fun setWPrimeParams(wPrime: Float, ltp: Float) {
         if (wPrime > 0f) {
             wPrimeKj = wPrime
-            wBalKj = wPrime
+            if (wBalKj <= 0f || wBalKj > wPrime) wBalKj = wPrime
         }
         if (ltp > 0f) ltpWatts = ltp
     }
