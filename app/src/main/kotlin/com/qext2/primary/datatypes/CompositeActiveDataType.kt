@@ -146,30 +146,24 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
         setInitialValues(views)
         emitter.updateView(views)
 
-        scope.launch {
-            var agg = QExt2PrimaryExtension.instance?.aggregator
-            while (agg == null) {
-                kotlinx.coroutines.delay(200L)
-                agg = QExt2PrimaryExtension.instance?.aggregator
-            }
-            if (agg.getElapsedSec() == 0L) {
-                val calMsg = ActiveMessage(
-                    id = "pre_ride_calibration",
-                    title = "SKALIBRUJ",
-                    line1 = "MIERNIK MOCY",
-                    line2 = null,
-                    severity = ActiveMessageSeverity.INFO,
-                    priority = ActiveMessagePriority.CRITICAL,
-                    resumePolicy = ActiveMessageResumePolicy.DROP_ON_INTERRUPT,
-                    createdAtMs = System.currentTimeMillis(),
-                    expiresAtMs = System.currentTimeMillis() + 4_000L,
-                )
-                messageManager.show(calMsg)
-                val withMsg = RemoteViews(context.packageName, R.layout.field_active_4x2)
-                setInitialValues(withMsg)
-                ActiveMessageRenderer.bind(withMsg, messageManager.getCurrent(System.currentTimeMillis()))
-                emitter.updateView(withMsg)
-            }
+        val agg = QExt2PrimaryExtension.instance?.aggregator
+        if (agg != null && agg.getElapsedSec() == 0L) {
+            val calMsg = ActiveMessage(
+                id = "pre_ride_calibration",
+                title = "SKALIBRUJ",
+                line1 = "MIERNIK MOCY",
+                line2 = null,
+                severity = ActiveMessageSeverity.INFO,
+                priority = ActiveMessagePriority.INFO_LOW,
+                resumePolicy = ActiveMessageResumePolicy.DROP_ON_INTERRUPT,
+                createdAtMs = System.currentTimeMillis(),
+                expiresAtMs = Long.MAX_VALUE,
+            )
+            messageManager.show(calMsg)
+            val withMsg = RemoteViews(context.packageName, R.layout.field_active_4x2)
+            setInitialValues(withMsg)
+            ActiveMessageRenderer.bind(withMsg, messageManager.getCurrent(System.currentTimeMillis()))
+            emitter.updateView(withMsg)
         }
 
         var currentSystem: KarooSystemService? = null
@@ -536,23 +530,23 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
                 elapsedSec = agg.getElapsedSec(),
                 nowMs = now,
             )
-            if (sensorState.elapsedSec == 0L) {
-                messageManager.clear()
+            val sensorMsg = sensorProducer.checkAndProduce(sensorState)
+            if (sensorMsg != null) {
+                if (messageManager.show(sensorMsg)) beepForMessage(sensorMsg, "show")
+            }
+
+            if (sensorState.elapsedSec == 0L && sensorState.speedKmh < 1.0) {
                 messageManager.show(ActiveMessage(
                     id = "pre_ride_calibration",
                     title = "SKALIBRUJ",
                     line1 = "MIERNIK MOCY",
                     line2 = null,
                     severity = ActiveMessageSeverity.INFO,
-                    priority = ActiveMessagePriority.CRITICAL,
+                    priority = ActiveMessagePriority.INFO_LOW,
                     resumePolicy = ActiveMessageResumePolicy.DROP_ON_INTERRUPT,
                     createdAtMs = now,
                     expiresAtMs = now + 4_000L,
                 ))
-            }
-            val sensorMsg = sensorProducer.checkAndProduce(sensorState)
-            if (sensorMsg != null) {
-                if (messageManager.show(sensorMsg)) beepForMessage(sensorMsg, "show")
             }
 
             val climbResolution = ActiveClimbResolver.resolve(
