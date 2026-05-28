@@ -1027,16 +1027,15 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
 
     fun getDeadlineMs(): Long = lastDeadlineMsRef.get()
 
-    fun getElapsedSec(): Long {
+    fun getElapsedSec(): Long = computeElapsedSec()
+
+    private fun computeElapsedSec(): Long {
         val karoo = elapsedSecRef.get()
         val local = ((System.currentTimeMillis() - rideStartWallMsRef.get()) / 1000L).coerceAtLeast(0L)
         val lastChosen = lastChosenElapsedRef.get()
         val lastSdk = lastSdkElapsedRef.get()
         val sdkPlausible = isSdkElapsedPlausible(karoo, lastSdk, local, lastChosen)
-        val effective = if (sdkPlausible) karoo else local
-        lastChosenElapsedRef.set(effective)
-        if (karoo > 0L) lastSdkElapsedRef.set(karoo)
-        return effective
+        return if (sdkPlausible) karoo else local
     }
 
     fun getRideStartMs(): Long = rideStartMsRef.get()

@@ -103,6 +103,10 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         if (activeSample && heartRate > 0) {
             decoupleHr.add(heartRate)
             decouplePower.add(powerWatts)
+            if (decoupleHr.size > 3600) {
+                val remove = decoupleHr.size - 3600
+                repeat(remove) { decoupleHr.removeAt(0); decouplePower.removeAt(0) }
+            }
         }
 
         updateWBalance(powerWatts)
