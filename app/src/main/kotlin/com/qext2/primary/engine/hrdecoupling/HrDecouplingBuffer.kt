@@ -5,6 +5,7 @@ private const val MAX_SAMPLES = 2400
 class HrDecouplingBuffer {
 
     private val samples = ArrayDeque<HrSample>(MAX_SAMPLES)
+    @Volatile
     private var cachedSnapshot: List<HrSample>? = null
 
     fun add(sample: HrSample) {

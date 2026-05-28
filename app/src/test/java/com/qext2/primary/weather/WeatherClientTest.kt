@@ -11,11 +11,6 @@ import org.junit.Test
 class WeatherClientTest {
 
     @Test
-    fun isKeyNotConfiguredWhenEmpty() {
-        assertTrue(true)
-    }
-
-    @Test
     fun weatherNoKeyNoMessage() {
         val producer = WeatherMessageProducer()
         val state = WeatherMsgState(
@@ -121,12 +116,6 @@ class WeatherClientTest {
         assertEquals("MROZ", msg!!.title)
     }
 
-    @Test
-    fun weatherNoLocationReturnsNull() {
-        assertTrue(true)
-    }
-
-    @Test
     fun weatherFreshIsCalculatedCorrectly() {
         val now = System.currentTimeMillis()
         val fresh = WeatherClient.isFresh(com.qext2.primary.weather.WeatherData(

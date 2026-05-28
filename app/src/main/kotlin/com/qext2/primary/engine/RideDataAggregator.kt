@@ -243,7 +243,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                         Log.w(TAG, "QEXT_SNAPSHOT_VERSION_MISMATCH got=${parts.getOrNull(0)} expected=v4 — ignoring")
                         return@let
                     }
-                    if (parts.size >= 16) {
+                    if (parts.size >= 17) {
                         statsCalc.restoreFromSnapshot(StatsCalculator.StatsCalcSnapshot(
                             count4thPowers = parts[1].toLong(),
                             sumOf4thPowers = parts[2].toDouble(),
@@ -259,7 +259,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                             batteryStartMs = parts.getOrNull(12)?.toLongOrNull()?.takeIf { it >= 0 },
                             batteryIsCharging = parts.getOrNull(13)?.takeIf { it != "null" }?.toBooleanStrictOrNull(),
                         ))
-                        val savedRoute = parts[14].toBooleanStrict()
+                        val savedRoute = parts.getOrNull(14)?.toBooleanStrictOrNull() ?: false
                         val savedDtd = parts[15].toDoubleOrNull() ?: 0.0
                         if (savedRoute) navRouteActiveRef.set(true)
                         if (savedDtd > 0.0) distanceToDestinationMetersRef.set(savedDtd)
