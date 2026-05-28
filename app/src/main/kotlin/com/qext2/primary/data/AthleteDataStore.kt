@@ -92,9 +92,7 @@ object AthleteDataStore {
     }
 
     fun load(): AthleteData {
-        val p = checkNotNull(prefs) {
-            "AthleteDataStore.init() must be called before load(). Call init(context) first."
-        }
+        val p = prefs ?: return AthleteData()
         return AthleteData(
             ftp = p.getInt(KEY_FTP, 250),
             wPrimeKj = p.getDouble(KEY_WPRIME_KJ, 3.75),
