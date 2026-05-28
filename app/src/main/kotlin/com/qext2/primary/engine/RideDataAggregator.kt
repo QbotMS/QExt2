@@ -918,6 +918,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     fluidLPerH = fluid,
                     rideReservePercent = reserve,
                     wBalancePercent = wBalance,
+                    wBalanceTrend = statsCalc.wBalanceTrend(),
                     etaTimestamp = etaMs,
                     ascentDoneM = ascentDoneMRef.get(),
                     ascentLeftM = ascentLeftMRef.get(),

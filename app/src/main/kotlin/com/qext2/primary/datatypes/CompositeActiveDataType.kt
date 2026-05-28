@@ -53,51 +53,6 @@ import kotlin.math.round
 private const val TAG = "QExt2Active"
 private const val MIN_RENDER_INTERVAL_MS = 300L
 
-private class WPrimeCalculator(
-    var ftp: Int = 250,
-    var wPrimeMax: Double = 0.0
-) {
-    var ltpWatts: Double = 0.0
-    var todayFactor: Float = 1.0f
-    private var wBalKj = wPrimeMax
-    private val tau = 546.0
-    private val trendHistory = ArrayDeque<Pair<Long, Int>>()
-
-    private val effectiveMax: Double get() = wPrimeMax * todayFactor.coerceIn(0.5f, 1.1f)
-
-    fun update(power: Int, nowMs: Long) {
-        if (ltpWatts <= 0 || wPrimeMax <= 0) return
-        val cap = effectiveMax
-        if (power > ltpWatts) {
-            wBalKj -= (power - ltpWatts) * 1.0 / 1000.0
-        } else {
-            wBalKj += (cap - wBalKj) * (1.0 - exp(-1.0 / tau))
-        }
-        wBalKj = wBalKj.coerceIn(0.0, cap)
-        trendHistory.addLast(nowMs to percent())
-        while (trendHistory.size > 60) trendHistory.removeFirst()
-    }
-
-    fun percent(): Int {
-        val cap = effectiveMax
-        return if (cap > 0) round(wBalKj / cap * 100).toInt().coerceIn(0, 100) else -1
-    }
-    fun reset() { wBalKj = effectiveMax; trendHistory.clear() }
-
-    fun trend(): String {
-        if (trendHistory.size < 3) return "stable"
-        val recent = trendHistory.takeLast(3)
-        val deltaPerMin = ((recent.last().second - recent.first().second).toFloat() /
-            ((recent.last().first - recent.first().first) / 60_000f)).coerceIn(-100f, 100f)
-        return when {
-            deltaPerMin < -10f -> "plummeting"
-            deltaPerMin < -2f -> "falling"
-            deltaPerMin > 2f -> "rising"
-            else -> "stable"
-        }
-    }
-}
-
 private class IF10Calculator(var ftp: Int = 250) {
     private val raw = mutableListOf<Double>()
     private val smooth = mutableListOf<Double>()
@@ -149,10 +104,6 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
     private var largeCell = false
 
     private var athleteData = AthleteDataStore.load()
-    private val wPrimeCalc = WPrimeCalculator(ftp = athleteData.ftp, wPrimeMax = athleteData.wPrimeKj).also {
-        it.ltpWatts = athleteData.ltpWatts.toDouble()
-        it.todayFactor = athleteData.todayFactor
-    }
     private val if10Calc = IF10Calculator(ftp = athleteData.ftp)
     private val messageManager = ActiveMessageManager(logger = { msg ->
         Log.i("QEXT_ACTIVE_ENGINE", msg)
@@ -491,11 +442,6 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
         if (fresh.fetchTimestamp > athleteData.fetchTimestamp) {
             athleteData = fresh
             if10Calc.ftp = fresh.ftp
-            wPrimeCalc.ftp = fresh.ftp
-            wPrimeCalc.wPrimeMax = fresh.wPrimeKj
-            wPrimeCalc.ltpWatts = fresh.ltpWatts.toDouble()
-            wPrimeCalc.todayFactor = fresh.todayFactor
-            wPrimeCalc.reset()
             Log.d(TAG, "Athlete data refreshed: FTP=${fresh.ftp}, W'max=${fresh.wPrimeKj}")
         }
     }
@@ -530,9 +476,10 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
         val if10Text = String.format("%.2f", intensityFactor)
         val vsrText = String.format("%.1f", displaySpeed)
         val tempText = formatTemp(displayTemp)
-        val wbalPct = wPrimeCalc.percent()
-        val wbalText = if (wbalPct >= 0) wbalPct.toString() else "NO"
-        val wbalTrend = wPrimeCalc.trend()
+        val agg = QExt2PrimaryExtension.instance?.aggregator
+        val snap = agg?.statsSnapshot?.value
+        val wbalText = if (snap != null && snap.wBalancePercent >= 0) snap.wBalancePercent.toString() else "NO"
+        val wbalTrend = snap?.wBalanceTrend ?: "stable"
         val windText = formatWind()
         val windDir = formatWindDir()
 
@@ -550,7 +497,6 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
         ).joinToString("|")
         if (!force && signature == lastRenderSignature && now - lastRenderMs < 1_500L) return
 
-        val agg = QExt2PrimaryExtension.instance?.aggregator
         if (agg != null) {
             val sensorState = SensorState(
                 speedKmh = agg.getEffectiveSpeedKmh(),
@@ -671,7 +617,6 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
     private fun handlePowerSample(power: Double, emitter: ViewEmitter, context: Context) {
         hasPowerData = true
         val watts = power.toInt()
-        wPrimeCalc.update(watts, System.currentTimeMillis())
         intensityFactor = if10Calc.update(watts)
         emitUpdate(emitter, context)
     }

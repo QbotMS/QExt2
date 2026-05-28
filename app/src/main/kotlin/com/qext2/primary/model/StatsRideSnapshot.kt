@@ -11,6 +11,7 @@ data class StatsRideSnapshot(
     val fluidLPerH: Float = 0f,
     val rideReservePercent: Int = 100,
     val wBalancePercent: Int = -1,
+    val wBalanceTrend: String = "stable",
     val etaTimestamp: Long = 0L,
     val ascentDoneM: Int = 0,
     val ascentLeftM: Int = 0,
