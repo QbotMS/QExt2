@@ -146,24 +146,30 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
         setInitialValues(views)
         emitter.updateView(views)
 
-        val agg = QExt2PrimaryExtension.instance?.aggregator
-        if (agg != null && agg.getElapsedSec() == 0L) {
-            val calMsg = ActiveMessage(
-                id = "pre_ride_calibration",
-                title = "SKALIBRUJ",
-                line1 = "MIERNIK MOCY",
-                line2 = null,
-                severity = ActiveMessageSeverity.INFO,
-                priority = ActiveMessagePriority.INFO_LOW,
-                resumePolicy = ActiveMessageResumePolicy.DROP_ON_INTERRUPT,
-                createdAtMs = System.currentTimeMillis(),
-                expiresAtMs = Long.MAX_VALUE,
-            )
-            messageManager.show(calMsg)
-            val withMsg = RemoteViews(context.packageName, R.layout.field_active_4x2)
-            setInitialValues(withMsg)
-            ActiveMessageRenderer.bind(withMsg, messageManager.getCurrent(System.currentTimeMillis()))
-            emitter.updateView(withMsg)
+        scope.launch {
+            var agg = QExt2PrimaryExtension.instance?.aggregator
+            while (agg == null) {
+                kotlinx.coroutines.delay(200L)
+                agg = QExt2PrimaryExtension.instance?.aggregator
+            }
+            if (agg.getElapsedSec() == 0L) {
+                val calMsg = ActiveMessage(
+                    id = "pre_ride_calibration",
+                    title = "SKALIBRUJ",
+                    line1 = "MIERNIK MOCY",
+                    line2 = null,
+                    severity = ActiveMessageSeverity.INFO,
+                    priority = ActiveMessagePriority.INFO_LOW,
+                    resumePolicy = ActiveMessageResumePolicy.DROP_ON_INTERRUPT,
+                    createdAtMs = System.currentTimeMillis(),
+                    expiresAtMs = Long.MAX_VALUE,
+                )
+                messageManager.show(calMsg)
+                val withMsg = RemoteViews(context.packageName, R.layout.field_active_4x2)
+                setInitialValues(withMsg)
+                ActiveMessageRenderer.bind(withMsg, messageManager.getCurrent(System.currentTimeMillis()))
+                emitter.updateView(withMsg)
+            }
         }
 
         var currentSystem: KarooSystemService? = null
