@@ -8,14 +8,16 @@ import java.io.File
 
 private const val TAG = "QExt2Render"
 
-object PrimaryRenderOptimizer {
+class PrimaryRenderOptimizer {
 
     var enabled = true
     var fileLoggingEnabled = true
 
-    private const val MIN_INTERVAL_MOVING_MS = 300L
-    private const val MIN_INTERVAL_STATIONARY_MS = 500L
-    private const val REPORT_INTERVAL_MS = 60_000L
+    private companion object {
+        const val MIN_INTERVAL_MOVING_MS = 300L
+        const val MIN_INTERVAL_STATIONARY_MS = 500L
+        const val REPORT_INTERVAL_MS = 60_000L
+    }
 
     private var totalRenders = 0L
     private var dedupeRejects = 0L

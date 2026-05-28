@@ -40,7 +40,8 @@ class CompositePrimaryDataType : DataTypeImpl("qext2", "qext2-primary") {
 
     override fun startView(context: Context, config: ViewConfig, emitter: ViewEmitter) {
         Log.d(TAG, "startView preview=${config.preview} grid=${config.gridSize} view=${config.viewSize}")
-        PrimaryRenderOptimizer.initializeMetricsFile(context.filesDir)
+        val optimizer = PrimaryRenderOptimizer()
+        optimizer.initializeMetricsFile(context.filesDir)
         emitter.onNext(UpdateGraphicConfig(showHeader = false))
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -56,10 +57,10 @@ class CompositePrimaryDataType : DataTypeImpl("qext2", "qext2-primary") {
                 }
                 .collect { latest ->
                     if (aggNew) {
-                        PrimaryRenderOptimizer.reset()
+                        optimizer.reset()
                         aggNew = false
                     }
-                    val decision = PrimaryRenderOptimizer.decide(latest, latest.speedKmh)
+                    val decision = optimizer.decide(latest, latest.speedKmh)
                     if (decision.shouldRender) {
                         val nv = RemoteViews(context.packageName, R.layout.field_primary_4col)
                         setPrimaryValues(nv, latest)
@@ -70,7 +71,7 @@ class CompositePrimaryDataType : DataTypeImpl("qext2", "qext2-primary") {
 
         emitter.setCancellable {
             Log.d(TAG, "startView cancelled")
-            PrimaryRenderOptimizer.reset()
+            optimizer.reset()
             scope.cancel()
         }
     }
