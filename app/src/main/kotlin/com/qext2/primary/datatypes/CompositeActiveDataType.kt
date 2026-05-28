@@ -159,10 +159,10 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
                     line1 = "MIERNIK MOCY",
                     line2 = null,
                     severity = ActiveMessageSeverity.INFO,
-                    priority = ActiveMessagePriority.INFO_LOW,
+                    priority = ActiveMessagePriority.CRITICAL,
                     resumePolicy = ActiveMessageResumePolicy.DROP_ON_INTERRUPT,
                     createdAtMs = System.currentTimeMillis(),
-                    expiresAtMs = Long.MAX_VALUE,
+                    expiresAtMs = System.currentTimeMillis() + 4_000L,
                 )
                 messageManager.show(calMsg)
                 val withMsg = RemoteViews(context.packageName, R.layout.field_active_4x2)
@@ -536,23 +536,23 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
                 elapsedSec = agg.getElapsedSec(),
                 nowMs = now,
             )
-            val sensorMsg = sensorProducer.checkAndProduce(sensorState)
-            if (sensorMsg != null) {
-                if (messageManager.show(sensorMsg)) beepForMessage(sensorMsg, "show")
-            }
-
             if (sensorState.elapsedSec == 0L) {
+                messageManager.clear()
                 messageManager.show(ActiveMessage(
                     id = "pre_ride_calibration",
                     title = "SKALIBRUJ",
                     line1 = "MIERNIK MOCY",
                     line2 = null,
                     severity = ActiveMessageSeverity.INFO,
-                    priority = ActiveMessagePriority.INFO_LOW,
+                    priority = ActiveMessagePriority.CRITICAL,
                     resumePolicy = ActiveMessageResumePolicy.DROP_ON_INTERRUPT,
                     createdAtMs = now,
                     expiresAtMs = now + 4_000L,
                 ))
+            }
+            val sensorMsg = sensorProducer.checkAndProduce(sensorState)
+            if (sensorMsg != null) {
+                if (messageManager.show(sensorMsg)) beepForMessage(sensorMsg, "show")
             }
 
             val climbResolution = ActiveClimbResolver.resolve(
