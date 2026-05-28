@@ -146,6 +146,26 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
         setInitialValues(views)
         emitter.updateView(views)
 
+        val agg = QExt2PrimaryExtension.instance?.aggregator
+        if (agg != null && agg.getElapsedSec() == 0L) {
+            val calMsg = ActiveMessage(
+                id = "pre_ride_calibration",
+                title = "SKALIBRUJ",
+                line1 = "MIERNIK MOCY",
+                line2 = null,
+                severity = ActiveMessageSeverity.INFO,
+                priority = ActiveMessagePriority.INFO_LOW,
+                resumePolicy = ActiveMessageResumePolicy.DROP_ON_INTERRUPT,
+                createdAtMs = System.currentTimeMillis(),
+                expiresAtMs = Long.MAX_VALUE,
+            )
+            messageManager.show(calMsg)
+            val withMsg = RemoteViews(context.packageName, R.layout.field_active_4x2)
+            setInitialValues(withMsg)
+            ActiveMessageRenderer.bind(withMsg, messageManager.getCurrent(System.currentTimeMillis()))
+            emitter.updateView(withMsg)
+        }
+
         var currentSystem: KarooSystemService? = null
 
         scope.launch {
@@ -515,7 +535,7 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
                 if (messageManager.show(sensorMsg)) beepForMessage(sensorMsg, "show")
             }
 
-            if (sensorState.elapsedSec == 0L) {
+            if (sensorState.elapsedSec == 0L && sensorState.speedKmh < 1.0) {
                 messageManager.show(ActiveMessage(
                     id = "pre_ride_calibration",
                     title = "SKALIBRUJ",
@@ -525,7 +545,7 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
                     priority = ActiveMessagePriority.INFO_LOW,
                     resumePolicy = ActiveMessageResumePolicy.DROP_ON_INTERRUPT,
                     createdAtMs = now,
-                    expiresAtMs = now + 30_000L,
+                    expiresAtMs = now + 4_000L,
                 ))
             }
 
