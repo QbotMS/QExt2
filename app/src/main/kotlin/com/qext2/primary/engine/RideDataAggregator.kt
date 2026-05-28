@@ -938,6 +938,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         tickJob = null
         carbLastElapsedSecRef.set(0L)
         carbSessionInitializedRef.set(false)
+        AthleteDataStore.resetCarbSessionState()
         sessionTssRef.set(0f)
         reservePersistLastMsRef.set(0L)
         statsCalc.reset()
