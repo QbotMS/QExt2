@@ -779,7 +779,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val fluid = statsCalc.fluidLPerH(adjIf, temperatureRef.get())
                 if (!carbSessionInitializedRef.get()) {
                     val storedLastElapsed = carbLastElapsedSecRef.get()
-                    val looksLikeNewRide = elapsedSec <= 30L || (storedLastElapsed > 0L && elapsedSec + 120L < storedLastElapsed)
+                    val looksLikeNewRide = elapsedSec <= 30L ||
+                        (storedLastElapsed > 0L && elapsedSec + 120L < storedLastElapsed) ||
+                        (storedLastElapsed > 0L && elapsedSec > storedLastElapsed + 120L)
                     if (looksLikeNewRide || (carbNeededTotalGRef.get() > 100 && elapsedSec < 120L)) {
                         AthleteDataStore.resetCarbSessionState()
                         carbNeededTotalGRef.set(0.0)
