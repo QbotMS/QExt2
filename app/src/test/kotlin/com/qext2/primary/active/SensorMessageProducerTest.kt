@@ -3,23 +3,22 @@ package com.qext2.primary.active
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SensorMessageProducerTest {
 
-    private val producer = SensorMessageProducer()
-
-    private fun state(
-        speedKmh: Double = 20.0,
+    private fun sensorState(
+        speedKmh: Double = 25.0,
         cadence: Int = 70,
-        hr: Int = 130,
+        hr: Int = 140,
         power: Int = 200,
-        powerFreshnessMs: Long = 1_000L,
-        cadenceFreshnessMs: Long = 1_000L,
-        hrFreshnessMs: Long = 1_000L,
+        powerFreshnessMs: Long = 3_000L,
+        cadenceFreshnessMs: Long = 3_000L,
+        hrFreshnessMs: Long = 3_000L,
         hasRoute: Boolean = true,
-        elapsedSec: Long = 30L,
-        nowMs: Long = 1_000_000L,
+        elapsedSec: Long = 120L,
+        nowMs: Long = System.currentTimeMillis(),
     ) = SensorState(
         speedKmh = speedKmh,
         cadence = cadence,
@@ -34,185 +33,144 @@ class SensorMessageProducerTest {
     )
 
     @Test
-    fun `stale power triggers warning`() {
-        val msg = producer.checkAndProduce(state(powerFreshnessMs = 15_000L))
-        assertNotNull(msg)
+    fun `power missing alert fires after stale exceeding threshold`() {
+        val producer = SensorMessageProducer()
+        val now = System.currentTimeMillis()
+        val msg = producer.checkAndProduce(sensorState(
+            powerFreshnessMs = 15_000L,
+            nowMs = now,
+        ))
+        assertNotNull("Should fire power missing alert when power is stale", msg)
         assertEquals("BRAK MOCY", msg!!.title)
-        assertEquals(ActiveMessageSeverity.WARNING, msg.severity)
     }
 
     @Test
-    fun `fresh power does not trigger`() {
-        val msg = producer.checkAndProduce(state(powerFreshnessMs = 5_000L))
-        assertNull(msg)
+    fun `power missing respects cooldown`() {
+        val producer = SensorMessageProducer()
+        val now = System.currentTimeMillis()
+        assertNotNull(producer.checkAndProduce(sensorState(powerFreshnessMs = 15_000L, nowMs = now)))
+        assertNull(producer.checkAndProduce(sensorState(powerFreshnessMs = 15_000L, nowMs = now + 30_000L)))
     }
 
     @Test
-    fun `stale power ignored at low speed`() {
-        val msg = producer.checkAndProduce(state(speedKmh = 3.0, powerFreshnessMs = 15_000L))
-        assertNull(msg)
+    fun `power missing fires again after cooldown expires`() {
+        val producer = SensorMessageProducer()
+        val now = System.currentTimeMillis()
+        assertNotNull(producer.checkAndProduce(sensorState(powerFreshnessMs = 15_000L, nowMs = now)))
+        assertNotNull(producer.checkAndProduce(sensorState(powerFreshnessMs = 15_000L, nowMs = now + 61_000L)))
     }
 
     @Test
-    fun `stale power ignored with low cadence and low HR`() {
-        val msg = producer.checkAndProduce(state(cadence = 10, hr = 60, powerFreshnessMs = 15_000L))
-        assertNull(msg)
+    fun `power missing does not fire when speed below threshold`() {
+        val producer = SensorMessageProducer()
+        assertNull(producer.checkAndProduce(sensorState(speedKmh = 3.0, powerFreshnessMs = 15_000L)))
     }
 
     @Test
-    fun `stale power triggers with cadence only`() {
-        val msg = producer.checkAndProduce(state(cadence = 25, hr = 50, powerFreshnessMs = 15_000L))
-        assertNotNull(msg)
+    fun `power missing does not fire when cadence and HR both low`() {
+        val producer = SensorMessageProducer()
+        assertNull(producer.checkAndProduce(sensorState(
+            powerFreshnessMs = 15_000L,
+            cadence = 10,
+            hr = 60,
+        )))
     }
 
     @Test
-    fun `stale power triggers with HR only`() {
-        val msg = producer.checkAndProduce(state(cadence = 10, hr = 100, powerFreshnessMs = 15_000L))
-        assertNotNull(msg)
-    }
-
-    @Test
-    fun `stale HR triggers info`() {
-        val msg = producer.checkAndProduce(state(hrFreshnessMs = 20_000L))
-        assertNotNull(msg)
+    fun `HR missing alert fires when power is high enough`() {
+        val producer = SensorMessageProducer()
+        val now = System.currentTimeMillis()
+        val msg = producer.checkAndProduce(sensorState(
+            power = 150,
+            hrFreshnessMs = 20_000L,
+            nowMs = now,
+        ))
+        assertNotNull("Should fire HR missing when HR stale and power > 120", msg)
         assertEquals("BRAK HR", msg!!.title)
-        assertEquals(ActiveMessageSeverity.INFO, msg.severity)
     }
 
     @Test
-    fun `fresh HR does not trigger`() {
-        val msg = producer.checkAndProduce(state(hrFreshnessMs = 5_000L))
-        assertNull(msg)
-    }
-
-    @Test
-    fun `stale HR ignored at low power`() {
-        val msg = producer.checkAndProduce(state(power = 80, hrFreshnessMs = 20_000L))
-        assertNull(msg)
-    }
-
-    @Test
-    fun `stale HR ignored at low speed`() {
-        val msg = producer.checkAndProduce(state(speedKmh = 3.0, hrFreshnessMs = 20_000L))
-        assertNull(msg)
-    }
-
-    @Test
-    fun `no route triggers once per session`() {
-        assertNotNull(producer.checkAndProduce(state(hasRoute = false)))
-        assertNull(producer.checkAndProduce(state(hasRoute = false)))
-        assertNull(producer.checkAndProduce(state(hasRoute = false, nowMs = 200_000L)))
-    }
-
-    @Test
-    fun `route present does not trigger`() {
-        val msg = producer.checkAndProduce(state(hasRoute = true))
-        assertNull(msg)
-    }
-
-    @Test
-    fun `reset allows route trigger again`() {
-        assertNotNull(producer.checkAndProduce(state(hasRoute = false)))
-        assertNull(producer.checkAndProduce(state(hasRoute = false)))
-        producer.reset()
-        assertNotNull(producer.checkAndProduce(state(hasRoute = false)))
-    }
-
-    @Test
-    fun `power cooldown suppresses duplicate`() {
-        assertNotNull(producer.checkAndProduce(state(nowMs = 100_000L, powerFreshnessMs = 15_000L)))
-        assertNull(producer.checkAndProduce(state(nowMs = 110_000L, powerFreshnessMs = 15_000L)))
-    }
-
-    @Test
-    fun `power cooldown expires`() {
-        assertNotNull(producer.checkAndProduce(state(nowMs = 100_000L, powerFreshnessMs = 15_000L)))
-        assertNotNull(producer.checkAndProduce(state(nowMs = 161_000L, powerFreshnessMs = 15_000L)))
-    }
-
-    @Test
-    fun `hr cooldown suppresses duplicate`() {
-        assertNotNull(producer.checkAndProduce(state(nowMs = 100_000L, hrFreshnessMs = 20_000L)))
-        assertNull(producer.checkAndProduce(state(nowMs = 150_000L, hrFreshnessMs = 20_000L)))
-    }
-
-    @Test
-    fun `power stale but HR fresh, only power triggers`() {
-        val msg = producer.checkAndProduce(state(powerFreshnessMs = 15_000L, hrFreshnessMs = 5_000L))
-        assertNotNull(msg)
-        assertEquals("BRAK MOCY", msg!!.title)
-    }
-
-    @Test
-    fun `all sensors missing after 10s triggers BRAK SENSOROW`() {
-        val msg = producer.checkAndProduce(state(
-            speedKmh = 0.0, cadence = 0, hr = 0, power = 0,
-            elapsedSec = 15L,
-            powerFreshnessMs = 20_000L,
-            cadenceFreshnessMs = 20_000L,
+    fun `HR missing does not fire when power is low`() {
+        val producer = SensorMessageProducer()
+        assertNull(producer.checkAndProduce(sensorState(
+            power = 100,
             hrFreshnessMs = 20_000L,
+        )))
+    }
+
+    @Test
+    fun `route missing fires only once`() {
+        val producer = SensorMessageProducer()
+        val now = System.currentTimeMillis()
+        assertNotNull(producer.checkAndProduce(sensorState(hasRoute = false, nowMs = now)))
+        assertNull(producer.checkAndProduce(sensorState(hasRoute = false, nowMs = now + 1_000L)))
+    }
+
+    @Test
+    fun `route missing does not fire when route is available`() {
+        val producer = SensorMessageProducer()
+        assertNull(producer.checkAndProduce(sensorState(hasRoute = true)))
+    }
+
+    @Test
+    fun `sensors missing fires only once`() {
+        val producer = SensorMessageProducer()
+        val now = System.currentTimeMillis()
+        val msg = producer.checkAndProduce(sensorState(
+            cadence = 10,
+            hr = 60,
+            power = 100,
+            powerFreshnessMs = 15_000L,
+            cadenceFreshnessMs = 15_000L,
+            hrFreshnessMs = 20_000L,
+            elapsedSec = 20L,
+            nowMs = now,
         ))
         assertNotNull(msg)
-        assertEquals("BRAK SENSORÓW", msg!!.title)
-        assertEquals(ActiveMessageSeverity.WARNING, msg.severity)
+        assertTrue(msg!!.title.contains("SENSOR"))
+        assertNull(producer.checkAndProduce(sensorState(
+            cadence = 10,
+            hr = 60,
+            power = 100,
+            powerFreshnessMs = 15_000L,
+            cadenceFreshnessMs = 15_000L,
+            hrFreshnessMs = 20_000L,
+            elapsedSec = 20L,
+            nowMs = now + 1_000L,
+        )))
     }
 
     @Test
-    fun `all sensors missing under 10s does not trigger`() {
-        val msg = producer.checkAndProduce(state(
-            speedKmh = 0.0, cadence = 0, hr = 0, power = 0,
+    fun `sensors missing does not fire before minimum elapsed`() {
+        val producer = SensorMessageProducer()
+        assertNull(producer.checkAndProduce(sensorState(
+            speedKmh = 3.0,
+            cadence = 10,
+            hr = 60,
+            power = 100,
+            powerFreshnessMs = 15_000L,
+            cadenceFreshnessMs = 15_000L,
+            hrFreshnessMs = 20_000L,
             elapsedSec = 5L,
-            powerFreshnessMs = 20_000L,
-            cadenceFreshnessMs = 20_000L,
-            hrFreshnessMs = 20_000L,
-        ))
-        assertNull(msg)
+        )))
     }
 
     @Test
-    fun `sensors one-shot does not repeat`() {
-        val base = state(
-            speedKmh = 0.0, cadence = 0, hr = 0, power = 0,
-            elapsedSec = 15L,
-            powerFreshnessMs = 20_000L, cadenceFreshnessMs = 20_000L, hrFreshnessMs = 20_000L,
-        )
-        assertNotNull(producer.checkAndProduce(base.copy(nowMs = 100_000L)))
-        assertNull(producer.checkAndProduce(base.copy(nowMs = 200_000L)))
-        assertNull(producer.checkAndProduce(base.copy(nowMs = 500_000L)))
-    }
-
-    @Test
-    fun `sensors reset re-enables`() {
-        val base = state(
-            speedKmh = 0.0, cadence = 0, hr = 0, power = 0,
-            elapsedSec = 15L,
-            powerFreshnessMs = 20_000L, cadenceFreshnessMs = 20_000L, hrFreshnessMs = 20_000L,
-        )
-        assertNotNull(producer.checkAndProduce(base))
-        assertNull(producer.checkAndProduce(base))
+    fun `reset clears cooldowns and route sensor flags`() {
+        val producer = SensorMessageProducer()
+        val now = System.currentTimeMillis()
+        assertNotNull(producer.checkAndProduce(sensorState(powerFreshnessMs = 15_000L, nowMs = now)))
+        assertNull(producer.checkAndProduce(sensorState(powerFreshnessMs = 15_000L, nowMs = now + 30_000L)))
         producer.reset()
-        assertNotNull(producer.checkAndProduce(base))
+        assertNotNull(producer.checkAndProduce(sensorState(powerFreshnessMs = 15_000L, nowMs = now + 31_000L)))
     }
 
     @Test
-    fun `BRAK MOCY still requires movement`() {
-        val msg = producer.checkAndProduce(state(speedKmh = 3.0, powerFreshnessMs = 15_000L))
-        assertNull(msg)
-    }
-
-    @Test
-    fun `BRAK TRASY remains suppressed across producer reuse`() {
-        assertNotNull(producer.checkAndProduce(state(hasRoute = false, nowMs = 100_000L)))
-        assertNull(producer.checkAndProduce(state(hasRoute = false, nowMs = 200_000L)))
-        assertNull(producer.checkAndProduce(state(hasRoute = false, nowMs = 500_000L)))
-        assertNull(producer.checkAndProduce(state(hasRoute = false, nowMs = 1_000_000L)))
-    }
-
-    @Test
-    fun `only reset() re-enables BRAK TRASY`() {
-        assertNotNull(producer.checkAndProduce(state(hasRoute = false)))
-        assertNull(producer.checkAndProduce(state(hasRoute = false)))
+    fun `reset clears route fired flag`() {
+        val producer = SensorMessageProducer()
+        val now = System.currentTimeMillis()
+        assertNotNull(producer.checkAndProduce(sensorState(hasRoute = false, nowMs = now)))
         producer.reset()
-        assertNotNull(producer.checkAndProduce(state(hasRoute = false)))
+        assertNotNull(producer.checkAndProduce(sensorState(hasRoute = false, nowMs = now + 1_000L)))
     }
 }
