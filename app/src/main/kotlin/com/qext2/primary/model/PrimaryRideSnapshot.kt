@@ -28,8 +28,6 @@ data class PrimaryRideSnapshot(
     val cadenceValue: String = "",
     val gradeValue: String = "",
     val gearValue: String = "",
-    val fieldStatuses: Map<String, String> = emptyMap(),
-    val fieldReasons: Map<String, String> = emptyMap(),
 ) {
     companion object {
         // legacy_live_snapshot_mapping

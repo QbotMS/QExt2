@@ -32,7 +32,7 @@ object StatsAdvancedFieldPolicy {
         if (!batterySourceReady) return waitNoData("battery_source_not_connected")
         if (!batteryDrainReady) return AdvancedFieldDecision(value = "—", status = FieldStatus.OK, reason = "battery_tracking_not_enough_data", source = batterySource ?: "headunit_polling")
         val value = dropPctPerHour ?: return AdvancedFieldDecision(value = "—", status = FieldStatus.OK, reason = "battery_tracking_not_enough_data", source = batterySource ?: "headunit_polling")
-        if (!value.isFinite() || value <= 0f) return AdvancedFieldDecision(value = "—", status = FieldStatus.OK, reason = "battery_tracking_not_enough_data", source = batterySource ?: "headunit_polling")
+        if (!value.isFinite() || value < 0f) return AdvancedFieldDecision(value = "—", status = FieldStatus.OK, reason = "battery_tracking_not_enough_data", source = batterySource ?: "headunit_polling")
         return AdvancedFieldDecision(
             value = String.format(Locale.US, "%.1f", value.coerceIn(0f, 100f)),
             status = FieldStatus.OK,
@@ -192,9 +192,9 @@ object StatsAdvancedFieldPolicy {
         )
     }
 
-    fun localAvgGross(distanceKm: Float, elapsedSec: Long): AdvancedFieldDecision {
-        if (distanceKm <= 0f || elapsedSec <= 0L) return waitNoData("avg_gross_no_distance_or_time")
-        val avg = (distanceKm / (elapsedSec / 3600.0))
+    fun localAvgGross(distanceKm: Float, grossElapsedSec: Long): AdvancedFieldDecision {
+        if (distanceKm <= 0f || grossElapsedSec <= 0L) return waitNoData("avg_gross_no_distance_or_time")
+        val avg = (distanceKm / (grossElapsedSec / 3600.0))
         if (!avg.isFinite() || avg <= 0.0 || avg > 80.0) return waitNoModel("avg_gross_unrealistic")
         return AdvancedFieldDecision(
             value = String.format(Locale.US, "%.1f", avg),

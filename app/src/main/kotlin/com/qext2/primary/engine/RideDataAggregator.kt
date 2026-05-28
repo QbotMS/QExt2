@@ -63,6 +63,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val distanceToDestinationMetersRef = AtomicReference(0.0)
     private val ascentDoneMRef = AtomicReference(0)
     private val ascentLeftMRef = AtomicReference(0)
+    private val elevationRemainingReceivedRef = AtomicReference(false)
+    private val elevationGainReceivedRef = AtomicReference(false)
     private val batteryPctRef = AtomicReference<Int?>(null)
     private val batteryChargingRef = AtomicReference<Boolean?>(null)
     private val rearDerailleurBatteryRef = AtomicReference<Int?>(null)
@@ -105,7 +107,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val statsCalc = StatsCalculator(ftpWatts = AthleteDataStore.load().ftp)
     private val hrBuffer = HrDecouplingBuffer()
     private val hrAdvisor = HrStrainAdvisor(hrBuffer)
-    private val etaCalc = EtaCalculator()
+    private val etaMovingSpeedHistory = ArrayDeque<Pair<Long, Float>>()
     private val lastEtaMsRef = AtomicReference(0L)
     private val lastDeadlineMsRef = AtomicReference(0L)
     private val carbNeededTotalGRef = AtomicReference(0.0)
@@ -226,6 +228,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         rideStartMsRef.set(System.currentTimeMillis())
         karooElapsedReceivedRef.set(false)
         rideStartWallMsRef.set(System.currentTimeMillis())
+        elevationRemainingReceivedRef.set(false)
+        elevationGainReceivedRef.set(false)
         val (savedElapsed, savedDistance) = AthleteDataStore.loadElapsedSnapshot()
         if (savedElapsed > 0L) {
             rideStartWallMsRef.set(System.currentTimeMillis() - savedElapsed * 1000L)
@@ -355,6 +359,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                             ?: (s.dataPoint.values[DataType.Field.ASCENT_REMAINING] as? Double)
                         if (v != null && v >= 0.0) {
                             ascentLeftMRef.set(v.toInt())
+                            elevationRemainingReceivedRef.set(true)
                             if (QExt2DebugConfig.DEBUG_ACTIVE_PRODUCER_DIAG) {
                                 Log.i(TAG, "QEXT_SDK_PROBE type=ELEVATION_REMAINING raw=$v value=${v.toInt()}m")
                             }
@@ -373,6 +378,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                         val v = s.dataPoint.singleValue
                         if (v != null && v >= 0.0) {
                             ascentDoneMRef.set(v.toInt())
+                            elevationGainReceivedRef.set(true)
                         }
                     }
                 }
@@ -762,28 +768,18 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     cadenceValue = cadOut?.value ?: "WAIT",
                     gradeValue = gradeOut?.value ?: "WAIT",
                     gearValue = gearOut?.value ?: "WAIT",
-                    fieldStatuses = outputs.mapValues { it.value.status.name },
-                    fieldReasons = outputs.mapValues { it.value.reason },
                 )
 
                 val powerWatts = powerRef.get()
                 val hr = hrRef.get()
                 val cadence = cadenceRef.get()
                 statsCalc.update(powerWatts, hr, elapsedSec, elapsedSec)
-                val hrdResult = statsCalc.updateHRD(
-                    nowMs = now,
-                    elapsedSec = elapsedSec,
-                    movingSec = elapsedSec,
-                    powerWatts = powerWatts,
-                    hrBpm = hr,
-                    cadenceRpm = cadence,
-                )
                 val npWhole = statsCalc.npWatts()
-                val ifWhole = statsCalc.ifValue()
+                val ifWhole = ifRef.get().takeIf { it > 0f } ?: statsCalc.ifValue()
                 val adjFtp = (statsCalc.ftpWatts * todayFactorRef.get().coerceIn(0.5f, 1.1f)).toInt().coerceAtLeast(50)
                 val adjIf = if (adjFtp > 0 && npWhole > 0) (npWhole.toFloat() / adjFtp).coerceAtMost(2.0f) else 0f
                 val vi = statsCalc.viValue()
-                val sessionTss = statsCalc.tssValue(elapsedSec)
+                val sessionTss = tssRef.get().takeIf { it > 0f } ?: statsCalc.tssValue(elapsedSec)
                 var sessionTssForReserve = sessionTss
                 sessionTssRef.set(sessionTssForReserve)
                 val decoupling = statsCalc.decouplingPercent()
@@ -873,7 +869,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val remainingMeters = distanceToDestinationMetersRef.get().coerceAtLeast(0.0)
                 val speedKmhNow = speedRef.get().coerceAtLeast(0.0)
                 val hasRoute = resolveHasRoute(getEffectiveRoute(), remainingMeters)
-                val routeClimbSourceReady = navRouteActiveRef.get()
+                val routeClimbSourceReady = navRouteActiveRef.get() && elevationRemainingReceivedRef.get() && elevationGainReceivedRef.get()
 
                 logFieldDiagnostics(now, elapsedSec, carbs, carbIntakeTotal, carbNeededTotal, carbBalance,
                     wBalance, tssRef.get(), reserve, speedKmhNow, hasRoute,
@@ -889,39 +885,27 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val remainingKm = (remainingMeters / 1000.0).toFloat()
                 val distanceKm = (distanceMetersRef.get() / 1000.0).toFloat()
 
-                etaCalc.update(now, speedKmhNow.toFloat(), isMoving, elapsedSec * 1000L, elapsedSec * 1000L)
-                val netMovingAvg = if (elapsedSec > 0L && distanceMetersRef.get() > 0.0) {
-                    (distanceKm / (elapsedSec / 3600.0)).toFloat()
-                } else 0f
-                val smartAvg = etaCalc.smartAvgKph(netMovingAvg)
-                val predictedSpeed = when {
-                    elapsedSec < 60L -> 0f
-                    smartAvg >= 3f -> smartAvg
-                    speedKmhNow >= 3f -> speedKmhNow.toFloat()
-                    else -> 0f
+                if (isMoving && speedKmhNow >= 1f) {
+                    etaMovingSpeedHistory.addLast(now to speedKmhNow.toFloat())
                 }
-                val etaMs = etaCalc.calculateEtaMs(now, remainingKm, distanceKm, predictedSpeed)
+                val movingWindowMs = 30 * 60_000L
+                while (etaMovingSpeedHistory.isNotEmpty() && etaMovingSpeedHistory.first().first < now - movingWindowMs) {
+                    etaMovingSpeedHistory.removeFirst()
+                }
+                val movingAvgKph = if (etaMovingSpeedHistory.isNotEmpty()) {
+                    etaMovingSpeedHistory.map { it.second }.average().toFloat()
+                } else 0f
+                val etaMs = if (hasRoute && remainingKm > 0f && movingAvgKph > 0f) {
+                    (now + (remainingKm / movingAvgKph * 3600_000L).toLong()).coerceAtLeast(now + 60_000L)
+                } else 0L
                 lastEtaMsRef.set(etaMs)
-                val predictedStops = etaCalc.predictedStopsSec(remainingKm, distanceKm)
                 val deadlineTs = resolveDeadlineMs(now)
                 lastDeadlineMsRef.set(deadlineTs)
-                val requiredSpeed = if (hasRoute && deadlineTs > now) {
-                    etaCalc.requiredSpeedKph(now, remainingKm, deadlineTs, predictedStops)
-                } else 0f
-                val deadlineDelta = if (hasRoute && smartAvg > 1f && requiredSpeed > 0f) {
-                    (requiredSpeed - smartAvg)
-                } else 0f
-                val deadlineStatus = when {
-                    !hasRoute || etaMs <= 0L || deadlineTs <= now -> "--"
-                    etaMs <= deadlineTs -> "OK"
-                    deadlineDelta > 2.5f -> "IMPOSSIBLE"
-                    else -> "LATE"
-                }
                 statsCalc.updateBattery(batteryPctRef.get(), batteryChargingRef.get(), now)
                 val drainPerHour = statsCalc.batteryDrainPctPerHour(now)
                 val batteryPctNow = batteryPctRef.get()
                 val batterySourceReady = batteryPctNow != null
-                val batteryDrainReady = batterySourceReady && drainPerHour != null && drainPerHour.isFinite() && drainPerHour > 0f
+                val batteryDrainReady = batterySourceReady && drainPerHour != null && drainPerHour.isFinite() && drainPerHour >= 0f
                 val batteryLeftSec = if (drainPerHour != null && batteryPctNow != null && drainPerHour > 0f) {
                     ((batteryPctNow / drainPerHour) * 3600f).toLong().coerceAtLeast(0L)
                 } else null
@@ -938,23 +922,12 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     viValue = viRef.get(),
                     tssValue = tssRef.get(),
                     caloriesKcal = kcalRef.get(),
-                    decouplingPercent = decoupling,
                     carbsGPerH = carbs,
-                    carbIntakeTotalG = carbIntakeTotal,
-                    carbNeededTotalG = carbNeededTotal,
                     carbBalanceG = carbBalance,
                     fluidLPerH = fluid,
                     rideReservePercent = reserve,
                     wBalancePercent = wBalance,
-                    wBalanceTrend = statsCalc.wBalanceTrend(),
-                    hrdStatus = hrdResult.status,
-                    hrdPct = hrdResult.pct,
-                    hrdPhase = hrdResult.phase,
-                    hrdValid = hrdResult.valid,
                     etaTimestamp = etaMs,
-                    deadlineTimestamp = civilDuskMsRef.get().takeIf { it > 0L } ?: sunsetTimestampRef.get(),
-                    deadlineDeltaKph = deadlineDelta,
-                    deadlineStatus = deadlineStatus,
                     ascentDoneM = ascentDoneMRef.get(),
                     ascentLeftM = ascentLeftMRef.get(),
                     hasRoute = hasRoute,
@@ -967,26 +940,16 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     rsrvModelReady = rsrvModelReady,
                     carbModelReady = carbModelReady,
                     fluidModelReady = fluidModelReady,
-                    hasActivity = hasActivity,
-                    weatherSourceReady = weatherSourceReadyRef.get(),
                     weatherFresh = weatherFreshRef.get(),
                     weatherTemperatureC = weatherTemperatureCRef.get(),
                     weatherWindSpeedMps = weatherWindSpeedMpsRef.get(),
-                    weatherWindDirectionDeg = weatherWindDirectionDegRef.get(),
-                    weatherHumidityPct = weatherHumidityPctRef.get(),
                     weatherRain1hMm = weatherRain1hMmRef.get(),
                     weatherCondition = weatherConditionRef.get(),
-                    weatherSource = weatherSourceRef.get(),
                     batterySource = if (batterySourceReady) "headunit_polling" else null,
                     batteryDrainPctPerHour = drainPerHour,
                     batteryTimeLeftSec = batteryLeftSec,
-                    batteryIsCharging = batteryChargingRef.get(),
-                    batteryPctCurrent = batteryPctNow,
-                    rearDerailleurBatteryPercent = rearDerailleurBatteryRef.get(),
-                    elapsedSec = elapsedSec,
-                    movingSec = elapsedSec,
+                    grossElapsedSec = localElapsedSec,
                     distanceKm = (distanceMetersRef.get() / 1000.0).toFloat(),
-                    updatedAtMs = now,
                 )
                 if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "HR_DECOUPLING reason=${hrResult.reasonCode} decouplingPct=${hrResult.decouplingPct} color=${hrResult.color}")
                 } catch (e: Exception) {
@@ -1019,6 +982,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         statsCalc.reset()
         hrBuffer.clear()
         hrAdvisor.reset()
+        etaMovingSpeedHistory.clear()
     }
 
     fun updateAthleteData(data: AthleteData) {
@@ -1090,12 +1054,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
 
     fun getCarbNeededG(): Int = carbNeededTotalGRef.get().roundToInt().coerceAtLeast(0)
 
-    fun getSpeedKmh(): Double = speedRef.get()
-    fun getCadence(): Int = cadenceRef.get()
-    fun getHr(): Int = hrRef.get()
-    fun getPower(): Int = powerRef.get()
-    fun getHasRoute(): Boolean = getEffectiveRoute()
     fun getDistanceMeters(): Double = distanceMetersRef.get()
+    fun getDistanceToDestinationMeters(): Double = distanceToDestinationMetersRef.get()
+    fun getAscentLeftM(): Int = ascentLeftMRef.get()
 
     private val lastRouteSeenMsRef = AtomicReference(0L)
     private val lastLocationSaveMs = AtomicReference(0L)
@@ -1180,10 +1141,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         return System.currentTimeMillis() - last
     }
 
-    fun getDistanceToDestinationMeters(): Double = distanceToDestinationMetersRef.get()
-    fun getAscentLeftM(): Int = ascentLeftMRef.get()
-    fun getGradePercent(): Double = filteredGradeRef.get()
-
     private var carbTelemetryLastLogMs = 0L
 
     private var fieldDiagLastLogMs = 0L
@@ -1207,6 +1164,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         distanceToDestinationMetersRef.set(25000.0)
         ascentDoneMRef.set(((elapsedSec / 60) * 5).coerceAtLeast(0).toInt())
         ascentLeftMRef.set((400 - (elapsedSec / 60) * 5).coerceAtLeast(0).toInt())
+        elevationGainReceivedRef.set(true)
+        elevationRemainingReceivedRef.set(true)
         temperatureRef.set(18f)
 
         if (nowMs - fakeRideLogLastMs > 15_000L) {
@@ -1280,7 +1239,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private fun applyAthleteData(data: AthleteData, resetStats: Boolean) {
         if (data.ftp > 0) statsCalc.ftpWatts = data.ftp
         statsCalc.todayFactor = data.todayFactor
-        statsCalc.ctl = data.ctl
         statsCalc.humidityPercent = data.humidityPercent
         sunsetTimestampRef.set(data.sunsetTimestampMs)
         maxHrRef.set(data.maxHr.coerceIn(100, 220))

@@ -118,7 +118,7 @@ class StatsDataType : DataTypeImpl("qext2", "qext2-stats") {
 
         bindAdvanced(v, R.id.tv_asc_done, StatsAdvancedFieldPolicy.ascentDone(snap.hasRoute, snap.routeClimbSourceReady, snap.ascentDoneM, snap.ascentLeftM), "up")
         bindAdvanced(v, R.id.tv_asc_left, StatsAdvancedFieldPolicy.ascentLeft(snap.hasRoute, snap.routeClimbSourceReady, snap.ascentDoneM, snap.ascentLeftM), "left")
-        bindAdvanced(v, R.id.tv_avg_gross, StatsAdvancedFieldPolicy.localAvgGross(snap.distanceKm, snap.elapsedSec), "avg_gross")
+        bindAdvanced(v, R.id.tv_avg_gross, StatsAdvancedFieldPolicy.localAvgGross(snap.distanceKm, snap.grossElapsedSec), "avg_gross")
         bindAdvanced(v, R.id.tv_wprime, StatsAdvancedFieldPolicy.localWPrime(snap.wPrimeModelReady, snap.wBalancePercent), "wprime")
 
         bindAdvanced(
@@ -153,16 +153,6 @@ class StatsDataType : DataTypeImpl("qext2", "qext2-stats") {
         setValue(v, id, decision.value)
         val source = decision.source ?: "--"
         Log.d(TAG, "QEXT_STATS_ADV field=$name value=${decision.value} status=${decision.status} reason=${decision.reason} source=$source")
-    }
-
-    private fun bindUnit(v: RemoteViews, valueId: Int, unitId: Int, fv: StatsFormattedValue) {
-        v.setTextViewText(valueId, fv.main)
-        if (fv.unit != null && fv.main != "--") {
-            v.setTextViewText(unitId, fv.unit)
-            v.setViewVisibility(unitId, View.VISIBLE)
-        } else {
-            v.setViewVisibility(unitId, View.GONE)
-        }
     }
 
     private fun viColor(vi: Float): Int = when {

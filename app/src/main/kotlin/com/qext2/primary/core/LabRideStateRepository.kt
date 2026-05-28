@@ -28,10 +28,4 @@ object LabRideStateRepository {
             return mvpOutputs
         }
     }
-
-    fun getMvpOutputs(): Map<String, FieldOutput> {
-        synchronized(lock) {
-            return mvpOutputs
-        }
-    }
 }

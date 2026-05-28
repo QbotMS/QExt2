@@ -17,14 +17,7 @@ class StatsCalculator(var ftpWatts: Int = 200) {
     private val decoupleHr = mutableListOf<Int>()
     private val decouplePower = mutableListOf<Int>()
 
-    private val hrdSamples = mutableListOf<HrdSample>()
-    private var hrdBaselineRatio: Float? = null
-    private var hrdStopStartMs: Long = 0L
-
-    data class HrdSample(val timestampMs: Long, val hr: Int, val power: Int, val cadence: Int)
-
     var todayFactor: Float = 1.0f
-    var ctl: Float = 60f
     var bodyWeightKg: Float = 75f
     var humidityPercent: Float = 50f
 
@@ -142,8 +135,6 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         return result.coerceIn(0f, 9999f)
     }
 
-    fun caloriesKcal(): Int = totalEnergyKj.roundToInt()
-
     fun hasDecouplingData(): Boolean = decoupleHr.size >= 120
 
     fun decouplingPercent(): Float {
@@ -251,11 +242,8 @@ class StatsCalculator(var ftpWatts: Int = 200) {
     }
 
     fun updateBattery(currentPct: Int?, charging: Boolean?, nowMs: Long) {
-        batteryIsCharging = charging
-        if (currentPct == null) {
-            batteryPctCurrent = null
-            return
-        }
+        if (charging != null) batteryIsCharging = charging
+        if (currentPct == null) return
         if (batteryPctStart == null) {
             batteryPctStart = currentPct.coerceIn(0, 100)
             batteryStartMs = nowMs
@@ -274,63 +262,7 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         if (drop < 0) return null
         val hours = elapsedSec / 3600f
         if (hours <= 0f) return null
-        val drain = drop / hours
-        return drain.takeIf { it > 0f }
-    }
-
-    data class HrdResult(
-        val phase: String,
-        val status: String,
-        val pct: Float,
-        val valid: Boolean,
-        val reason: String,
-    )
-
-    fun updateHRD(nowMs: Long, elapsedSec: Long, movingSec: Long, powerWatts: Int, hrBpm: Int, cadenceRpm: Int): HrdResult {
-        val minPower = (ftpWatts * 0.55f).toInt()
-        val stoppedDurationSec = elapsedSec - movingSec
-        if (stoppedDurationSec > 600 && hrdStopStartMs == 0L) hrdStopStartMs = nowMs
-        if (hrdStopStartMs > 0) {
-            val cooldownEndMs = hrdStopStartMs + 600_000L
-            if (nowMs < cooldownEndMs) {
-                hrdSamples.removeAll { it.timestampMs < hrdStopStartMs }
-                hrdBaselineRatio = null
-                return HrdResult("COOLDOWN", "WAIT", 0f, false, "post_stop_cooldown")
-            }
-            hrdSamples.clear()
-            hrdBaselineRatio = null
-            hrdStopStartMs = 0L
-        }
-
-        val isValid = movingSec > 0 && powerWatts > minPower && hrBpm > 0 && cadenceRpm > 0
-        if (isValid) hrdSamples.add(HrdSample(nowMs, hrBpm, powerWatts, cadenceRpm))
-        val cutoffMs = nowMs - 3_600_000L
-        hrdSamples.removeAll { it.timestampMs < cutoffMs }
-
-        val movingMin = movingSec / 60
-        if (movingMin < 20) return HrdResult("WAIT", "WAIT", 0f, false, "moving_under_20min")
-
-        val baselineSamples = hrdSamples.filter { it.timestampMs in (nowMs - 2_100_000L)..(nowMs - 1_200_000L) }
-        if (movingMin < 35 || baselineSamples.size < 8) {
-            return HrdResult("BASE", "BASE", 0f, false, "building_baseline")
-        }
-
-        val currentSamples = hrdSamples.filter { it.timestampMs >= nowMs - 900_000L }
-        if (currentSamples.size < 5) return HrdResult("ACTIVE", "INVALID", 0f, false, "insufficient_current_samples")
-
-        val baselineRatio = baselineSamples.map { it.hr.toFloat() / it.power }.average().toFloat()
-        val currentRatio = currentSamples.map { it.hr.toFloat() / it.power }.average().toFloat()
-        if (hrdBaselineRatio == null) hrdBaselineRatio = baselineRatio
-
-        val driftPct = ((currentRatio / baselineRatio) - 1.0f) * 100f
-        val displayDrift = maxOf(0f, driftPct)
-        val status = when {
-            displayDrift < 3f -> "OK"
-            displayDrift < 5f -> "+"
-            displayDrift < 7f -> "++"
-            else -> "HOT"
-        }
-        return HrdResult("ACTIVE", status, displayDrift, true, "drift_calculated")
+        return (drop / hours).coerceAtLeast(0f)
     }
 
     fun reset() {
@@ -351,8 +283,6 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         batteryPctCurrent = null
         batteryStartMs = null
         batteryIsCharging = null
-        hrdSamples.clear()
-        hrdBaselineRatio = null
     }
 
     fun snapshotForCrashRecovery(): StatsCalcSnapshot {
