@@ -777,38 +777,11 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val wBalance = statsCalc.wBalancePercent(now)
                 val carbs = statsCalc.carbsGPerH(adjIf, movingElapsedSec, vi, temperatureRef.get(), statsCalc.bodyWeightKg)
                 val fluid = statsCalc.fluidLPerH(adjIf, temperatureRef.get())
-                if (!carbSessionInitializedRef.get()) {
-                    val storedLastElapsed = carbLastElapsedSecRef.get()
-                    val looksLikeNewRide = elapsedSec <= 30L ||
-                        (storedLastElapsed > 0L && elapsedSec + 120L < storedLastElapsed) ||
-                        (storedLastElapsed > 0L && elapsedSec > storedLastElapsed + 120L)
-                    if (looksLikeNewRide || (carbNeededTotalGRef.get() > 100 && elapsedSec < 120L)) {
-                        AthleteDataStore.resetCarbSessionState()
-                        carbNeededTotalGRef.set(0.0)
-                        carbLastElapsedSecRef.set(elapsedSec)
-                        Log.i(TAG, "CARB session reset needed=${carbNeededTotalGRef.get()} elapsed=$elapsedSec")
-                    }
-                    carbSessionInitializedRef.set(true)
-                }
+                initCarbSession(elapsedSec)
+                val dtSec = computeCarbDtSec(elapsedSec)
 
-                val lastElapsed = carbLastElapsedSecRef.get()
-                val rawGapSec = if (lastElapsed > 0L) elapsedSec - lastElapsed else 0L
-                if (rawGapSec > 7200L) {
-                    AthleteDataStore.resetCarbSessionState()
-                    carbNeededTotalGRef.set(0.0)
-                    carbLastElapsedSecRef.set(elapsedSec)
-                    Log.d(TAG, "CARB long pause (${rawGapSec}s), session reset")
-                }
-                val dtSec = rawGapSec.coerceIn(0L, 30L)
-                carbLastElapsedSecRef.set(elapsedSec)
-
-                val powerRaw = powerRef.get()
-                val cadenceRaw = cadenceRef.get()
-                val speedFromSensor = speedKmh > 0.5
-                val fallbackMoving = !speedFromSensor && powerRaw > 0 && cadenceRaw > 0
-                val rawMoving = speedKmh > 1.0 || fallbackMoving
                 val wasMoving = wasMovingRef.get()
-                val isMoving = if (wasMoving) rawMoving || speedKmh > 0.8 else speedKmh > 1.4 || fallbackMoving
+                val isMoving = computeIsMoving(speedKmh)
                 wasMovingRef.set(isMoving)
                 if (isMoving) movingElapsedSecRef.set(movingElapsedSecRef.get() + 1L)
 
@@ -846,13 +819,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 maybePersistReserveBase(effectiveTss, now)
                 val reserve = statsCalc.rideReservePercent(effectiveTss, ifWhole, decouplingForReserve, elapsedSec)
 
-                val recentlyActive = isMoving || (now - wasActiveUntilMsRef.get() < 120_000L)
-                if (isMoving) wasActiveUntilMsRef.set(now)
-                if (dtSec > 0L && recentlyActive && carbs > 0) {
-                    val addNeeded = carbs.toDouble() * (dtSec.toDouble() / 3600.0)
-                    carbNeededTotalGRef.set((carbNeededTotalGRef.get() + addNeeded).coerceAtLeast(0.0))
-                    AthleteDataStore.saveCarbNeededTotal(carbNeededTotalGRef.get())
-                }
+                accumulateCarbs(now, elapsedSec, isMoving, dtSec, carbs)
                 AthleteDataStore.saveCarbLastElapsedSec(elapsedSec)
                 val carbIntakeTotal = AthleteDataStore.loadCarbIntakeTotal()
                 val carbNeededTotal = carbNeededTotalGRef.get().roundToInt().coerceAtLeast(0)
@@ -1286,5 +1253,63 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         FieldColor.BLUE -> 0xFF3B82F6.toInt()
         FieldColor.GRAY -> 0xFF9CA3AF.toInt()
         FieldColor.NEUTRAL, null -> 0xFFFFFFFF.toInt()
+    }
+
+    private fun initCarbSession(elapsedSec: Long) {
+        if (carbSessionInitializedRef.get()) return
+        val storedLastElapsed = carbLastElapsedSecRef.get()
+        val looksLikeNewRide = elapsedSec <= 30L ||
+            (storedLastElapsed > 0L && elapsedSec + 120L < storedLastElapsed) ||
+            (storedLastElapsed > 0L && elapsedSec > storedLastElapsed + 120L)
+        if (looksLikeNewRide || (carbNeededTotalGRef.get() > 100 && elapsedSec < 120L)) {
+            AthleteDataStore.resetCarbSessionState()
+            carbNeededTotalGRef.set(0.0)
+            carbLastElapsedSecRef.set(elapsedSec)
+            Log.i(TAG, "CARB session reset needed=${carbNeededTotalGRef.get()} elapsed=$elapsedSec")
+        }
+        carbSessionInitializedRef.set(true)
+    }
+
+    private fun computeCarbDtSec(elapsedSec: Long): Long {
+        val lastElapsed = carbLastElapsedSecRef.get()
+        val rawGapSec = if (lastElapsed > 0L) elapsedSec - lastElapsed else 0L
+        if (rawGapSec > 7200L) {
+            AthleteDataStore.resetCarbSessionState()
+            carbNeededTotalGRef.set(0.0)
+            carbLastElapsedSecRef.set(elapsedSec)
+            Log.d(TAG, "CARB long pause (${rawGapSec}s), session reset")
+        }
+        val dtSec = rawGapSec.coerceIn(0L, 30L)
+        carbLastElapsedSecRef.set(elapsedSec)
+        return dtSec
+    }
+
+    private fun computeIsMoving(speedKmh: Double): Boolean {
+        val powerRaw = powerRef.get()
+        val cadenceRaw = cadenceRef.get()
+        val speedFromSensor = speedKmh > 0.5
+        val fallbackMoving = !speedFromSensor && powerRaw > 0 && cadenceRaw > 0
+        val rawMoving = speedKmh > 1.0 || fallbackMoving
+        val wasMoving = wasMovingRef.get()
+        return if (wasMoving) rawMoving || speedKmh > 0.8 else speedKmh > 1.4 || fallbackMoving
+    }
+
+    private fun accumulateCarbs(nowMs: Long, elapsedSec: Long, isMoving: Boolean, dtSec: Long, carbs: Int) {
+        val recentlyActive = isMoving || (nowMs - wasActiveUntilMsRef.get() < 120_000L)
+        if (isMoving) wasActiveUntilMsRef.set(nowMs)
+        if (dtSec > 0L && recentlyActive && carbs > 0) {
+            val addNeeded = carbs.toDouble() * (dtSec.toDouble() / 3600.0)
+            carbNeededTotalGRef.set((carbNeededTotalGRef.get() + addNeeded).coerceAtLeast(0.0))
+            AthleteDataStore.saveCarbNeededTotal(carbNeededTotalGRef.get())
+        }
+    }
+
+    private fun updateCarbBalance(elapsedSec: Long) {
+        AthleteDataStore.saveCarbLastElapsedSec(elapsedSec)
+        val carbIntakeTotal = AthleteDataStore.loadCarbIntakeTotal()
+        val carbNeededTotal = carbNeededTotalGRef.get().roundToInt().coerceAtLeast(0)
+        val carbBalance = carbIntakeTotal - carbNeededTotal
+        carbBalanceGRef.set(carbBalance)
+        logCarbTelemetry(System.currentTimeMillis(), false, 0L, 0, carbIntakeTotal, carbNeededTotal, carbBalance)
     }
 }
