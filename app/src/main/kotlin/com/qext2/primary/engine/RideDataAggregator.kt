@@ -265,13 +265,18 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                         if (savedDtd > 0.0) distanceToDestinationMetersRef.set(savedDtd)
                         val savedMoving = parts.getOrNull(16)?.toLongOrNull() ?: 0L
                         if (savedMoving > 0L) movingElapsedSecRef.set(savedMoving)
+                        val savedCarb = parts.getOrNull(17)?.toDoubleOrNull()?.takeIf { it > 0 } ?: 0.0
+                        carbNeededTotalGRef.set(savedCarb)
                     }
                 } catch (_: Exception) {}
             }
             Log.i(TAG, "QEXT_ELAPSED_RESTORED elapsed=${savedElapsed}s distance=${"%.0f".format(savedDistance)}m")
         }
         sanitizeCarbIntake()
-        carbNeededTotalGRef.set(sanitizeCarbNeeded(AthleteDataStore.loadCarbNeededTotal()))
+        if (savedElapsed <= 0L) {
+            carbNeededTotalGRef.set(0.0)
+            AthleteDataStore.resetCarbSessionState()
+        }
         carbBalanceGRef.set(0)
         carbLastElapsedSecRef.set(sanitizeCarbElapsed(AthleteDataStore.loadCarbLastElapsedSec()))
         carbSessionInitializedRef.set(false)
@@ -689,7 +694,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     AthleteDataStore.saveElapsedSnapshot(elapsedSec, distanceMetersRef.get())
                     val snap = statsCalc.snapshotForCrashRecovery()
                     AthleteDataStore.saveStatsCalcSnapshot(
-                        "v4|${snap.count4thPowers}|${snap.sumOf4thPowers}|${snap.totalPowerSum}|${snap.totalPowerCount}|${snap.totalEnergyKj}|${snap.lastMovingSec}|${snap.lastReserve}|${snap.startReserve}|${snap.wBalKj}|${snap.batteryPctStart ?: -1}|${snap.batteryPctCurrent ?: -1}|${snap.batteryStartMs ?: -1L}|${snap.batteryIsCharging ?: "null"}|${navRouteActiveRef.get()}|${distanceToDestinationMetersRef.get()}|${movingElapsedSecRef.get()}"
+                        "v4|${snap.count4thPowers}|${snap.sumOf4thPowers}|${snap.totalPowerSum}|${snap.totalPowerCount}|${snap.totalEnergyKj}|${snap.lastMovingSec}|${snap.lastReserve}|${snap.startReserve}|${snap.wBalKj}|${snap.batteryPctStart ?: -1}|${snap.batteryPctCurrent ?: -1}|${snap.batteryStartMs ?: -1L}|${snap.batteryIsCharging ?: "null"}|${navRouteActiveRef.get()}|${distanceToDestinationMetersRef.get()}|${movingElapsedSecRef.get()}|${carbNeededTotalGRef.get()}"
                     )
                 }
 
