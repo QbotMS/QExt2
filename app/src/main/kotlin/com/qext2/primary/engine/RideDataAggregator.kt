@@ -1303,7 +1303,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private fun accumulateCarbs(nowMs: Long, elapsedSec: Long, isMoving: Boolean, dtSec: Long, carbs: Int) {
         val recentlyActive = isMoving || (nowMs - wasActiveUntilMsRef.get() < 120_000L)
         if (isMoving) wasActiveUntilMsRef.set(nowMs)
-        if (dtSec > 0L && recentlyActive && carbs > 0) {
+        if (dtSec > 0L && recentlyActive && carbs > 0 && movingElapsedSecRef.get() > 60L) {
             val addNeeded = carbs.toDouble() * (dtSec.toDouble() / 3600.0)
             carbNeededTotalGRef.set((carbNeededTotalGRef.get() + addNeeded).coerceAtLeast(0.0))
             AthleteDataStore.saveCarbNeededTotal(carbNeededTotalGRef.get())
