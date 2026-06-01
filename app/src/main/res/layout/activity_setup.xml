@@ -446,5 +446,25 @@
         android:textSize="12sp"
         android:gravity="center" />
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="16dp"
+        android:background="#374151" />
+
+    <TextView
+        android:id="@+id/btn_reset_carb"
+        android:layout_width="200dp"
+        android:layout_height="48dp"
+        android:layout_marginTop="16dp"
+        android:gravity="center"
+        android:text="RESET CARB"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="#EF4444" />
+
 </LinearLayout>
 </ScrollView>

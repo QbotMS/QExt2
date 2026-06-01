@@ -78,6 +78,18 @@ class SetupActivity : Activity() {
                 btn.isEnabled = true
             }, 5000L)
         }
+
+        findViewById<TextView>(R.id.btn_reset_carb)?.setOnClickListener {
+            AlertDialog.Builder(this)
+                .setTitle("Reset CARB")
+                .setMessage("Wyzerowac sume przyjetych wegli (${AthleteDataStore.loadCarbIntakeTotal()}g)?")
+                .setPositiveButton("TAK") { _, _ ->
+                    AthleteDataStore.resetCarbIntakeTotal()
+                    setStatus("CARB: zresetowane do 0g")
+                }
+                .setNegativeButton("NIE", null)
+                .show()
+        }
     }
 
     override fun onResume() {
