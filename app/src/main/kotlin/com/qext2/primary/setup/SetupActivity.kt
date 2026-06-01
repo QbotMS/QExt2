@@ -93,14 +93,15 @@ class SetupActivity : Activity() {
 
         findViewById<TextView>(R.id.btn_report_bug)?.setOnClickListener {
             val logs = com.qext2.primary.LogCollector.collect()
+            val tv = TextView(this@SetupActivity).apply {
+                setText(logs)
+                setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 10f)
+                setTextColor(Color.WHITE)
+                setPadding(16, 16, 16, 16)
+                setTextIsSelectable(true)
+            }
             val scrollView = android.widget.ScrollView(this).apply {
-                addView(TextView(this@SetupActivity).apply {
-                    text = logs
-                    textSize = 10f
-                    setTextColor(Color.WHITE)
-                    setPadding(16, 16, 16, 16)
-                    isTextSelectable = true
-                })
+                addView(tv)
             }
             AlertDialog.Builder(this)
                 .setTitle("Logi QExt2")
