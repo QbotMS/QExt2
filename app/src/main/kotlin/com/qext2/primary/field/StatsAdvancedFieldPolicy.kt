@@ -34,7 +34,7 @@ object StatsAdvancedFieldPolicy {
         val value = dropPctPerHour ?: return AdvancedFieldDecision(value = "—", status = FieldStatus.OK, reason = "battery_tracking_not_enough_data", source = batterySource ?: "headunit_polling")
         if (!value.isFinite() || value < 0f) return AdvancedFieldDecision(value = "—", status = FieldStatus.OK, reason = "battery_tracking_not_enough_data", source = batterySource ?: "headunit_polling")
         return AdvancedFieldDecision(
-            value = String.format(Locale.US, "%.1f", value.coerceIn(0f, 100f)),
+            value = String.format(Locale.US, "%.1f%%", value.coerceIn(0f, 100f)),
             status = FieldStatus.OK,
             reason = "battery_drain_from_headunit",
             source = batterySource ?: "headunit_polling"
