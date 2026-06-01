@@ -250,7 +250,7 @@ object AthleteDataStore {
     }
 
     fun saveCarbIntakeTotal(grams: Int) {
-        prefs?.edit()?.putInt("carb_intake_total", grams.coerceAtLeast(0))?.apply()
+        prefs?.edit()?.putInt("carb_intake_total", grams.coerceAtLeast(0))?.commit()
     }
 
     fun loadCarbIntakeTotal(): Int {
@@ -277,7 +277,7 @@ object AthleteDataStore {
     }
 
     fun markCarbTapNow() {
-        prefs?.edit()?.putLong("carb_last_tap_ms", System.currentTimeMillis())?.apply()
+        prefs?.edit()?.putLong("carb_last_tap_ms", System.currentTimeMillis())?.commit()
     }
 
     fun loadCarbLastTapMs(): Long {
