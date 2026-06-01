@@ -367,9 +367,11 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     val s = event.state
                     if (s is StreamState.Streaming) {
                         val dp = s.dataPoint
-                        val v = dp.singleValue
-                            ?: (dp.values[DataType.Field.ASCENT_REMAINING] as? Double)
-                        Log.i(TAG, "QEXT_ELEV_REMAINING singleValue=${dp.singleValue} values=${dp.values} v=$v")
+                        val single = dp.singleValue
+                        val fromField = dp.values[DataType.Field.ASCENT_REMAINING] as? Double
+                        val allValues = dp.values.entries.joinToString(",") { "${it.key}=${it.value}" }
+                        Log.i(TAG, "QEXT_ELEV_REMAINING single=$single field=$fromField all=[${allValues}]")
+                        val v = single ?: fromField ?: dp.values.values.filterIsInstance<Double>().firstOrNull { it >= 0.0 }
                         if (v != null && v >= 0.0) {
                             ascentLeftMRef.set(v.toInt())
                             elevationRemainingReceivedRef.set(true)
@@ -386,8 +388,10 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     val s = event.state
                     if (s is StreamState.Streaming) {
                         val dp = s.dataPoint
-                        val v = dp.singleValue
-                        Log.i(TAG, "QEXT_ELEV_GAIN singleValue=${dp.singleValue} values=${dp.values} v=$v")
+                        val single = dp.singleValue
+                        val allValues = dp.values.entries.joinToString(",") { "${it.key}=${it.value}" }
+                        Log.i(TAG, "QEXT_ELEV_GAIN single=$single all=[${allValues}]")
+                        val v = single ?: dp.values.values.filterIsInstance<Double>().firstOrNull { it >= 0.0 }
                         if (v != null && v >= 0.0) {
                             ascentDoneMRef.set(v.toInt())
                             elevationGainReceivedRef.set(true)
@@ -839,10 +843,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val remainingMeters = distanceToDestinationMetersRef.get().coerceAtLeast(0.0)
                 val speedKmhNow = speedRef.get().coerceAtLeast(0.0)
                 val hasRoute = resolveHasRoute(getEffectiveRoute(), remainingMeters)
-                val navActive = navRouteActiveRef.get()
-                val elevationDataReceived = elevationRemainingReceivedRef.get() && elevationGainReceivedRef.get()
-                val navGraceOk = navActive && navLastUpdateMsRef.get() > 0L && (now - navLastUpdateMsRef.get() > 30_000L)
-                val routeClimbSourceReady = navActive && (elevationDataReceived || navGraceOk)
+                val routeClimbSourceReady = navRouteActiveRef.get()
 
                 logFieldDiagnostics(now, elapsedSec, carbs, carbIntakeTotal, carbNeededTotal, carbBalance,
                     wBalance, tssRef.get(), reserve, speedKmhNow, hasRoute,
@@ -902,12 +903,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     wBalancePercent = wBalance,
                     wBalanceTrend = statsCalc.wBalanceTrend(),
                     etaTimestamp = etaMs,
-                    ascentDoneM = ascentDoneMRef.get().let { v ->
-                        if (v > 0) v else computeAscentFromNavClimbs(distanceMetersRef.get())
-                    },
-                    ascentLeftM = ascentLeftMRef.get().let { v ->
-                        if (v > 0) v else computeAscentLeftFromNavClimbs(distanceMetersRef.get())
-                    },
+                    ascentDoneM = ascentDoneMRef.get(),
+                    ascentLeftM = ascentLeftMRef.get(),
                     hasRoute = hasRoute,
                     routeClimbSourceReady = routeClimbSourceReady,
                     batterySourceReady = batterySourceReady,
@@ -1271,22 +1268,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         FieldColor.BLUE -> 0xFF3B82F6.toInt()
         FieldColor.GRAY -> 0xFF9CA3AF.toInt()
         FieldColor.NEUTRAL, null -> 0xFFFFFFFF.toInt()
-    }
-
-    private fun computeAscentFromNavClimbs(distanceM: Double): Int {
-        val climbs = navClimbsRef.get()
-        if (climbs.isEmpty()) return 0
-        return climbs
-            .filter { it.startDistance + it.length <= distanceM }
-            .sumOf { it.totalElevation.toInt().coerceAtLeast(0) }
-    }
-
-    private fun computeAscentLeftFromNavClimbs(distanceM: Double): Int {
-        val climbs = navClimbsRef.get()
-        if (climbs.isEmpty()) return 0
-        return climbs
-            .filter { it.startDistance >= distanceM }
-            .sumOf { it.totalElevation.toInt().coerceAtLeast(0) }
     }
 
     private fun computePowerColor(powerWatts: Int, ftpWatts: Int): Int {
