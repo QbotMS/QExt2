@@ -1,5 +1,6 @@
 package com.qext2.primary
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
@@ -14,14 +15,14 @@ object UpdateChecker {
     private const val REPO = "QbotMS/QExt2"
     private var checked = false
 
-    fun check(karooSystem: KarooSystemService) {
+    fun check(context: Context, karooSystem: KarooSystemService) {
         if (checked) return
         checked = true
 
         try {
-            val currentVersion = karooSystem.applicationContext
+            val currentVersion = context
                 .packageManager
-                .getPackageInfo(karooSystem.applicationContext.packageName, 0)
+                .getPackageInfo(context.packageName, 0)
                 .versionCode
             Log.i(TAG, "QEXT_UPDATE_CHECK repo=$REPO current=$currentVersion")
 
@@ -47,7 +48,7 @@ object UpdateChecker {
                                         Log.i(TAG, "QEXT_UPDATE_FOUND tag=${latest.getString("tag_name")}")
                                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                                         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        karooSystem.applicationContext.startActivity(intent)
+                                        context.startActivity(intent)
                                         break
                                     }
                                 }
