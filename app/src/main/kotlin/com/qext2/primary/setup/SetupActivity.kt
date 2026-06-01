@@ -90,6 +90,24 @@ class SetupActivity : Activity() {
                 .setNegativeButton("NIE", null)
                 .show()
         }
+
+        findViewById<TextView>(R.id.btn_report_bug)?.setOnClickListener {
+            val logs = com.qext2.primary.LogCollector.collect()
+            val scrollView = android.widget.ScrollView(this).apply {
+                addView(TextView(this@SetupActivity).apply {
+                    text = logs
+                    textSize = 10f
+                    setTextColor(Color.WHITE)
+                    setPadding(16, 16, 16, 16)
+                    isTextSelectable = true
+                })
+            }
+            AlertDialog.Builder(this)
+                .setTitle("Logi QExt2")
+                .setView(scrollView)
+                .setPositiveButton("OK", null)
+                .show()
+        }
     }
 
     override fun onResume() {

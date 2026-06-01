@@ -466,5 +466,19 @@
         android:focusable="true"
         android:background="#EF4444" />
 
+    <TextView
+        android:id="@+id/btn_report_bug"
+        android:layout_width="200dp"
+        android:layout_height="48dp"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:text="ZGLOS BLAD"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="#3B82F6" />
+
 </LinearLayout>
 </ScrollView>
