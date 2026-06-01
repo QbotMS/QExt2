@@ -10,8 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
-      TOKEN: ${{ secrets.PACKAGES_TOKEN }}
-      USERNAME: qbotms
     steps:
       - uses: actions/checkout@v4
 
@@ -21,12 +19,16 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Setup Gradle auth
+        run: |
+          echo "gpr.user=qbotms" >> gradle.properties
+          echo "gpr.key=${{ secrets.PACKAGES_TOKEN }}" >> gradle.properties
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build APK
         run: |
-          echo "Token set: $([ -n \"$TOKEN\" ] && echo YES || echo NO)"
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           echo "QEXT_GATE_TOKEN=placeholder" >> local.properties
           echo "QEXT_READINESS_URL=https://qbot.cytr.us/ride-readiness" >> local.properties
