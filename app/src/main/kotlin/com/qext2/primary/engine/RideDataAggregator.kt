@@ -382,8 +382,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 onEvent = { event ->
                     val s = event.state
                     if (s is StreamState.Streaming) {
-                        val v = s.dataPoint.values.values.filterIsInstance<Double>().firstOrNull { it > 0.0 }
-                        Log.i(TAG, "QEXT_ELEV_GAIN values=${s.dataPoint.values} v=$v")
+                        val v = s.dataPoint.values.values.filterIsInstance<Double>().firstOrNull { it >= 0.0 }
                         if (v != null) {
                             ascentDoneMRef.set(v.toInt())
                             elevationGainReceivedRef.set(true)
