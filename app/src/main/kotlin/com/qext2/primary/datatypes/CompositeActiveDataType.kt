@@ -635,10 +635,14 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
     }
 
     private fun handlePowerSample(power: Double, emitter: ViewEmitter, context: Context) {
-        hasPowerData = true
-        val watts = power.toInt()
-        intensityFactor = if10Calc.update(watts)
-        emitUpdate(emitter, context)
+        try {
+            hasPowerData = true
+            val watts = power.toInt()
+            intensityFactor = if10Calc.update(watts)
+            emitUpdate(emitter, context)
+        } catch (e: Exception) {
+            Log.w(TAG, "QEXT_ACTIVE_POWER_CRASH msg=${e.message}", e)
+        }
     }
 
     private fun extractDistanceToDestinationMeters(dp: DataPoint?): Double? {

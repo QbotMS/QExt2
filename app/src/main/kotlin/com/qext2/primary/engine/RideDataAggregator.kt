@@ -610,6 +610,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         val navConsumerId = try {
             karooSystem.addConsumer<OnNavigationState>(
                 onEvent = { event ->
+                    try {
                     val ns = event.state
                     val now = System.currentTimeMillis()
                     navLastUpdateMsRef.set(now)
@@ -662,6 +663,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                                 Log.i(TAG, "QEXT_ROUTE_CLIMB index=${c.index} start=${c.startDistance} len=${c.length} elev=${c.totalElevation} grade=${c.grade}%")
                             }
                         }
+                    }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "QEXT_NAV_CALLBACK_CRASH msg=${e.message}", e)
                     }
                 }
             )
