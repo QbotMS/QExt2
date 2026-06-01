@@ -754,8 +754,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     speedFreshnessMs = now - speedFreshnessRef.get(),
                     gearFreshnessMs = now - gearFreshnessRef.get(),
                     gradeFreshnessMs = now - gradeFreshnessRef.get(),
-                    powerColor = powerOut?.color.toAndroidColor(),
-                    hrColor = hrOut?.color.toAndroidColor(),
+                    powerColor = computePowerColor(powerRef.get(), statsCalc.ftpWatts),
+                    hrColor = hrResult.color.hex,
                     cadenceColor = cadOut?.color.toAndroidColor(),
                     speedColor = speedOut?.color.toAndroidColor(),
                     gradeColor = gradeOut?.color.toAndroidColor(),
@@ -1263,6 +1263,18 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         FieldColor.BLUE -> 0xFF3B82F6.toInt()
         FieldColor.GRAY -> 0xFF9CA3AF.toInt()
         FieldColor.NEUTRAL, null -> 0xFFFFFFFF.toInt()
+    }
+
+    private fun computePowerColor(powerWatts: Int, ftpWatts: Int): Int {
+        if (ftpWatts <= 0 || powerWatts <= 0) return 0xFFFFFFFF.toInt()
+        val pct = powerWatts.toFloat() / ftpWatts
+        return when {
+            pct < 0.55f -> 0xFF22C55E.toInt()  // GREEN — recovery
+            pct < 0.76f -> 0xFFFFFFFF.toInt()   // WHITE — endurance
+            pct < 0.91f -> 0xFFF59E0B.toInt()   // AMBER — tempo
+            pct < 1.06f -> 0xFFF97316.toInt()   // ORANGE — threshold
+            else -> 0xFFEF4444.toInt()           // RED — VO2max+
+        }
     }
 
     private fun initCarbSession(elapsedSec: Long) {
