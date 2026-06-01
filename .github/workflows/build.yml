@@ -21,9 +21,8 @@ jobs:
 
       - name: Setup Gradle auth
         run: |
-          mkdir -p ~/.gradle
-          echo "gpr.user=QbotMS" >> ~/.gradle/gradle.properties
-          echo "gpr.key=${{ secrets.PACKAGES_TOKEN }}" >> ~/.gradle/gradle.properties
+          echo "gpr.user=QbotMS" >> gradle.properties
+          echo "gpr.key=${{ secrets.PACKAGES_TOKEN }}" >> gradle.properties
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
