@@ -1119,7 +1119,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         cadenceRef.set(65); cadenceFreshnessRef.set(nowMs)
         gearFrontRef.set(40); gearRearRef.set(15); gearFreshnessRef.set(nowMs)
         filteredGradeRef.set(fakeGrade); gradeFreshnessRef.set(nowMs)
-        distanceMetersRef.set(((elapsedSec * 22.0 / 3.6) / 1000.0).coerceAtLeast(0.0))  // approx km from speed
+        distanceMetersRef.set(((elapsedSec * 22.0 / 3.6)).coerceAtLeast(0.0))  // distance in meters at 22km/h
         distanceToDestinationMetersRef.set(25000.0)
         ascentDoneMRef.set(((elapsedSec / 60) * 5).coerceAtLeast(0).toInt())
         ascentLeftMRef.set((400 - (elapsedSec / 60) * 5).coerceAtLeast(0).toInt())

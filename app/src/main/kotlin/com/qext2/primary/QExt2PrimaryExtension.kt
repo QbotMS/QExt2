@@ -37,7 +37,7 @@ import java.util.Locale
 
 private const val TAG = "QExt2Ext"
 
-class QExt2PrimaryExtension : KarooExtension("qext2", "0.1.0") {
+class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var _karooSystem: KarooSystemService? = null
