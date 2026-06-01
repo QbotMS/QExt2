@@ -901,8 +901,12 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     wBalancePercent = wBalance,
                     wBalanceTrend = statsCalc.wBalanceTrend(),
                     etaTimestamp = etaMs,
-                    ascentDoneM = ascentDoneMRef.get(),
-                    ascentLeftM = ascentLeftMRef.get(),
+                    ascentDoneM = ascentDoneMRef.get().let { v ->
+                        if (v > 0) v else computeAscentFromNavClimbs(distanceMetersRef.get())
+                    },
+                    ascentLeftM = ascentLeftMRef.get().let { v ->
+                        if (v > 0) v else computeAscentLeftFromNavClimbs(distanceMetersRef.get())
+                    },
                     hasRoute = hasRoute,
                     routeClimbSourceReady = routeClimbSourceReady,
                     batterySourceReady = batterySourceReady,
@@ -1266,6 +1270,22 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         FieldColor.BLUE -> 0xFF3B82F6.toInt()
         FieldColor.GRAY -> 0xFF9CA3AF.toInt()
         FieldColor.NEUTRAL, null -> 0xFFFFFFFF.toInt()
+    }
+
+    private fun computeAscentFromNavClimbs(distanceM: Double): Int {
+        val climbs = navClimbsRef.get()
+        if (climbs.isEmpty()) return 0
+        return climbs
+            .filter { it.startDistance + it.length <= distanceM }
+            .sumOf { it.totalElevation.toInt().coerceAtLeast(0) }
+    }
+
+    private fun computeAscentLeftFromNavClimbs(distanceM: Double): Int {
+        val climbs = navClimbsRef.get()
+        if (climbs.isEmpty()) return 0
+        return climbs
+            .filter { it.startDistance >= distanceM }
+            .sumOf { it.totalElevation.toInt().coerceAtLeast(0) }
     }
 
     private fun computePowerColor(powerWatts: Int, ftpWatts: Int): Int {
