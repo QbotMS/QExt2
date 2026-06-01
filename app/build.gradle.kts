@@ -29,7 +29,7 @@ val weatherLonStr = (localProps.getProperty("WEATHER_LON") ?: "")
 
 android {
     namespace = "com.qext2.primary"
-        compileSdk = (System.getenv("ANDROID_COMPILE_SDK")?.toIntOrNull() ?: 34).coerceIn(34, 35)
+        compileSdk = 35
 
     defaultConfig {
         applicationId = "com.qext2.primary"
