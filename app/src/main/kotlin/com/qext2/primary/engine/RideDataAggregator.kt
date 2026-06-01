@@ -296,8 +296,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 onEvent = { event ->
                     val s = event.state
                     if (s is StreamState.Streaming) {
-                        val v = s.dataPoint.singleValue
-                            ?: (s.dataPoint.values[DataType.Field.DISTANCE] as? Double)
+                        val v = s.dataPoint.values[DataType.Field.DISTANCE] as? Double
+                            ?: s.dataPoint.singleValue
                         if (v != null) distanceMetersRef.set(v)
                     }
                 }
@@ -431,8 +431,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     val s = event.state
                     if (s is StreamState.Streaming) {
                         if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "PWR_3S values=${s.dataPoint.values}")
-                        val v = s.dataPoint.singleValue
-                            ?: (s.dataPoint.values[DataType.Field.SMOOTHED_3S_AVERAGE_POWER] as? Double)
+                        val v = s.dataPoint.values[DataType.Field.SMOOTHED_3S_AVERAGE_POWER] as? Double
+                            ?: s.dataPoint.singleValue
                         if (v != null) {
                             updatePower(v, "PWR_3S")
                         }
