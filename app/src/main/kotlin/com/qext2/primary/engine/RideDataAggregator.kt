@@ -349,11 +349,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 onEvent = { event ->
                     val s = event.state
                     if (s is StreamState.Streaming) {
-                        val dp = s.dataPoint
-                        val direct = dp.singleValue
-                            ?: (dp.values[DataType.Field.DISTANCE_TO_DESTINATION] as? Double)
-                        if (direct != null && direct >= 0.0) {
-                            distanceToDestinationMetersRef.set(direct)
+                        val v = (s.dataPoint.values[DataType.Field.DISTANCE_TO_DESTINATION] as? Double)
+                        if (v != null && v >= 0.0) {
+                            distanceToDestinationMetersRef.set(v)
                         }
                     }
                 }
@@ -513,8 +511,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 onEvent = { event ->
                     val s = event.state
                     if (s is StreamState.Streaming) {
-                        val v = s.dataPoint.singleValue
-                            ?: (s.dataPoint.values[DataType.Field.TRAINING_STRESS_SCORE] as? Double)
+                        val v = s.dataPoint.values[DataType.Field.TRAINING_STRESS_SCORE] as? Double
                         if (v != null) tssRef.set(v.toFloat())
                     }
                 }
@@ -527,8 +524,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 onEvent = { event ->
                     val s = event.state
                     if (s is StreamState.Streaming) {
-                        val v = s.dataPoint.singleValue
-                            ?: (s.dataPoint.values[DataType.Field.CALORIES] as? Double)
+                        val v = s.dataPoint.values[DataType.Field.CALORIES] as? Double
                         if (v != null) kcalRef.set(v.toInt())
                     }
                 }
@@ -555,8 +551,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 onEvent = { event ->
                     val s = event.state
                     if (s is StreamState.Streaming) {
-                        val v = s.dataPoint.singleValue
-                            ?: (s.dataPoint.values[DataType.Field.NORMALIZED_POWER] as? Double)
+                        val v = s.dataPoint.values[DataType.Field.NORMALIZED_POWER] as? Double
                         if (v != null) npRef.set(v.toInt())
                     }
                 }
@@ -569,8 +564,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 onEvent = { event ->
                     val s = event.state
                     if (s is StreamState.Streaming) {
-                        val v = s.dataPoint.singleValue
-                            ?: (s.dataPoint.values[DataType.Field.INTENSITY_FACTOR] as? Double)
+                        val v = s.dataPoint.values[DataType.Field.INTENSITY_FACTOR] as? Double
                         if (v != null) ifRef.set(v.toFloat())
                     }
                 }
