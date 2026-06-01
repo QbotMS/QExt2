@@ -20,10 +20,16 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Install Android SDK 35
+      - name: Setup Android SDK
         run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
+          echo "=== Checking SDK ==="
+          ls -la $ANDROID_HOME/platforms/ 2>/dev/null || echo "no platforms dir"
+          ls -la $ANDROID_HOME/cmdline-tools/ 2>/dev/null || echo "no cmdline-tools dir"
+          ls -la $ANDROID_HOME/build-tools/ 2>/dev/null || echo "no build-tools dir"
+          which sdkmanager 2>/dev/null || echo "no sdkmanager in PATH"
+          find $ANDROID_HOME -name "sdkmanager" 2>/dev/null || echo "no sdkmanager found"
+          echo "=== Installing SDK 35 ==="
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-35" "build-tools;35.0.0" --sdk_root=$ANDROID_HOME 2>&1 || echo "sdkmanager failed"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
