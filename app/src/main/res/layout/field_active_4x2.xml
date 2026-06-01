@@ -226,7 +226,7 @@
                 android:layout_gravity="top|start"
                 android:layout_marginTop="1dp"
                 android:layout_marginStart="3dp"
-                android:text="NULL"
+                android:text="C.+/-"
                 android:textColor="#9CA3AF"
                 android:textSize="8sp"
                 android:includeFontPadding="false" />
