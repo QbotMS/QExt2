@@ -21,15 +21,16 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build APK
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
         run: |
-          echo "sdk.dir=/usr/local/lib/android/sdk" > local.properties
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
           echo "QEXT_GATE_TOKEN=placeholder" >> local.properties
           echo "QEXT_READINESS_URL=https://qbot.cytr.us/ride-readiness" >> local.properties
           echo "QEXT_GATE_URL=https://qbot.cytr.us/gate/open" >> local.properties
           echo "OPENWEATHER_API_KEY=placeholder" >> local.properties
           echo "OPENWEATHER_BASE_URL=https://api.openweathermap.org/data/2.5/weather" >> local.properties
-          ls /usr/local/lib/android/sdk/platforms/ 2>/dev/null || echo "NO SDK DIR"
-          ./gradlew assembleDebug --stacktrace 2>&1 | tail -50
+          ./gradlew assembleDebug
 
       - name: Upload APK
         if: success()
