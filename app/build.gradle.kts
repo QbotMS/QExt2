@@ -35,8 +35,8 @@ android {
         applicationId = "com.qext2.primary"
         minSdk = 23
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = (System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1).coerceAtLeast(1)
+        versionName = "0.1.${versionCode}"
         buildConfigField("String", "QEXT_GATE_URL", "\"$gateUrl\"")
         buildConfigField("String", "QEXT_GATE_TOKEN", "\"$gateToken\"")
         buildConfigField("String", "QEXT_READINESS_URL", "\"$readinessUrl\"")
