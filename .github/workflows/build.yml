@@ -26,6 +26,7 @@ jobs:
 
       - name: Build APK
         run: |
+          echo "Token set: $([ -n \"$TOKEN\" ] && echo YES || echo NO)"
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           echo "QEXT_GATE_TOKEN=placeholder" >> local.properties
           echo "QEXT_READINESS_URL=https://qbot.cytr.us/ride-readiness" >> local.properties
