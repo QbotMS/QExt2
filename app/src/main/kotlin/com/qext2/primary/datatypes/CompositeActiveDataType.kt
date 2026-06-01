@@ -71,10 +71,10 @@ private class IF10Calculator(var ftp: Int = 250) {
             fourthSum += avg30 * avg30 * avg30 * avg30
 
             if (smooth.size > 570) {
-                val removed = smooth.removeFirst()
+                val removed = smooth.removeAt(0)
                 fourthSum -= removed * removed * removed * removed
             }
-            if (raw.size > 600) raw.removeFirst()
+            if (raw.size > 600) raw.removeAt(0)
         }
 
         if (smooth.isEmpty() || ftp <= 0) return 0.0
