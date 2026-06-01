@@ -67,6 +67,7 @@ class StatsDataType : DataTypeImpl("qext2", "qext2-stats") {
     }
 
     private fun bind(v: RemoteViews, snap: StatsRideSnapshot, context: Context) {
+        AthleteDataStore.init(context)
         val carbClickId = System.currentTimeMillis()
         val carbIntent = PendingIntent.getBroadcast(
             context,
