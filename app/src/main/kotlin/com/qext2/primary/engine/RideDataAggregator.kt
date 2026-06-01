@@ -838,7 +838,10 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val remainingMeters = distanceToDestinationMetersRef.get().coerceAtLeast(0.0)
                 val speedKmhNow = speedRef.get().coerceAtLeast(0.0)
                 val hasRoute = resolveHasRoute(getEffectiveRoute(), remainingMeters)
-                val routeClimbSourceReady = navRouteActiveRef.get() && elevationRemainingReceivedRef.get() && elevationGainReceivedRef.get()
+                val navActive = navRouteActiveRef.get()
+                val elevationDataReceived = elevationRemainingReceivedRef.get() && elevationGainReceivedRef.get()
+                val navGraceOk = navActive && navLastUpdateMsRef.get() > 0L && (now - navLastUpdateMsRef.get() > 30_000L)
+                val routeClimbSourceReady = navActive && (elevationDataReceived || navGraceOk)
 
                 logFieldDiagnostics(now, elapsedSec, carbs, carbIntakeTotal, carbNeededTotal, carbBalance,
                     wBalance, tssRef.get(), reserve, speedKmhNow, hasRoute,
