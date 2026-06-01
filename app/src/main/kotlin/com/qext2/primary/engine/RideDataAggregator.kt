@@ -366,14 +366,13 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 onEvent = { event ->
                     val s = event.state
                     if (s is StreamState.Streaming) {
-                        val v = s.dataPoint.singleValue
-                            ?: (s.dataPoint.values[DataType.Field.ASCENT_REMAINING] as? Double)
+                        val dp = s.dataPoint
+                        val v = dp.singleValue
+                            ?: (dp.values[DataType.Field.ASCENT_REMAINING] as? Double)
+                        Log.i(TAG, "QEXT_ELEV_REMAINING singleValue=${dp.singleValue} values=${dp.values} v=$v")
                         if (v != null && v >= 0.0) {
                             ascentLeftMRef.set(v.toInt())
                             elevationRemainingReceivedRef.set(true)
-                            if (QExt2DebugConfig.DEBUG_ACTIVE_PRODUCER_DIAG) {
-                                Log.i(TAG, "QEXT_SDK_PROBE type=ELEVATION_REMAINING raw=$v value=${v.toInt()}m")
-                            }
                         }
                     }
                 }
@@ -386,7 +385,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 onEvent = { event ->
                     val s = event.state
                     if (s is StreamState.Streaming) {
-                        val v = s.dataPoint.singleValue
+                        val dp = s.dataPoint
+                        val v = dp.singleValue
+                        Log.i(TAG, "QEXT_ELEV_GAIN singleValue=${dp.singleValue} values=${dp.values} v=$v")
                         if (v != null && v >= 0.0) {
                             ascentDoneMRef.set(v.toInt())
                             elevationGainReceivedRef.set(true)
