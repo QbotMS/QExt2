@@ -30,7 +30,10 @@ jobs:
           echo "QEXT_GATE_URL=https://qbot.cytr.us/gate/open" >> local.properties
           echo "OPENWEATHER_API_KEY=placeholder" >> local.properties
           echo "OPENWEATHER_BASE_URL=https://api.openweathermap.org/data/2.5/weather" >> local.properties
+          echo "Token set: $([ -n \"\$TOKEN_VAR\" ] && echo YES || echo NO)"
           ./gradlew assembleDebug -Pgpr.user=QbotMS -Pgpr.key=${{ secrets.PACKAGES_TOKEN }}
+        env:
+          TOKEN_VAR: ${{ secrets.PACKAGES_TOKEN }}
 
       - name: Upload APK
         if: success()
