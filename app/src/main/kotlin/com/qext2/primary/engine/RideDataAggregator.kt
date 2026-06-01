@@ -366,13 +366,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 onEvent = { event ->
                     val s = event.state
                     if (s is StreamState.Streaming) {
-                        val dp = s.dataPoint
-                        val single = dp.singleValue
-                        val fromField = dp.values[DataType.Field.ASCENT_REMAINING] as? Double
-                        val allValues = dp.values.entries.joinToString(",") { "${it.key}=${it.value}" }
-                        Log.i(TAG, "QEXT_ELEV_REMAINING single=$single field=$fromField all=[${allValues}]")
-                        val v = single ?: fromField ?: dp.values.values.filterIsInstance<Double>().firstOrNull { it >= 0.0 }
-                        if (v != null && v >= 0.0) {
+                        val v = (s.dataPoint.values[DataType.Field.ASCENT_REMAINING] as? Double)
+                        if (v != null) {
                             ascentLeftMRef.set(v.toInt())
                             elevationRemainingReceivedRef.set(true)
                         }
@@ -387,12 +382,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 onEvent = { event ->
                     val s = event.state
                     if (s is StreamState.Streaming) {
-                        val dp = s.dataPoint
-                        val single = dp.singleValue
-                        val allValues = dp.values.entries.joinToString(",") { "${it.key}=${it.value}" }
-                        Log.i(TAG, "QEXT_ELEV_GAIN single=$single all=[${allValues}]")
-                        val v = single ?: dp.values.values.filterIsInstance<Double>().firstOrNull { it >= 0.0 }
-                        if (v != null && v >= 0.0) {
+                        val v = s.dataPoint.values.values.filterIsInstance<Double>().firstOrNull { it > 0.0 }
+                        Log.i(TAG, "QEXT_ELEV_GAIN values=${s.dataPoint.values} v=$v")
+                        if (v != null) {
                             ascentDoneMRef.set(v.toInt())
                             elevationGainReceivedRef.set(true)
                         }
