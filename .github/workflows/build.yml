@@ -19,11 +19,6 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle auth
-        run: |
-          echo "gpr.user=QbotMS" >> gradle.properties
-          echo "gpr.key=${{ secrets.PACKAGES_TOKEN }}" >> gradle.properties
-
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
@@ -35,7 +30,7 @@ jobs:
           echo "QEXT_GATE_URL=https://qbot.cytr.us/gate/open" >> local.properties
           echo "OPENWEATHER_API_KEY=placeholder" >> local.properties
           echo "OPENWEATHER_BASE_URL=https://api.openweathermap.org/data/2.5/weather" >> local.properties
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug -Pgpr.user=QbotMS -Pgpr.key=${{ secrets.PACKAGES_TOKEN }}
 
       - name: Upload APK
         if: success()
