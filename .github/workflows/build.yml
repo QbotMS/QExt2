@@ -5,6 +5,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+env:
+  ANDROID_COMPILE_SDK: "35"
+  ANDROID_BUILD_TOOLS: "35.0.0"
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,16 +22,15 @@ jobs:
           distribution: 'temurin'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: 'platforms;android-35 build-tools;35.0.0'
+        run: |
+          yes | ${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}/cmdline-tools/latest/bin/sdkmanager --install "platforms;android-$ANDROID_COMPILE_SDK" "build-tools;$ANDROID_BUILD_TOOLS" 2>/dev/null || true
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Create local.properties
+      - name: Write config
         run: |
-          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          echo "sdk.dir=/usr/local/lib/android/sdk" > local.properties
           echo "QEXT_GATE_TOKEN=placeholder" >> local.properties
           echo "QEXT_READINESS_URL=https://qbot.cytr.us/ride-readiness" >> local.properties
           echo "QEXT_GATE_URL=https://qbot.cytr.us/gate/open" >> local.properties
@@ -35,7 +38,7 @@ jobs:
           echo "OPENWEATHER_BASE_URL=https://api.openweathermap.org/data/2.5/weather" >> local.properties
 
       - name: Build APK
-        run: ./gradlew assembleDebug
+        run: ANDROID_HOME=/usr/local/lib/android/sdk ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
