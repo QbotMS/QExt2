@@ -81,7 +81,7 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         return pct
     }
 
-    fun update(powerWatts: Int, heartRate: Int, movingSec: Long, elapsedSec: Long) {
+    fun update(powerWatts: Int, heartRate: Int, movingSec: Long, elapsedSec: Long, powerFresh: Boolean = true) {
         if (elapsedSec <= 0L) return
         val movingAdvanced = movingSec > lastMovingSec
         val hasPower = powerWatts > 0
@@ -109,7 +109,7 @@ class StatsCalculator(var ftpWatts: Int = 200) {
             }
         }
 
-        updateWBalance(powerWatts)
+        if (powerFresh) updateWBalance(powerWatts)
         lastMovingSec = kotlin.math.max(lastMovingSec, movingSec)
     }
 

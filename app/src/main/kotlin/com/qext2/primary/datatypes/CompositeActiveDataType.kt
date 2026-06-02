@@ -155,7 +155,7 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
             priority = ActiveMessagePriority.CRITICAL,
             resumePolicy = ActiveMessageResumePolicy.DROP_ON_INTERRUPT,
             createdAtMs = System.currentTimeMillis(),
-            expiresAtMs = Long.MAX_VALUE,
+            expiresAtMs = System.currentTimeMillis() + 120_000L,
         ))
         val withMsg = RemoteViews(context.packageName, R.layout.field_active_4x2)
         setInitialValues(withMsg)
@@ -526,7 +526,10 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
                 elapsedSec = agg.getElapsedSec(),
                 nowMs = now,
             )
-            if (sensorState.speedKmh > 5.0) {
+            val shouldClear = sensorState.speedKmh > 2.0 ||
+                (sensorState.cadence > 0 && sensorState.cadenceFreshnessMs < 8_000L) ||
+                (sensorState.power > 0 && sensorState.powerFreshnessMs < 8_000L)
+            if (shouldClear) {
                 val cur = messageManager.getCurrent(now)
                 if (cur?.id == "pre_ride_calibration") messageManager.clear()
             }
@@ -585,7 +588,8 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
             if (etaMs > 0L && deadlineMs > 0L) {
                 val color = when {
                     etaMs > deadlineMs -> 0xFFEF4444.toInt()
-                    etaMs <= deadlineMs * 0.85 -> 0xFF22C55E.toInt()
+                    deadlineMs - etaMs >= 30 * 60_000L -> 0xFF22C55E.toInt()
+                    deadlineMs - etaMs <= 10 * 60_000L -> 0xFFF59E0B.toInt()
                     else -> 0xFFFFFFFF.toInt()
                 }
                 views.setTextColor(R.id.tv_active_dtd, color)

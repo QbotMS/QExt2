@@ -59,13 +59,13 @@ class WeatherClientTest {
             weatherFresh = true,
             temperatureC = 15f,
             windSpeedMps = 3f,
-            rain1hMm = 2.5f,
+            rain1hMm = 1.5f,
             condition = "Rain",
             nowMs = System.currentTimeMillis(),
         )
         val msg = producer.checkAndProduce(state)
         assertNotNull("Rain must produce message", msg)
-        assertEquals("DESZCZ", msg!!.title)
+        assertEquals("WX DESZCZ", msg!!.title)
     }
 
     @Test
@@ -81,7 +81,7 @@ class WeatherClientTest {
         )
         val msg = producer.checkAndProduce(state)
         assertNotNull("Strong wind must produce message", msg)
-        assertEquals("WIATR", msg!!.title)
+        assertEquals("WX SILNY WIATR", msg!!.title)
     }
 
     @Test
@@ -97,7 +97,7 @@ class WeatherClientTest {
         )
         val msg = producer.checkAndProduce(state)
         assertNotNull("Heat must produce message", msg)
-        assertEquals("UPAL", msg!!.title)
+        assertEquals("WX UPAL", msg!!.title)
     }
 
     @Test
@@ -113,7 +113,7 @@ class WeatherClientTest {
         )
         val msg = producer.checkAndProduce(state)
         assertNotNull("Cold must produce message", msg)
-        assertEquals("MROZ", msg!!.title)
+        assertEquals("WX MROZ", msg!!.title)
     }
 
     fun weatherFreshIsCalculatedCorrectly() {

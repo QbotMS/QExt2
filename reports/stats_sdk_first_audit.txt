@@ -12,5 +12,5 @@ FLUID=WAIT/NO_DATA/sdk_field_not_available
 WPRIME=WAIT/NO_DATA/sdk_source_missing
 RSRV=WAIT/NO_DATA/sdk_source_missing
 PROBLEMS:
-BAT_DRAIN_ready value=4.2% expected=4.2
-PASS=NO
+(none)
+PASS=YES

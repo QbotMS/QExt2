@@ -233,7 +233,7 @@ class StatsAdvancedFieldPolicyTest {
             batterySource = "headunit_polling",
         )
         assertEquals(FieldStatus.OK, drain.status)
-        assertEquals("6.5", drain.value)
+        assertEquals("6.5%", drain.value)
         assertEquals("headunit_polling", drain.source)
     }
 

@@ -71,7 +71,7 @@ class StatsDataType : DataTypeImpl("qext2", "qext2-stats") {
         val carbClickId = System.currentTimeMillis()
         val carbIntent = PendingIntent.getBroadcast(
             context,
-            (carbClickId % 10000).toInt(),
+            REQ_CARB,
             Intent(context, StatsActionReceiver::class.java)
                 .setAction(StatsActionReceiver.ACTION_CARB_ADD)
                 .putExtra(StatsActionReceiver.EXTRA_CARB_CLICK_ID, carbClickId),
@@ -79,7 +79,7 @@ class StatsDataType : DataTypeImpl("qext2", "qext2-stats") {
         )
         val gateIntent = PendingIntent.getBroadcast(
             context,
-            (carbClickId % 10000).toInt() + 1,
+            REQ_GATE,
             Intent(context, StatsActionReceiver::class.java).setAction(StatsActionReceiver.ACTION_GATE_TAP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
@@ -168,5 +168,10 @@ class StatsDataType : DataTypeImpl("qext2", "qext2-stats") {
         reserve >= 40 -> Color.parseColor("#22C55E")
         reserve >= 20 -> Color.parseColor("#F59E0B")
         else -> Color.parseColor("#EF4444")
+    }
+
+    companion object {
+        private const val REQ_CARB = 1001
+        private const val REQ_GATE = 1002
     }
 }

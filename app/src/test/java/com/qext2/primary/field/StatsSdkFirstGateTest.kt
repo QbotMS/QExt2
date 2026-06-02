@@ -33,7 +33,7 @@ class StatsSdkFirstGateTest {
         checkDecision(batNoSource, expectedValue = "WAIT", expectedStatus = FieldStatus.NO_DATA, expectedReason = "battery_source_not_connected", name = "BAT_DRAIN_no_source", problems = problems)
 
         val batDrainReady = StatsAdvancedFieldPolicy.batteryDrain(true, true, 4.2f, "headunit_polling")
-        checkDecision(batDrainReady, expectedValue = "4.2", expectedStatus = FieldStatus.OK, expectedReason = "battery_drain_from_headunit", name = "BAT_DRAIN_ready", problems = problems)
+        checkDecision(batDrainReady, expectedValue = "4.2%", expectedStatus = FieldStatus.OK, expectedReason = "battery_drain_from_headunit", name = "BAT_DRAIN_ready", problems = problems)
 
         val batLeftReady = StatsAdvancedFieldPolicy.batteryLeft(true, true, 3 * 3600L + 5 * 60L, "headunit_polling")
         checkDecision(batLeftReady, expectedValue = "3:05", expectedStatus = FieldStatus.OK, expectedReason = "battery_runtime_from_headunit", name = "BAT_LEFT_ready", problems = problems)

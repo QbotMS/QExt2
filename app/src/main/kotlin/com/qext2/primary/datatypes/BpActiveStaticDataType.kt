@@ -330,7 +330,8 @@ class BpActiveStaticDataType : DataTypeImpl("qext2", "qext2-active-static") {
             if (etaMs > 0L && deadlineMs > 0L) {
                 views.setTextColor(R.id.tv_active_dtd, when {
                     etaMs > deadlineMs -> 0xFFEF4444.toInt()
-                    etaMs <= deadlineMs * 0.85 -> 0xFF22C55E.toInt()
+                    deadlineMs - etaMs >= 30 * 60_000L -> 0xFF22C55E.toInt()
+                    deadlineMs - etaMs <= 10 * 60_000L -> 0xFFF59E0B.toInt()
                     else -> 0xFFFFFFFF.toInt()
                 })
             }
