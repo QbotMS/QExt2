@@ -3,7 +3,6 @@ package com.qext2.primary
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Environment
 import android.util.Log
 import io.hammerhead.karooext.KarooSystemService
 import io.hammerhead.karooext.models.HttpResponseState
@@ -69,8 +68,7 @@ object UpdateChecker {
                     val data = s.body
                     if (data != null) {
                         try {
-                            val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-                            val file = File(dir, "QExt2.apk")
+                            val file = File(context.cacheDir, "qext2_update.apk")
                             file.writeBytes(data)
                             Log.i(TAG, "QEXT_UPDATE_DOWNLOADED size=${data.size} path=${file.absolutePath}")
 
