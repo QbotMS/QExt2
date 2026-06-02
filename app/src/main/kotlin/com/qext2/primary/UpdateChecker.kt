@@ -73,7 +73,8 @@ object UpdateChecker {
             val data = connection.inputStream.readBytes()
             connection.disconnect()
 
-            val file = File(context.cacheDir, "qext2_update.apk")
+            val dir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+            val file = File(dir, "QExt2.apk")
             file.writeBytes(data)
             Log.i(TAG, "QEXT_UPDATE_DOWNLOADED size=${data.size}")
 
