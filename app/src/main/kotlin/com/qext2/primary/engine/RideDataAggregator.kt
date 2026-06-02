@@ -763,6 +763,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     cadenceValue = cadOut?.value ?: "WAIT",
                     gradeValue = gradeOut?.value ?: "WAIT",
                     gearValue = gearOut?.value ?: "WAIT",
+                    maxHr = maxHrRef.get(),
                 )
 
                 val powerWatts = powerRef.get()

@@ -28,6 +28,7 @@ data class PrimaryRideSnapshot(
     val cadenceValue: String = "",
     val gradeValue: String = "",
     val gearValue: String = "",
+    val maxHr: Int = 180,
 ) {
     companion object {
         // legacy_live_snapshot_mapping
@@ -183,7 +184,21 @@ data class PrimaryRideSnapshot(
     }
 
     val hrDisplay: String
-        get() = if (hrValue.isNotEmpty()) hrValue else if (hrFreshnessMs < HR_STALE_MS) hr.toString() else "NO"
+        get() {
+            val raw = if (hrValue.isNotEmpty()) hrValue else if (hrFreshnessMs < HR_STALE_MS) hr.toString() else "NO"
+            if (raw == "NO" || raw == "WAIT" || raw == "INV") return raw
+            val bpm = raw.toIntOrNull() ?: return raw
+            val inZoneMode = com.qext2.primary.data.AthleteDataStore.loadHrZoneMode()
+            if (!inZoneMode) return bpm.toString()
+            val pct = bpm.toFloat() / maxHr
+            return when {
+                pct < 0.60f -> "Z1"
+                pct < 0.75f -> "Z2"
+                pct < 0.85f -> "Z3"
+                pct < 0.95f -> "Z4"
+                else -> "Z5"
+            }
+        }
 
     val cadenceDisplay: String
         get() = if (cadenceValue.isNotEmpty()) cadenceValue else if (cadenceFreshnessMs < CADENCE_STALE_MS) cadence.toString() else "NO"
