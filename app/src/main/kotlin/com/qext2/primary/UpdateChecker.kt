@@ -7,8 +7,14 @@ import android.util.Log
 import io.hammerhead.karooext.KarooSystemService
 import io.hammerhead.karooext.models.HttpResponseState
 import io.hammerhead.karooext.models.OnHttpResponse
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 
 object UpdateChecker {
 
@@ -45,7 +51,11 @@ object UpdateChecker {
                                 for (i in 0 until assets.length()) {
                                     val asset = assets.getJSONObject(i)
                                     if (asset.getString("name").endsWith(".apk")) {
-                                        downloadApk(context, karooSystem, asset.getString("browser_download_url"))
+                                        val url = asset.getString("browser_download_url")
+                                        Log.i(TAG, "QEXT_UPDATE_FOUND url=$url")
+                                        GlobalScope.launch(Dispatchers.IO) {
+                                            downloadAndInstall(context, url)
+                                        }
                                         break
                                     }
                                 }
@@ -57,32 +67,30 @@ object UpdateChecker {
         } catch (_: Exception) {}
     }
 
-    private fun downloadApk(context: Context, system: KarooSystemService, url: String) {
-        Log.i(TAG, "QEXT_UPDATE_DOWNLOAD_START")
-        system.addConsumer<OnHttpResponse>(
-            params = OnHttpResponse.MakeHttpRequest(method = "GET", url = url, waitForConnection = true),
-            onError = { Log.w(TAG, "QEXT_UPDATE_DOWNLOAD_FAILED reason=$it") },
-            onEvent = { resp ->
-                val s = resp.state
-                if (s is HttpResponseState.Complete && s.statusCode == 200) {
-                    val data = s.body
-                    if (data != null) {
-                        try {
-                            val file = File(context.cacheDir, "qext2_update.apk")
-                            file.writeBytes(data)
-                            Log.i(TAG, "QEXT_UPDATE_DOWNLOADED size=${data.size} path=${file.absolutePath}")
+    private suspend fun downloadAndInstall(context: Context, url: String) = withContext(Dispatchers.IO) {
+        try {
+            Log.i(TAG, "QEXT_UPDATE_DOWNLOAD_START")
+            val connection = URL(url).openConnection() as HttpURLConnection
+            connection.connectTimeout = 30_000
+            connection.readTimeout = 60_000
+            val data = connection.inputStream.readBytes()
+            connection.disconnect()
 
-                            val intent = Intent(Intent.ACTION_VIEW).apply {
-                                setDataAndType(Uri.fromFile(file), "application/vnd.android.package-archive")
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                            context.startActivity(intent)
-                        } catch (e: Exception) {
-                            Log.w(TAG, "QEXT_UPDATE_INSTALL_FAILED msg=${e.message}")
-                        }
-                    }
-                }
-            },
-        )
+            val file = File(context.cacheDir, "qext2_update.apk")
+            file.writeBytes(data)
+            Log.i(TAG, "QEXT_UPDATE_DOWNLOADED size=${data.size}")
+
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(Uri.fromFile(file), "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            withContext(Dispatchers.Main) {
+                context.startActivity(intent)
+            }
+            Log.i(TAG, "QEXT_UPDATE_INSTALL_PROMPTED")
+        } catch (e: Exception) {
+            Log.w(TAG, "QEXT_UPDATE_DOWNLOAD_FAILED msg=${e.message}", e)
+        }
     }
 }
