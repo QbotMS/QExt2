@@ -76,7 +76,6 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                     startWeatherPolling()
                     ensureDefaultLocation()
                     fetchAthleteData(system)
-                    UpdateChecker.check(this@QExt2PrimaryExtension, system)
                 } else {
                     batteryPollJob?.cancel()
                     batteryPollJob = null
