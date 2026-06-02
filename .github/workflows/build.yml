@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 env:
   ANDROID_HOME: /usr/local/lib/android/sdk
 
