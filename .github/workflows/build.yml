@@ -21,7 +21,13 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - uses: gradle/actions/setup-gradle@v4
-      - run: echo "sdk.dir=$ANDROID_HOME" > local.properties
+      - run: |
+          echo "::group::Auth check"
+          echo "User set: $([ -n \"$GPR_USER\" ] && echo YES || echo NO)"
+          echo "Token set: $([ -n \"$GPR_TOKEN\" ] && echo YES || echo NO)"
+          echo "Token starts with: ${GPR_TOKEN:0:4}..."
+          echo "::endgroup::"
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
       - run: ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4
         if: success()
