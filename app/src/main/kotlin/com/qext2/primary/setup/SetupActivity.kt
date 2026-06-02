@@ -9,6 +9,7 @@ import android.widget.CheckBox
 import android.widget.LinearLayout
 import android.widget.NumberPicker
 import android.widget.TextView
+import com.qext2.primary.BuildConfig
 import com.qext2.primary.QExt2PrimaryExtension
 import com.qext2.primary.R
 import com.qext2.primary.data.AthleteDataStore
@@ -22,6 +23,7 @@ class SetupActivity : Activity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_setup)
         AthleteDataStore.init(this)
+        findViewById<TextView>(R.id.tv_version)?.text = "v${BuildConfig.VERSION_NAME}"
         showStoredData()
         bindDeadline()
         bindCarbPacket()
