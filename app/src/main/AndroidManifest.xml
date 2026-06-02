@@ -6,9 +6,9 @@
     <application
         android:allowBackup="false"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:icon="@drawable/ic_qext2_power"
+        android:icon="@drawable/ic_qext2_menu"
         android:label="@string/app_name"
-        android:roundIcon="@drawable/ic_qext2_power"
+        android:roundIcon="@drawable/ic_qext2_menu"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.DeviceDefault">
 
