@@ -46,6 +46,15 @@ android {
         buildConfigField("String", "WEATHER_LON", "\"$weatherLonStr\"")
     }
 
+    signingConfigs {
+        getByName("debug") {
+            storeFile = rootProject.file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
