@@ -2,8 +2,9 @@ package com.qext2.primary
 
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageInstaller
+import android.net.Uri
 import android.util.Log
+import androidx.core.content.FileProvider
 import io.hammerhead.karooext.KarooSystemService
 import io.hammerhead.karooext.models.HttpResponseState
 import io.hammerhead.karooext.models.OnHttpResponse
@@ -13,7 +14,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import java.io.File
-import java.io.FileInputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -62,25 +62,19 @@ object UpdateChecker {
                 connection.disconnect()
                 Log.i(TAG, "QEXT_UPDATE_DOWNLOADED size=${data.size}")
 
-                val installer = context.packageManager.packageInstaller
-                val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
-                val sessionId = installer.createSession(params)
-                val session = installer.openSession(sessionId)
+                val dir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+                dir.mkdirs()
+                val file = File(dir, "QExt2.apk")
+                file.writeBytes(data)
 
-                session.openWrite("QExt2.apk", 0, data.size.toLong()).use { out ->
-                    out.write(data)
-                    session.fsync(out)
+                val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+                val intent = Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
+                    setData(uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
-
-                val intent = Intent(context, context.javaClass)
-                intent.putExtra("session_id", sessionId)
-                val pendingIntent = android.app.PendingIntent.getBroadcast(
-                    context, sessionId, intent,
-                    android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
-                )
-                session.commit(pendingIntent.intentSender)
-                session.close()
-                Log.i(TAG, "QEXT_UPDATE_SESSION_COMMITTED session=$sessionId")
+                withContext(Dispatchers.Main) { context.startActivity(intent) }
+                Log.i(TAG, "QEXT_UPDATE_INSTALL_PROMPTED")
             } catch (e: Exception) {
                 Log.w(TAG, "QEXT_UPDATE_DOWNLOAD_FAILED msg=${e.message}", e)
             }
