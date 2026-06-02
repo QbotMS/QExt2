@@ -21,12 +21,8 @@ object UpdateChecker {
 
     private const val TAG = "QExt2Update"
     private const val REPO = "QbotMS/QExt2"
-    private var checked = false
 
     fun check(context: Context, karooSystem: KarooSystemService) {
-        if (checked) return
-        checked = true
-
         try {
             val currentVersion = context
                 .packageManager
