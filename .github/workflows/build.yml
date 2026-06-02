@@ -51,5 +51,5 @@ jobs:
           name: QExt2 Auto Build
           tag_name: build-${{ github.run_number }}
           files: app-debug.apk
-          prerelease: true
+          prerelease: false
           generate_release_notes: true
