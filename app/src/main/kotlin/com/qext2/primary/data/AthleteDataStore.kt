@@ -241,6 +241,16 @@ object AthleteDataStore {
         return if (v.isNaN() || v.isInfinite()) 0f else v.coerceIn(0f, 9999f)
     }
 
+    private const val KEY_RESERVE_BASE_DATE = "reserve_base_date"
+
+    fun saveReserveDailyTssBaseDate(date: String) {
+        prefs?.edit()?.putString(KEY_RESERVE_BASE_DATE, date)?.apply()
+    }
+
+    fun loadReserveDailyTssBaseDate(): String {
+        return prefs?.getString(KEY_RESERVE_BASE_DATE, "") ?: ""
+    }
+
     fun saveCarbPacketSize(grams: Int) {
         prefs?.edit()?.putInt("carb_packet", grams.coerceIn(5, 100))?.apply()
     }

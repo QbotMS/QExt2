@@ -283,6 +283,14 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         carbLastElapsedSecRef.set(sanitizeCarbElapsed(AthleteDataStore.loadCarbLastElapsedSec()))
         carbSessionInitializedRef.set(false)
         dailyTssBaseRef.set(AthleteDataStore.loadReserveDailyTssBase())
+        val today = java.time.LocalDate.now().toString()
+        val baseDate = AthleteDataStore.loadReserveDailyTssBaseDate()
+        if (baseDate != today) {
+            dailyTssBaseRef.set(0f)
+            AthleteDataStore.saveReserveDailyTssBase(0f)
+            AthleteDataStore.saveReserveDailyTssBaseDate(today)
+            Log.i(TAG, "QEXT_RSRV_DAILY_RESET new_day stored=$baseDate today=$today")
+        }
         if (dailyTssBaseRef.get() > 500f) {
             dailyTssBaseRef.set(0f)
             AthleteDataStore.saveReserveDailyTssBase(0f)
@@ -940,6 +948,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         Log.d(TAG, "stopStreaming: removing ${consumerIds.size} consumers")
         val committedDailyTss = ReservePolicy.effectiveTss(dailyTssBaseRef.get(), sessionTssRef.get())
         AthleteDataStore.saveReserveDailyTssBase(committedDailyTss)
+        AthleteDataStore.saveReserveDailyTssBaseDate(java.time.LocalDate.now().toString())
         dailyTssBaseRef.set(committedDailyTss)
         consumerIds.forEach { id -> karooSystem.removeConsumer(id) }
         consumerIds.clear()
@@ -1232,6 +1241,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         val last = reservePersistLastMsRef.get()
         if (last > 0L && nowMs - last < RESERVE_PERSIST_INTERVAL_MS) return
         AthleteDataStore.saveReserveDailyTssBase(effectiveTss)
+        AthleteDataStore.saveReserveDailyTssBaseDate(java.time.LocalDate.now().toString())
         reservePersistLastMsRef.set(nowMs)
     }
 
