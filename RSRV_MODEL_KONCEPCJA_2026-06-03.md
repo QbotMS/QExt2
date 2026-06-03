@@ -69,4 +69,36 @@ resetować przy starcie jazdy gdy data ≠ dziś (lokalnie), niezależnie od ł�
 Dotknięte: `AthleteDataStore` (KEY_RESERVE_BASE_DATE + save/load), `RideDataAggregator`
 init ~285, maybePersistReserveBase ~1231, stopStreamingInternal commit ~942.
 Granica dnia = lokalna północ, sprawdzana przy starcie (jazda przez północ nie resetuje
-się w trakcie). [Status: prompt wydany do OpenCode 2026-06-03]
+się w trakcie). [Status: ZAINSTALOWANE 2026-06-03 — reset o lokalnej północy, sprawdzany przy starcie każdej jazdy przez porównanie daty w SharedPreferences; niezależny od snu i łączności]
+
+## 7. Backlog — niedokończone wątki (PO powrocie)
+
+### QExt2
+- [ ] **Budżet z QBota zamiast 390 zaszytego.** QBot liczy `ζ × TL × świeżość` i podaje
+      w `/ride-readiness` (tak jak `todayFactor`), QExt2 czyta zamiast stałej. Wtedy
+      budżet jedzie za formą sam. `ζ≈7,0` doszlifować po kilku etapach z RPE (samouczenie).
+- [ ] **Dekupling jako MNOŻNIK drainu**, nie płaskie odjęcie `(decouple-5)*1.5`.
+      Czystsze fizjologicznie: `drain *= 1 + gain*(HRR_real - HRR_expected)`.
+- [ ] **Sprzątnąć martwy `RsrvDisplayPolicy`** (route-gated) — testy ćwiczą logikę,
+      której się NIE używa. Albo wpiąć ją na żywo, albo usunąć i przepiąć testy na realny gate.
+- [ ] **Martwy `intensityFactor`/`ifSafe`** w `rideReservePercent` — do usunięcia (warning).
+- [ ] **XSS low/high/peak split** zamiast jednego TSS (rozdzielić systemy: tlenowy/
+      wysoki/neuromięśniowy). Xert je daje (targetXSS: xlss/xhss/xpss).
+
+### QBot
+- [ ] **Martwy duplikat `/ride-readiness` w `qbot_api.py`** (~566–763) — BEZ `todayFactor`.
+      Żywy jest `mcp_server.py`. Jeśli routing kiedyś przełączy się na qbot_api.py,
+      świeżość po cichu padnie do 1.0. Usunąć duplikat albo dorobić w nim todayFactor.
+- [ ] **Wystawić budżet `ζ×TL` w `/ride-readiness`** (patrz QExt2 pkt 1).
+- [ ] **Zweryfikować `bodyWeightKg: 102`** — karmi czynnik upału (`bodyWeightKg/70`
+      w heatFactor). Sprawdzić czy to aktualna masa.
+
+## 8. Pliki referencyjne
+**QExt2:** `StatsCalculator.kt` (rideReservePercent) · `RideDataAggregator.kt`
+(effectiveTss ~829, rsrvModelReady ~885, init ~285, persist ~1231, commit ~942) ·
+`QExt2PrimaryExtension.kt` (~150–210 fetch+parse /ride-readiness) · `AthleteDataStore.kt`
+(todayFactor, ReserveDailyTssBase, applyBaroAdjustment) · `StatsAdvancedFieldPolicy.kt`
+(localRsrv = żywe wyświetlanie) · `RsrvDisplayPolicy.kt` (martwe) · `field_stats_3x3.xml`.
+**QBot:** `mcp_server.py` (_compute_today_factor ~2898, payload ~3093) ·
+`qbot_api.py` (duplikat endpointu) · tabele `qbot_v2.xert_profile_snapshots`,
+`training_sessions`, `wellness_daily`.
