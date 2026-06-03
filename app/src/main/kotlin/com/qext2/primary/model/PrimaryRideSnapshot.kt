@@ -163,6 +163,15 @@ data class PrimaryRideSnapshot(
 
         private const val POWER_HYSTERESIS_MS = 8_000L
 
+        fun resetLegacyState() {
+            lastGearColor = Color.WHITE
+            gearColorSinceMs = 0L
+            gearInitialized = false
+            lastPowerColor = Color.WHITE
+            powerColorSinceMs = 0L
+            powerInitialized = false
+        }
+
         private fun powerColorHysteresis(rawColor: Int, nowMs: Long): Int {
             if (nowMs <= 0L) return rawColor
             if (!powerInitialized) {
