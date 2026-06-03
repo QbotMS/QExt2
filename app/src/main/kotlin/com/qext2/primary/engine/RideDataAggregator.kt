@@ -935,7 +935,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
 
     private fun stopStreamingInternal(reason: String) {
         Log.i(TAG, "QEXT_AGGREGATOR_STOP reason=$reason")
-        AthleteDataStore.saveElapsedSnapshot(lastChosenElapsedRef.get(), distanceMetersRef.get())
+        AthleteDataStore.saveElapsedSnapshot(0L, 0.0)
         Log.d(TAG, "QEXT_NAV_CONSUMER_STOP")
         Log.d(TAG, "stopStreaming: removing ${consumerIds.size} consumers")
         val committedDailyTss = ReservePolicy.effectiveTss(dailyTssBaseRef.get(), sessionTssRef.get())
