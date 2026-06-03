@@ -49,6 +49,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
     private val _karooSystemFlow = MutableStateFlow<KarooSystemService?>(null)
     val karooSystemFlow: StateFlow<KarooSystemService?> = _karooSystemFlow.asStateFlow()
     private var fetchConsumerId: String? = null
+    private var fetchAttempts = 0
     private var batteryPollJob: Job? = null
     private var weatherPollJob: Job? = null
 
@@ -145,14 +146,22 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         _aggregator?.refreshCapTwilightFromStore()
     }
 
-    private fun fetchAthleteData(system: KarooSystemService) {
+    private fun fetchAthleteData(system: KarooSystemService, isRetry: Boolean = false) {
+        if (!isRetry) fetchAttempts = 0
         fetchConsumerId?.let { system.removeConsumer(it) }
         val url = BuildConfig.QEXT_READINESS_URL.trim()
             .ifEmpty { "https://qbot.cytr.us/ride-readiness" }
-        Log.i(TAG, "QEXT_READINESS_FETCH_START url=$url")
+        Log.i(TAG, "QEXT_READINESS_FETCH_START url=$url retry=$isRetry")
         fetchConsumerId = system.addConsumer<OnHttpResponse>(
             params = OnHttpResponse.MakeHttpRequest(method = "GET", url = url, waitForConnection = true),
-            onError = { msg -> Log.w(TAG, "QEXT_READINESS_FETCH_FAILED reason=onError msg=$msg") },
+            onError = { msg ->
+                Log.w(TAG, "QEXT_READINESS_FETCH_FAILED reason=onError msg=$msg")
+                if (fetchAttempts < 1) {
+                    fetchAttempts++
+                    android.os.Handler(android.os.Looper.getMainLooper())
+                        .postDelayed({ fetchAthleteData(system, isRetry = true) }, 60_000L)
+                }
+            },
             onEvent = { resp ->
                 val s = resp.state
                 if (s is HttpResponseState.Complete) {
