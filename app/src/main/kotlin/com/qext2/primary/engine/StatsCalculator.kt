@@ -85,7 +85,7 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         if (elapsedSec <= 0L) return
         val movingAdvanced = movingSec > lastMovingSec
         val hasPower = powerWatts > 0
-        val activeSample = movingAdvanced && hasPower
+        val activeSample = movingAdvanced && hasPower && powerFresh
 
         if (activeSample) {
             powerBuffer30s.addLast(powerWatts)

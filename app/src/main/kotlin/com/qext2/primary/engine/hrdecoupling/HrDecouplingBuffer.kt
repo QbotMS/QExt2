@@ -1,6 +1,6 @@
 package com.qext2.primary.engine.hrdecoupling
 
-private const val MAX_SAMPLES = 2400
+private const val MAX_SAMPLES = 7200
 
 class HrDecouplingBuffer {
 
