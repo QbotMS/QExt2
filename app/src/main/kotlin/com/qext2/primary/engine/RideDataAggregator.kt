@@ -268,6 +268,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                         if (savedMoving > 0L) movingElapsedSecRef.set(savedMoving)
                         val savedCarb = parts.getOrNull(17)?.toDoubleOrNull()?.takeIf { it > 0 } ?: 0.0
                         carbNeededTotalGRef.set(savedCarb)
+                        statsCalc.resetBattery()
                     }
                 } catch (_: Exception) {}
             }

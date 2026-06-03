@@ -255,6 +255,13 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         batteryPctCurrent = currentPct.coerceIn(0, 100)
     }
 
+    fun resetBattery() {
+        batteryPctStart = null
+        batteryPctCurrent = null
+        batteryStartMs = null
+        batteryIsCharging = null
+    }
+
     fun batteryDrainPctPerHour(nowMs: Long): Float? {
         if (batteryIsCharging == true) return null
         val start = batteryPctStart ?: return null
