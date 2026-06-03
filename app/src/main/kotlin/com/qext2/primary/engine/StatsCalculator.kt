@@ -213,7 +213,6 @@ class StatsCalculator(var ftpWatts: Int = 200) {
 
     fun rideReservePercent(tss: Float, intensityFactor: Float, decoupling: Float, elapsedSec: Long): Int {
         val tssSafe = safetyFloat(tss)
-        val ifSafe = safetyFloat(intensityFactor)
         val decoupleSafe = safetyFloat(decoupling)
         val baseReserve = safetyFloat(todayFactor) * 100f
         var reserve = baseReserve
