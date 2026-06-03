@@ -174,7 +174,9 @@ class SetupActivity : Activity() {
         val sdf = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
         val lastRefresh = AthleteDataStore.loadLastRefresh()
         val dateStr = if (data.fetchTimestamp > 0) {
-            "Dane z API: ${sdf.format(Date(data.fetchTimestamp))}"
+            val ageH = (System.currentTimeMillis() - data.fetchTimestamp) / 3_600_000L
+            val staleTag = if (ageH > 12) " ⚠️ dane stare (${ageH}h)" else ""
+            "Dane z API: ${sdf.format(Date(data.fetchTimestamp))}$staleTag"
         } else {
             "Brak danych — poczekaj na synchronizację"
         }
