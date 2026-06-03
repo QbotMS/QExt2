@@ -218,15 +218,9 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         val baseReserve = safetyFloat(todayFactor) * 100f
         var reserve = baseReserve
 
-        val tssPenalty = if (tssSafe > 0f) kotlin.math.sqrt(tssSafe) * 5.0f else 0f
+        val dailyBudgetTss = 390f
+        val tssPenalty = if (tssSafe > 0f) tssSafe * (100f / dailyBudgetTss) else 0f
         reserve -= tssPenalty
-
-        val ifPenalty = if (ifSafe > 0.80f) (ifSafe - 0.80f) * 100f else 0f
-        reserve -= ifPenalty
-
-        val movingHours = lastMovingSec / 3600f
-        val timePenalty = (movingHours - 1.5f).coerceAtLeast(0f) * 4f
-        reserve -= timePenalty
 
         if (hasDecouplingData() && decoupleSafe > 5f) {
             reserve -= (decoupleSafe - 5f) * 1.5f

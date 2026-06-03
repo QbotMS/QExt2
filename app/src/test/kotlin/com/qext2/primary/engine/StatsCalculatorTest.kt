@@ -261,4 +261,31 @@ class StatsCalculatorTest {
             reserveWithDecouple <= reserveNoDecouple
         )
     }
+
+    @Test
+    fun `reserve linear TSS at 48 gives ~88`() {
+        val calc = StatsCalculator()
+        calc.todayFactor = 1.0f
+        calc.captureStartReserve()
+        val reserve = calc.rideReservePercent(48f, 0f, 0f, 3600L)
+        assertTrue("TSS=48 → ~88 (got $reserve)", reserve in 86..90)
+    }
+
+    @Test
+    fun `reserve linear TSS at 204 gives ~48`() {
+        val calc = StatsCalculator()
+        calc.todayFactor = 1.0f
+        calc.captureStartReserve()
+        val reserve = calc.rideReservePercent(204f, 0f, 0f, 3600L)
+        assertTrue("TSS=204 → ~48 (got $reserve)", reserve in 46..50)
+    }
+
+    @Test
+    fun `reserve linear TSS at 280 gives ~28`() {
+        val calc = StatsCalculator()
+        calc.todayFactor = 1.0f
+        calc.captureStartReserve()
+        val reserve = calc.rideReservePercent(280f, 0f, 0f, 3600L)
+        assertTrue("TSS=280 → ~28 (got $reserve)", reserve in 26..30)
+    }
 }
