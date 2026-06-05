@@ -382,13 +382,20 @@ object AthleteDataStore {
 
     private const val KEY_ELAPSED_SNAPSHOT_SEC = "elapsed_snapshot_sec"
     private const val KEY_DISTANCE_SNAPSHOT_M = "distance_snapshot_m"
+    private const val KEY_ELAPSED_SNAPSHOT_TS = "elapsed_snapshot_ts"
 
     fun saveElapsedSnapshot(elapsedSec: Long, distanceM: Double) {
         prefs?.edit()?.apply {
             putLong(KEY_ELAPSED_SNAPSHOT_SEC, elapsedSec)
             putDouble(KEY_DISTANCE_SNAPSHOT_M, distanceM)
+            putLong(KEY_ELAPSED_SNAPSHOT_TS, if (elapsedSec > 0L) System.currentTimeMillis() else 0L)
             apply()
         }
+    }
+
+    fun elapsedSnapshotAgeMs(): Long {
+        val ts = prefs?.getLong(KEY_ELAPSED_SNAPSHOT_TS, 0L) ?: 0L
+        return if (ts <= 0L) Long.MAX_VALUE else System.currentTimeMillis() - ts
     }
 
     fun loadElapsedSnapshot(): Pair<Long, Double> {

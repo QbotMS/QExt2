@@ -236,8 +236,12 @@ data class PrimaryRideSnapshot(
 
     val gradeDisplay: String
         get() {
-            if (gradeValue.isNotEmpty()) return gradeValue
+            if (gradeValue == "WAIT") return "WAIT"
             if (gradeFreshnessMs >= GRADE_STALE_MS) return "NO"
+            if (gradeValue.isNotEmpty()) {
+                return if (gradeValue.startsWith("-") || gradeValue.startsWith("+")) gradeValue
+                else "+$gradeValue"
+            }
             val intGrade = gradePercent.toInt()
             return if (intGrade >= 0) "+$intGrade" else "$intGrade"
         }

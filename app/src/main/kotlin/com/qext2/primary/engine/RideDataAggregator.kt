@@ -235,7 +235,13 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         movingElapsedSecRef.set(0L)
         PrimaryRideSnapshot.resetLegacyState()
         val (savedElapsed, savedDistance) = AthleteDataStore.loadElapsedSnapshot()
-        if (savedElapsed > 0L) {
+        val resume = savedElapsed > 0L &&
+            AthleteDataStore.elapsedSnapshotAgeMs() < 6L * 60 * 60 * 1000
+        if (savedElapsed > 0L && !resume) {
+            Log.w(TAG, "QEXT_SNAPSHOT_STALE_IGNORED elapsed=${savedElapsed}s — clean start")
+            AthleteDataStore.saveElapsedSnapshot(0L, 0.0)
+        }
+        if (resume) {
             rideStartWallMsRef.set(System.currentTimeMillis() - savedElapsed * 1000L)
             if (savedDistance > 0.0) distanceMetersRef.set(savedDistance)
             AthleteDataStore.loadStatsCalcSnapshot()?.let { raw ->
@@ -276,7 +282,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
             Log.i(TAG, "QEXT_ELAPSED_RESTORED elapsed=${savedElapsed}s distance=${"%.0f".format(savedDistance)}m")
         }
         sanitizeCarbIntake()
-        if (savedElapsed <= 0L) {
+        if (!resume) {
             carbNeededTotalGRef.set(0.0)
             AthleteDataStore.resetCarbSessionState()
         }
