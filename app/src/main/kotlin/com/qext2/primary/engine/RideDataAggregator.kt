@@ -98,6 +98,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val gearFreshnessRef = AtomicReference(0L)
     private val gradeFreshnessRef = AtomicReference(0L)
 
+    private var hrAssessTick = 0
+    private var hrResultCached: HrStrainResult? = null
+
     private val consumerIds = mutableListOf<String>()
 
     private val _snapshot = MutableStateFlow(PrimaryRideSnapshot())
@@ -729,7 +732,12 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     elapsedSec = elapsedSec,
                 ))
 
-                val hrResult = hrAdvisor.assess(now, maxHrRef.get())
+                val hrResult = run {
+                    hrAssessTick++
+                    if (hrAssessTick % 10 == 0 || hrResultCached == null) {
+                        hrAdvisor.assess(now, maxHrRef.get()).also { hrResultCached = it }
+                    } else hrResultCached!!
+                }
 
                 val outputs = LabRideStateRepository.update(
                     RideSample(
