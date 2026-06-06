@@ -514,7 +514,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                         if (v != null && v in -35.0..35.0) {
                             gradeRef.set(v)
                             val filtered = if (gradeFilterInitializedRef.get()) {
-                                filteredGradeRef.get() + 0.10 * (v - filteredGradeRef.get())
+                                filteredGradeRef.get() + 0.35 * (v - filteredGradeRef.get())
                             } else {
                                 gradeFilterInitializedRef.set(true)
                                 v
