@@ -52,7 +52,7 @@ object ActiveClimbResolver {
             state = ClimbState(
                 hasRoute = true,
                 distanceToClimbM = (candidate.startDistance - distanceMeters).coerceAtLeast(0.0),
-                climbElevationM = candidate.totalElevation.toInt().coerceAtLeast(0),
+                climbElevationM = if (ascentLeftM > 0) ascentLeftM else candidate.totalElevation.toInt().coerceAtLeast(0),
                 avgGradePercent = effectiveGrade,
                 climbIndex = candidate.index,
                 nowMs = nowMs,
