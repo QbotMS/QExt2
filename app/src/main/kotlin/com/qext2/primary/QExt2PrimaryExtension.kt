@@ -153,7 +153,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
             .ifEmpty { "https://qbot.cytr.us/ride-readiness" }
         Log.i(TAG, "QEXT_READINESS_FETCH_START url=$url retry=$isRetry")
         fetchConsumerId = system.addConsumer<OnHttpResponse>(
-            params = OnHttpResponse.MakeHttpRequest(method = "GET", url = url, waitForConnection = true),
+            params = OnHttpResponse.MakeHttpRequest(method = "GET", url = url, waitForConnection = false),
             onError = { msg ->
                 Log.w(TAG, "QEXT_READINESS_FETCH_FAILED reason=onError msg=$msg")
                 if (fetchAttempts < 1) {
