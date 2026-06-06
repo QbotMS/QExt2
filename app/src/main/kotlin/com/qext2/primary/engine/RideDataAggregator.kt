@@ -7,6 +7,7 @@ import com.qext2.primary.core.LabRideStateRepository
 import com.qext2.primary.engine.hrdecoupling.HrDecouplingBuffer
 import com.qext2.primary.engine.hrdecoupling.HrSample
 import com.qext2.primary.engine.hrdecoupling.HrStrainAdvisor
+import com.qext2.primary.engine.hrdecoupling.HrStrainResult
 import com.qext2.primary.model.PrimaryRideSnapshot
 import com.qext2.primary.model.StatsRideSnapshot
 import com.qext2.primary.util.QExt2DebugConfig
