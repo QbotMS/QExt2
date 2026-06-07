@@ -51,7 +51,7 @@ import kotlin.math.exp
 import kotlin.math.round
 
 private const val TAG = "QExt2Active"
-private const val MIN_RENDER_INTERVAL_MS = 300L
+private const val MIN_RENDER_INTERVAL_MS = 1000L
 
 private class IF10Calculator(var ftp: Int = 250) {
     private val raw = mutableListOf<Double>()
