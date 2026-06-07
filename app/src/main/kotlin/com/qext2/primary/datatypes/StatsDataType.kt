@@ -44,6 +44,7 @@ class StatsDataType : DataTypeImpl("qext2", "qext2-stats") {
     }
 
     override fun startView(context: Context, config: ViewConfig, emitter: ViewEmitter) {
+        QExt2PrimaryExtension.instance?.onFieldVisible()
         emitter.onNext(UpdateGraphicConfig(showHeader = false))
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         emitter.updateView(RemoteViews(context.packageName, R.layout.field_stats_3x3))
@@ -62,6 +63,7 @@ class StatsDataType : DataTypeImpl("qext2", "qext2-stats") {
         }
 
         emitter.setCancellable {
+            QExt2PrimaryExtension.instance?.onFieldHidden()
             scope.cancel()
         }
     }

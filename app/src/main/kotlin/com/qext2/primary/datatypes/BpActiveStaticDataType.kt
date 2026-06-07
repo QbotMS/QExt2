@@ -96,6 +96,7 @@ class BpActiveStaticDataType : DataTypeImpl("qext2", "qext2-active-static") {
 
     override fun startView(context: Context, config: ViewConfig, emitter: ViewEmitter) {
         Log.d(TAG, "startView preview=${config.preview}")
+        QExt2PrimaryExtension.instance?.onFieldVisible()
         emitter.onNext(UpdateGraphicConfig(showHeader = false))
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         largeCell = config.gridSize.first >= 60 || config.viewSize.first >= 400
@@ -136,6 +137,7 @@ class BpActiveStaticDataType : DataTypeImpl("qext2", "qext2-active-static") {
 
         emitter.setCancellable {
             Log.d(TAG, "startView cancelled")
+            QExt2PrimaryExtension.instance?.onFieldHidden()
             currentSystem?.let { s -> consumerIds.forEach { id -> s.removeConsumer(id) } }
             consumerIds.clear()
             scope.cancel()

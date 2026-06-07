@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import org.json.JSONObject
 import java.io.File
 import java.text.SimpleDateFormat
@@ -52,6 +53,9 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
     private var fetchAttempts = 0
     private var batteryPollJob: Job? = null
     private var weatherPollJob: Job? = null
+    private var visibleFieldCount = 0
+    private var aggregatorStreaming = false
+    private var stopJob: Job? = null
 
     companion object {
         var instance: QExt2PrimaryExtension? = null
@@ -70,8 +74,12 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
             serviceScope.launch {
                 if (connected) {
                     if (_aggregator == null) {
-                        _aggregator = RideDataAggregator(system).also { it.startStreaming() }
+                        _aggregator = RideDataAggregator(system)
                         _aggregatorFlow.value = _aggregator
+                    }
+                    if (visibleFieldCount > 0 && !aggregatorStreaming) {
+                        _aggregator?.startStreaming()
+                        aggregatorStreaming = true
                     }
                     startBatteryPolling()
                     startWeatherPolling()
@@ -83,8 +91,35 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                     weatherPollJob?.cancel()
                     weatherPollJob = null
                     _aggregator?.stopStreaming()
+                    aggregatorStreaming = false
                     _aggregator = null
                     _aggregatorFlow.value = null
+                }
+            }
+        }
+    }
+
+    fun onFieldVisible() {
+        visibleFieldCount++
+        stopJob?.cancel()
+        stopJob = null
+        if (_aggregator != null && !aggregatorStreaming) {
+            _aggregator?.startStreaming()
+            aggregatorStreaming = true
+            Log.i(TAG, "QEXT_AGG_START visibleFields=$visibleFieldCount")
+        }
+    }
+
+    fun onFieldHidden() {
+        if (visibleFieldCount > 0) visibleFieldCount--
+        if (visibleFieldCount == 0 && aggregatorStreaming) {
+            stopJob?.cancel()
+            stopJob = serviceScope.launch {
+                delay(20_000L)
+                if (visibleFieldCount == 0 && aggregatorStreaming) {
+                    _aggregator?.stopStreaming()
+                    aggregatorStreaming = false
+                    Log.i(TAG, "QEXT_AGG_STOP idle (no visible field 20s)")
                 }
             }
         }

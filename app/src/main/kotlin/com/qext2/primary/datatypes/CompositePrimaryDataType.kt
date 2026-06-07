@@ -40,6 +40,7 @@ class CompositePrimaryDataType : DataTypeImpl("qext2", "qext2-primary") {
 
     override fun startView(context: Context, config: ViewConfig, emitter: ViewEmitter) {
         Log.d(TAG, "startView preview=${config.preview} grid=${config.gridSize} view=${config.viewSize}")
+        QExt2PrimaryExtension.instance?.onFieldVisible()
         val optimizer = PrimaryRenderOptimizer()
         optimizer.initializeMetricsFile(context.filesDir)
         emitter.onNext(UpdateGraphicConfig(showHeader = false))
@@ -71,6 +72,7 @@ class CompositePrimaryDataType : DataTypeImpl("qext2", "qext2-primary") {
 
         emitter.setCancellable {
             Log.d(TAG, "startView cancelled")
+            QExt2PrimaryExtension.instance?.onFieldHidden()
             optimizer.reset()
             scope.cancel()
         }

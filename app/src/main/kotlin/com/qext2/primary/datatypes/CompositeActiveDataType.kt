@@ -128,6 +128,7 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
 
     override fun startView(context: Context, config: ViewConfig, emitter: ViewEmitter) {
         Log.d(TAG, "QEXT_ACTIVE_START preview=${config.preview}")
+        QExt2PrimaryExtension.instance?.onFieldVisible()
         ActiveMessageRenderer.resetTracker()
         emitter.onNext(UpdateGraphicConfig(showHeader = false))
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -301,6 +302,7 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
 
         emitter.setCancellable {
             Log.d(TAG, "QEXT_ACTIVE_STOP")
+            QExt2PrimaryExtension.instance?.onFieldHidden()
             messageManager.clear()
             currentSystem?.let { s -> consumerIds.forEach { id -> s.removeConsumer(id) } }
             consumerIds.clear()
