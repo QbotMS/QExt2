@@ -38,7 +38,7 @@ data class PrimaryRideSnapshot(
         private const val POWER_STALE_MS = 8000L
         private const val SPEED_STALE_MS = 12000L
         private const val GEAR_STALE_MS = 15000L
-        private const val GRADE_STALE_MS = 20000L
+        private const val GRADE_STALE_MS = 45000L
         private const val SPEED_ZERO_THRESHOLD = 0.01
         private const val GEAR_HYSTERESIS_MS = 30_000L
 
