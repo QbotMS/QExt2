@@ -99,6 +99,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val gearFreshnessRef = AtomicReference(0L)
     private val gradeFreshnessRef = AtomicReference(0L)
     private val gradeLastRawRef = AtomicReference(Double.NaN)
+    private var hrAssessTick = 0
     private var hrResultCached: HrStrainResult? = null
 
     private val consumerIds = mutableListOf<String>()
