@@ -98,8 +98,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val speedFreshnessRef = AtomicReference(0L)
     private val gearFreshnessRef = AtomicReference(0L)
     private val gradeFreshnessRef = AtomicReference(0L)
-
-    private var hrAssessTick = 0
+    private val gradeLastRawRef = AtomicReference(Double.NaN)
     private var hrResultCached: HrStrainResult? = null
 
     private val consumerIds = mutableListOf<String>()
@@ -524,7 +523,10 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                                 v
                             }
                             filteredGradeRef.set(filtered)
-                            gradeFreshnessRef.set(System.currentTimeMillis())
+                            if (v != gradeLastRawRef.get()) {
+                                gradeFreshnessRef.set(System.currentTimeMillis())
+                                gradeLastRawRef.set(v)
+                            }
                             if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "GRADE raw=$v")
                         }
                     }
