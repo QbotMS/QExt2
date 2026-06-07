@@ -33,7 +33,7 @@ import kotlin.math.round
 import kotlin.math.ln
 
 private const val TAG = "QExt2ActiveStatic"
-private const val MIN_RENDER_INTERVAL_MS = 300L
+private const val MIN_RENDER_INTERVAL_MS = 1000L
 
 private class SIf10Calc(var ftp: Int = 250) {
     private val raw = mutableListOf<Double>()
@@ -392,7 +392,7 @@ class BpActiveStaticDataType : DataTypeImpl("qext2", "qext2-active-static") {
         if (lastWindUpdateMs == 0L || ageMs > 10_000L) return "--"
         val speedMs = currentWindSpeedMs()
         if (speedMs.isNaN() || speedMs > 60.0) return "--"
-        return round(speedMs).toInt().toString()
+        return round(speedMs * 3.6).toInt().toString()
     }
 
     private fun formatWindDir(): String {
