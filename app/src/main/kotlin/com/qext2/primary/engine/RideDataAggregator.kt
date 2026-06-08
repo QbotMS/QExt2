@@ -945,7 +945,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     batterySource = if (batterySourceReady) "headunit_polling" else null,
                     batteryDrainPctPerHour = drainPerHour,
                     batteryTimeLeftSec = batteryLeftSec,
-                    grossElapsedSec = localElapsedSec,
+                    grossElapsedSec = elapsedSec,
                     distanceKm = (distanceMetersRef.get() / 1000.0).toFloat(),
                 )
                 if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "HR_DECOUPLING reason=${hrResult.reasonCode} decouplingPct=${hrResult.decouplingPct} color=${hrResult.color}")
@@ -994,6 +994,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     fun updateBatteryStatus(percent: Int?, charging: Boolean?) {
         batteryPctRef.set(percent)
         batteryChargingRef.set(charging)
+        if (percent != null) statsCalc.seedBatteryStartIfAbsent(percent, charging, System.currentTimeMillis())
     }
 
     fun updateWeather(data: com.qext2.primary.weather.WeatherData) {

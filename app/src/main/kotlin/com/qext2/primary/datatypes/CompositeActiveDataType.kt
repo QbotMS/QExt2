@@ -675,7 +675,7 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
         val speedMs = currentWindSpeedMs()
         if (speedMs.isNaN()) return "--"
         if (speedMs > 60.0) return "--"
-        val speedRounded = round(speedMs).toInt().toString()
+        val speedRounded = round(speedMs / 3.6).toInt().toString()
         if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "formatWind: deg=$lastDirectionDeg windMs=$lastWindSpeedMs headwindMs=$lastHeadwindSpeedMs ms=$speedRounded")
         return speedRounded
     }

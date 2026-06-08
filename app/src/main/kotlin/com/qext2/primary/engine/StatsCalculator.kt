@@ -248,6 +248,15 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         batteryPctCurrent = currentPct.coerceIn(0, 100)
     }
 
+    fun seedBatteryStartIfAbsent(currentPct: Int?, charging: Boolean?, nowMs: Long) {
+        if (currentPct == null) return
+        if (charging == true) return
+        if (batteryPctStart != null) return
+        batteryPctStart = currentPct.coerceIn(0, 100)
+        batteryStartMs = nowMs
+        if (batteryPctCurrent == null) batteryPctCurrent = currentPct.coerceIn(0, 100)
+    }
+
     fun resetBattery() {
         batteryPctStart = null
         batteryPctCurrent = null

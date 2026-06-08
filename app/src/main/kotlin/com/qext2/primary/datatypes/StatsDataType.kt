@@ -162,14 +162,14 @@ class StatsDataType : DataTypeImpl("qext2", "qext2-stats") {
         vi <= 0f -> Color.WHITE
         vi < 1.05f -> Color.WHITE
         vi < 1.10f -> Color.parseColor("#F59E0B")
-        else -> Color.parseColor("#EF4444")
+        else -> Color.parseColor("#FF5252")
     }
 
     private fun rsrvColor(reserve: Int, ready: Boolean): Int = when {
         !ready -> Color.WHITE
-        reserve >= 40 -> Color.parseColor("#22C55E")
+        reserve >= 40 -> Color.parseColor("#4ADE80")
         reserve >= 20 -> Color.parseColor("#F59E0B")
-        else -> Color.parseColor("#EF4444")
+        else -> Color.parseColor("#FF5252")
     }
 
     companion object {

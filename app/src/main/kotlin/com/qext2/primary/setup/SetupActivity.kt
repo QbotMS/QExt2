@@ -128,9 +128,9 @@ class SetupActivity : Activity() {
         findViewById<TextView>(R.id.tv_pp)?.text = if (data.ltpWatts > 0) "${data.ltpWatts} W" else "—"
 
         val tfColor = when {
-            data.todayFactor >= 0.90f -> Color.parseColor("#22C55E")
+            data.todayFactor >= 0.90f -> Color.parseColor("#4ADE80")
             data.todayFactor >= 0.80f -> Color.parseColor("#F59E0B")
-            else -> Color.parseColor("#EF4444")
+            else -> Color.parseColor("#FF5252")
         }
         findViewById<TextView>(R.id.tv_today_factor)?.apply {
             text = data.todayFactorDisplay
@@ -142,9 +142,9 @@ class SetupActivity : Activity() {
                 "${data.hrvToday} / ${data.hrvBaseline30d.toInt()} (±${data.hrvDeviation30d.toInt()})"
             else "—"
             val color = when {
-                data.hrvDeviation30d >= -3f -> Color.parseColor("#22C55E")
+                data.hrvDeviation30d >= -3f -> Color.parseColor("#4ADE80")
                 data.hrvDeviation30d >= -8f -> Color.parseColor("#F59E0B")
-                else -> Color.parseColor("#EF4444")
+                else -> Color.parseColor("#FF5252")
             }
             setTextColor(color)
         }
@@ -154,9 +154,9 @@ class SetupActivity : Activity() {
                 "%.1fh / %.1fh (±%.1fh)".format(data.sleepTodayH, data.sleepBaseline30d, data.sleepDev)
             else "—"
             val color = when {
-                data.sleepDev >= -0.5f -> Color.parseColor("#22C55E")
+                data.sleepDev >= -0.5f -> Color.parseColor("#4ADE80")
                 data.sleepDev >= -1.5f -> Color.parseColor("#F59E0B")
-                else -> Color.parseColor("#EF4444")
+                else -> Color.parseColor("#FF5252")
             }
             setTextColor(color)
         }
@@ -168,7 +168,7 @@ class SetupActivity : Activity() {
         findViewById<TextView>(R.id.tv_baro_info)?.apply {
             val pct = data.baroAdjustPercent
             text = if (pct <= 0) "brak korekty" else "korekta −${pct}%"
-            setTextColor(if (pct <= 0) Color.parseColor("#22C55E") else Color.parseColor("#F59E0B"))
+            setTextColor(if (pct <= 0) Color.parseColor("#4ADE80") else Color.parseColor("#F59E0B"))
         }
 
         val sdf = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
@@ -187,7 +187,7 @@ class SetupActivity : Activity() {
 
         findViewById<TextView>(R.id.tv_pi_status)?.apply {
             text = if (data.profileComplete) "GBOT profile OK" else data.warningReasons.replace("|", ", ")
-            setTextColor(if (data.profileComplete) Color.parseColor("#22C55E") else Color.parseColor("#F59E0B"))
+            setTextColor(if (data.profileComplete) Color.parseColor("#4ADE80") else Color.parseColor("#F59E0B"))
         }
 
         findViewById<TextView>(R.id.tv_status)?.text = ""

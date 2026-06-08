@@ -87,9 +87,9 @@ data class PrimaryRideSnapshot(
             }
             return when {
                 watts < targetLow -> Color.WHITE
-                watts <= targetHigh -> Color.parseColor("#22C55E")
-                watts <= (targetHigh * 1.20).toInt() -> Color.parseColor("#F97316")
-                else -> Color.parseColor("#EF4444")
+                watts <= targetHigh -> Color.parseColor("#4ADE80")
+                watts <= (targetHigh * 1.20).toInt() -> Color.parseColor("#FB923C")
+                else -> Color.parseColor("#FF5252")
             }
         }
 
@@ -101,9 +101,9 @@ data class PrimaryRideSnapshot(
                 else -> 60 to 70
             }
             return when {
-                rpm in lo..hi -> Color.parseColor("#22C55E")
-                rpm < lo - 5 -> Color.parseColor("#EF4444")
-                rpm < lo -> Color.parseColor("#F97316")
+                rpm in lo..hi -> Color.parseColor("#4ADE80")
+                rpm < lo - 5 -> Color.parseColor("#FF5252")
+                rpm < lo -> Color.parseColor("#FB923C")
                 else -> Color.WHITE
             }
         }
@@ -115,17 +115,18 @@ data class PrimaryRideSnapshot(
             } else 0.0
             if (netAvg < 1.0) return Color.WHITE
             return when {
-                speedKmh > netAvg * 1.15 -> Color.parseColor("#22C55E")
-                speedKmh < netAvg * 0.85 -> Color.parseColor("#EF4444")
+                speedKmh > netAvg * 1.15 -> Color.parseColor("#4ADE80")
+                speedKmh < netAvg * 0.85 -> Color.parseColor("#FF5252")
                 else -> Color.WHITE
             }
         }
 
         private fun gradeColor(grade: Double): Int = when {
-            grade in -2.0..2.0 -> Color.parseColor("#22C55E")
-            grade in -5.0..5.0 -> Color.WHITE
-            grade in -9.0..9.0 -> Color.parseColor("#F97316")
-            else -> Color.parseColor("#EF4444")
+            grade <= -3.0 -> Color.parseColor("#38BDF8")
+            grade < 3.0 -> Color.parseColor("#4ADE80")
+            grade < 6.0 -> Color.parseColor("#FACC15")
+            grade < 9.0 -> Color.parseColor("#FB923C")
+            else -> Color.parseColor("#FF5252")
         }
 
         private fun gearColor(
@@ -135,10 +136,10 @@ data class PrimaryRideSnapshot(
             if (cadence <= 0 || power <= 0 || gearFront <= 0 || gearRear <= 0) return Color.WHITE
             if (adjFtp <= 0) return Color.WHITE
             return when {
-                cadence <= 50 && power >= adjFtp * 1.10 && grade >= 5.0 -> Color.parseColor("#EF4444")
-                cadence < 55 && power >= adjFtp * 0.75 && grade >= 2.0 -> Color.parseColor("#F97316")
-                cadence >= 90 && power <= adjFtp * 0.50 -> Color.parseColor("#F97316")
-                cadence in 60..75 && power in (adjFtp * 0.75).toInt()..(adjFtp * 0.87).toInt() && grade in -5.0..5.0 -> Color.parseColor("#22C55E")
+                cadence <= 50 && power >= adjFtp * 1.10 && grade >= 5.0 -> Color.parseColor("#FF5252")
+                cadence < 55 && power >= adjFtp * 0.75 && grade >= 2.0 -> Color.parseColor("#FB923C")
+                cadence >= 90 && power <= adjFtp * 0.50 -> Color.parseColor("#FB923C")
+                cadence in 60..75 && power in (adjFtp * 0.75).toInt()..(adjFtp * 0.87).toInt() && grade in -5.0..5.0 -> Color.parseColor("#4ADE80")
                 else -> Color.WHITE
             }
         }
