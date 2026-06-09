@@ -26,6 +26,7 @@ class ClimbPacingProducer(private val logger: (String) -> Unit = {}) {
         ascentLeftM: Int,
         grade: Double,
         climbIndex: Int,
+        modeFactor: Float,
         nowMs: Long,
     ): ActiveMessage? {
         if (!isWithinBounds) return null
@@ -38,17 +39,19 @@ class ClimbPacingProducer(private val logger: (String) -> Unit = {}) {
             lastTargetMs = 0L
             lastHardMs = 0L
             lastPushMs = 0L
-            logger("PACING_RESET climbIndex=$climbIndex effectiveLtp=${effectiveLtpW.toInt()}")
+            logger("PACING_RESET climbIndex=$climbIndex effectiveLtp=${effectiveLtpW.toInt()} mode=$modeFactor")
         }
 
-        val targetLow = (effectiveLtpW * 0.92f).toInt()
-        val targetHigh = (effectiveLtpW * 1.08f).toInt()
+        val targetLow = (effectiveLtpW * 0.92f * modeFactor).toInt()
+        val targetHigh = (effectiveLtpW * 1.08f * modeFactor).toInt()
+        val tooHardAt = (effectiveLtpW * (TOO_HARD_RATIO * modeFactor).coerceAtLeast(1.04f)).toInt()
+        val pushBelow = (effectiveLtpW * PUSH_RATIO * modeFactor).toInt()
 
         // Priority 1: too hard + W' in danger zone
-        if (power > (effectiveLtpW * TOO_HARD_RATIO).toInt() && wBalancePct < WBAL_LOW) {
+        if (power > tooHardAt && wBalancePct < WBAL_LOW) {
             if (nowMs - lastHardMs > HARD_COOLDOWN_MS) {
                 lastHardMs = nowMs
-                logger("PACING_TRIGGER type=too_hard power=$power ltp=${effectiveLtpW.toInt()} w=$wBalancePct%")
+                logger("PACING_TRIGGER type=too_hard power=$power tooHardAt=$tooHardAt w=$wBalancePct%")
                 return ActiveMessage(
                     id = "pace_hard_$nowMs",
                     title = "ZA MOCNO",
@@ -67,7 +70,7 @@ class ClimbPacingProducer(private val logger: (String) -> Unit = {}) {
         if (nowMs - lastTargetMs > TARGET_COOLDOWN_MS) {
             lastTargetMs = nowMs
             val gradeStr = "${if (grade >= 0) "+" else ""}${grade.toInt()}%"
-            logger("PACING_TRIGGER type=target ltp=${effectiveLtpW.toInt()} grade=${grade.toInt()}")
+            logger("PACING_TRIGGER type=target ltp=${effectiveLtpW.toInt()} grade=${grade.toInt()} mode=$modeFactor")
             return ActiveMessage(
                 id = "pace_target_$nowMs",
                 title = "CEL: $targetLow-$targetHigh W",
@@ -81,8 +84,8 @@ class ClimbPacingProducer(private val logger: (String) -> Unit = {}) {
             )
         }
 
-        // Priority 3: nudge — leaving watts on the table
-        if (power in 50..(effectiveLtpW * PUSH_RATIO).toInt() && wBalancePct > WBAL_HIGH) {
+        // Priority 3: nudge — only in normal/offensive mode
+        if (modeFactor >= 1.0f && power in 50..pushBelow && wBalancePct > WBAL_HIGH) {
             if (nowMs - lastPushMs > PUSH_COOLDOWN_MS) {
                 lastPushMs = nowMs
                 logger("PACING_TRIGGER type=push power=$power ltp=${effectiveLtpW.toInt()} w=$wBalancePct%")
