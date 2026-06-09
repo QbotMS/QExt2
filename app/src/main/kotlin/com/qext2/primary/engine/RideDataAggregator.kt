@@ -783,7 +783,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     speedFreshnessMs = now - speedFreshnessRef.get(),
                     gearFreshnessMs = now - gearFreshnessRef.get(),
                     gradeFreshnessMs = now - gradeFreshnessRef.get(),
-                    powerColor = pacingPowerColor(powerRef.get(), getEffectiveLtpWatts(), wBalance, now - powerFreshnessRef.get()),
+                    powerColor = pacingPowerColor(powerRef.get(), getEffectiveLtpWatts(), statsCalc.wBalancePercent(now), now - powerFreshnessRef.get()),
                     hrColor = hrResult.color.hex,
                     cadenceColor = cadOut?.color.toAndroidColor(),
                     speedColor = speedOut?.color.toAndroidColor(),
