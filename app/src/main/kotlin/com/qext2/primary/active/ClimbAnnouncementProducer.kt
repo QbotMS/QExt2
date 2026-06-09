@@ -7,6 +7,7 @@ data class ClimbState(
     val distanceToClimbM: Double,
     val climbElevationM: Int,
     val avgGradePercent: Double,
+    val isWithinClimbBounds: Boolean,
     val climbIndex: Int,
     val nowMs: Long,
 )
@@ -58,10 +59,9 @@ class ClimbAnnouncementProducer(private val logger: (String) -> Unit = {}) {
     }
 
     private fun checkClimbActive(s: ClimbState): ActiveMessage? {
-        val isClimbing = s.avgGradePercent > CLIMB_GRADE_THRESHOLD
-        if (!isClimbing) {
+        if (!s.isWithinClimbBounds) {
             onClimb = false
-            rejectLog("REJECT reason=gradeTooLow grade=${s.avgGradePercent}")
+            rejectLog("REJECT reason=notWithinClimbBounds grade=${s.avgGradePercent}")
             return null
         }
         if (!onClimb) {
@@ -88,7 +88,7 @@ class ClimbAnnouncementProducer(private val logger: (String) -> Unit = {}) {
     private fun checkClimbFinish(s: ClimbState): ActiveMessage? {
         if (announcedFinish) { rejectLog("REJECT reason=alreadyAnnouncedFinish"); return null }
         if (!onClimb && !announcedActive) { rejectLog("REJECT reason=notOnClimb"); return null }
-        if (s.avgGradePercent > CLIMB_GRADE_THRESHOLD) { rejectLog("REJECT reason=gradeStillClimbing grade=${s.avgGradePercent}"); return null }
+        if (s.isWithinClimbBounds) { rejectLog("REJECT reason=stillWithinClimbBounds"); return null }
         announcedFinish = true
         onClimb = false
         logger("TRIGGER type=climb_finish elev=${s.climbElevationM}m")
