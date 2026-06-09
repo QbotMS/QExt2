@@ -224,12 +224,11 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                                 .ifBlank { sig?.optString("sleepDataDate") ?: "" }
                             val reasons = mutableListOf<String>()
                             val ftpPresent = json.has("ftpWatts") && json.optDouble("ftpWatts", 0.0) > 0.0
+                            val ltpPresent = json.optInt("ltpWatts", 0) > 0
                             val hrvPresent = sig != null && sig.has("hrvToday") && sig.optInt("hrvToday", 0) > 0
                             if (!ftpPresent) reasons.add("FTP missing")
-                            if (!hrvPresent) reasons.add("HRV missing")
-                            if (json.optJSONArray("sources")?.toString()?.contains("partial") == true) {
-                                if (reasons.isEmpty()) reasons.add("QBot profile incomplete")
-                            }
+                            if (!ltpPresent) reasons.add("LTP missing")
+                            if (!ftpPresent && !ltpPresent && !hrvPresent) reasons.add("QBot profile incomplete")
                             val data = AthleteData(
                                 ftp = json.optInt("ftpWatts", 250),
                                 wPrimeKj = json.optDouble("wPrimeKj", 3.75),
@@ -239,7 +238,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                                 atl = json.optDouble("atl", 40.0).toFloat(),
                                 humidityPercent = json.optDouble("humidityPercent", 50.0).toFloat(),
                                 sunsetTimestampMs = json.optLong("sunsetTimestampMs", json.optLong("twilightMs", json.optLong("sunsetMs", 0L))),
-                                maxHr = json.optInt("MaxHRBPM", json.optInt("maxHr", json.optInt("maxHeartRate", 180))),
+                                maxHr = json.optInt("maxHrBpm", json.optInt("MaxHRBPM", json.optInt("maxHr", json.optInt("maxHeartRate", 180)))),
                                 bodyWeightKg = json.optDouble("bodyWeightKg", 75.0).toFloat(),
                                 xertStatus = sig?.optString("xertStatus", "--") ?: "--",
                                 hrvToday = sig?.optInt("hrvToday", 0) ?: 0,
