@@ -86,6 +86,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val civilDuskMsRef = AtomicReference(0L)
     private val maxHrRef = AtomicReference(180)
     private val todayFactorRef = AtomicReference(1.0f)
+    private val baseLtpWattsRef = AtomicReference(0f)
+    private val baseWPrimeKjRef = AtomicReference(0f)
     private val tssRef = AtomicReference(0f)
     private val kcalRef = AtomicReference(0)
     private val npRef = AtomicReference(0)
@@ -801,6 +803,13 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val cadence = cadenceRef.get()
                 val movingElapsedSec = movingElapsedSecRef.get()
                 val powerFresh = now - powerFreshnessRef.get() < 8_000L
+                val baseLtp = baseLtpWattsRef.get()
+                val baseWp = baseWPrimeKjRef.get()
+                if (baseLtp > 0f && baseWp > 0f) {
+                    val cf = (todayFactorRef.get() * tempFactor(weatherTemperatureCRef.get()))
+                        .coerceIn(0.75f, 1.10f)
+                    statsCalc.setWPrimeParams(baseWp * cf, baseLtp * cf)
+                }
                 statsCalc.update(powerWatts, hr, movingElapsedSec, elapsedSec, powerFresh = powerFresh)
                 val npWhole = statsCalc.npWatts()
                 val ifWhole = ifRef.get().takeIf { it > 0f } ?: statsCalc.ifValue()
@@ -1236,6 +1245,12 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         return raw
     }
 
+    private fun tempFactor(tempC: Float?): Float {
+        if (tempC == null) return 1.0f
+        val delta = (tempC - 20f).coerceAtLeast(0f)
+        return (1f - 0.007f * delta).coerceAtLeast(0.85f)
+    }
+
     private fun applyAthleteData(data: AthleteData, resetStats: Boolean) {
         if (data.ftp > 0) statsCalc.ftpWatts = data.ftp
         statsCalc.todayFactor = data.todayFactor
@@ -1245,6 +1260,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         todayFactorRef.set(data.todayFactor.coerceIn(0.5f, 1.1f))
         statsCalc.bodyWeightKg = data.bodyWeightKg
         if (data.wPrimeKj > 0.0 && data.ltpWatts > 0) {
+            baseLtpWattsRef.set(data.ltpWatts.toFloat())
+            baseWPrimeKjRef.set(data.wPrimeKj.toFloat())
             statsCalc.setWPrimeParams(data.wPrimeKj.toFloat(), data.ltpWatts.toFloat())
         }
         if (resetStats) {
