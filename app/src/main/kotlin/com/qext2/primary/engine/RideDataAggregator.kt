@@ -783,7 +783,19 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     speedFreshnessMs = now - speedFreshnessRef.get(),
                     gearFreshnessMs = now - gearFreshnessRef.get(),
                     gradeFreshnessMs = now - gradeFreshnessRef.get(),
-                    powerColor = pacingPowerColor(powerRef.get(), getEffectiveLtpWatts(), statsCalc.wBalancePercent(now), now - powerFreshnessRef.get()),
+                    val remainingKmColor = distanceToDestinationMetersRef.get() / 1000.0
+                    val speedKmhColor = speedRef.get()
+                    val remainingHoursColor = if (speedKmhColor > 5.0 && remainingKmColor > 1.0)
+                        (remainingKmColor / speedKmhColor).toFloat() else -1f
+                    powerColor = pacingPowerColor(
+                        power = powerRef.get(),
+                        effectiveLtp = getEffectiveLtpWatts(),
+                        wBalancePct = statsCalc.wBalancePercent(now),
+                        reserve = _statsSnapshot.value.rideReservePercent,
+                        elapsedHours = elapsedSec / 3600f,
+                        remainingHours = remainingHoursColor,
+                        powerAgeMs = now - powerFreshnessRef.get(),
+                    ),
                     hrColor = hrResult.color.hex,
                     cadenceColor = cadOut?.color.toAndroidColor(),
                     speedColor = speedOut?.color.toAndroidColor(),
@@ -1323,11 +1335,28 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         FieldColor.NEUTRAL, null -> 0xFFFFFFFF.toInt()
     }
 
-    private fun pacingPowerColor(power: Int, effectiveLtp: Float, wBalancePct: Int, powerAgeMs: Long): Int {
+    private fun pacingPowerColor(
+        power: Int, effectiveLtp: Float, wBalancePct: Int,
+        reserve: Int, elapsedHours: Float, remainingHours: Float,
+        powerAgeMs: Long,
+    ): Int {
         if (effectiveLtp < 50f || power < 20 || powerAgeMs > 5_000L)
             return Color.parseColor("#6B7280")
+
+        // W' factor: tightens as W' depletes (short-term)
         val wFrac = wBalancePct.coerceIn(0, 100) / 100f
-        val ceiling = effectiveLtp * (1f + 0.20f * wFrac)
+        val wFac = 1f + 0.20f * wFrac
+
+        // RSRV factor: tightens when projected finish RSRV is low (long-term)
+        val rsvFac = if (remainingHours > 0f && elapsedHours > 0.25f && reserve in 0..100) {
+            val drainRate = (100f - reserve.toFloat()) / elapsedHours
+            val projected = (reserve.toFloat() - drainRate * remainingHours).coerceIn(0f, 100f)
+            1f + 0.20f * (projected / 100f)
+        } else wFac  // no route or too early: fall back to W'-only
+
+        // Binding constraint wins
+        val ceiling = effectiveLtp * minOf(wFac, rsvFac)
+
         return when {
             power >= ceiling.toInt()             -> Color.parseColor("#FF5252") // za mocno
             power >= (ceiling * 0.85f).toInt()   -> Color.parseColor("#4ADE80") // cel
