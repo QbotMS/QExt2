@@ -223,7 +223,36 @@ class SetupActivity : Activity() {
             showSunsetData()
             QExt2PrimaryExtension.instance?.refreshCapTwilight(checked)
         }
+        bindRidingMode()
         showSunsetData()
+    }
+
+    private fun bindRidingMode() {
+        val btnDef = findViewById<android.widget.TextView>(R.id.btn_mode_defensive)
+        val btnNorm = findViewById<android.widget.TextView>(R.id.btn_mode_normal)
+        val btnOff = findViewById<android.widget.TextView>(R.id.btn_mode_offensive)
+        val buttons = listOf(btnDef, btnNorm, btnOff)
+
+        fun highlight(selected: Int) {
+            buttons.forEachIndexed { idx, btn ->
+                btn?.setBackgroundColor(
+                    if (idx == selected) 0xFF1D4ED8.toInt() else 0xFF1E2A3A.toInt()
+                )
+                btn?.setTextColor(
+                    if (idx == selected) 0xFFFFFFFF.toInt() else 0xFF9CA3AF.toInt()
+                )
+            }
+        }
+
+        highlight(AthleteDataStore.loadRidingMode())
+
+        buttons.forEachIndexed { idx, btn ->
+            btn?.setOnClickListener {
+                AthleteDataStore.saveRidingMode(idx)
+                QExt2PrimaryExtension.instance?.aggregator?.refreshModeFactor()
+                highlight(idx)
+            }
+        }
     }
 
     private fun showSunsetData() {

@@ -87,6 +87,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val civilDuskMsRef = AtomicReference(0L)
     private val maxHrRef = AtomicReference(180)
     private val todayFactorRef = AtomicReference(1.0f)
+    private val modeFactorRef = AtomicReference(1.0f)
     private val baseLtpWattsRef = AtomicReference(0f)
     private val baseWPrimeKjRef = AtomicReference(0f)
     private val tssRef = AtomicReference(0f)
@@ -1103,6 +1104,12 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         return (base * cf).coerceAtLeast(50f)
     }
 
+    fun getModeFactor(): Float = modeFactorRef.get()
+
+    fun refreshModeFactor() {
+        modeFactorRef.set(AthleteDataStore.loadRidingModeFactor())
+    }
+
     fun getNavClimbs(): List<KarooClimb> = navClimbsRef.get()
     fun getRouteKey(): String = navRouteKeyRef.get()
 
@@ -1279,6 +1286,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         sunsetTimestampRef.set(data.sunsetTimestampMs)
         maxHrRef.set(data.maxHr.coerceIn(100, 220))
         todayFactorRef.set(data.todayFactor.coerceIn(0.5f, 1.1f))
+        modeFactorRef.set(AthleteDataStore.loadRidingModeFactor())
         statsCalc.bodyWeightKg = data.bodyWeightKg
         if (data.wPrimeKj > 0.0 && data.ltpWatts > 0) {
             baseLtpWattsRef.set(data.ltpWatts.toFloat())
@@ -1354,8 +1362,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
             1f + 0.20f * (projected / 100f)
         } else wFac  // no route or too early: fall back to W'-only
 
-        // Binding constraint wins
-        val ceiling = effectiveLtp * minOf(wFac, rsvFac)
+        // Binding constraint × riding mode
+        val ceiling = effectiveLtp * minOf(wFac, rsvFac) * modeFactorRef.get()
 
         return when {
             power >= ceiling.toInt()             -> Color.parseColor("#FF5252") // za mocno

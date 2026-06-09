@@ -576,6 +576,7 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
                     ascentLeftM = cs.climbElevationM,
                     grade = cs.avgGradePercent,
                     climbIndex = cs.climbIndex,
+                    modeFactor = agg.getModeFactor(),
                     nowMs = now,
                 )
             }
