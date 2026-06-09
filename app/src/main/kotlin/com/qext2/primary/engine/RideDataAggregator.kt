@@ -792,7 +792,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                         effectiveLtp = getEffectiveLtpWatts(),
                         wBalancePct = statsCalc.wBalancePercent(now),
                         reserve = _statsSnapshot.value.rideReservePercent,
-                        elapsedHours = elapsedSec / 3600f,
+                        elapsedHours = elapsedSec.toFloat() / 3600f,
                         remainingHours = remainingHoursColor,
                         powerAgeMs = now - powerFreshnessRef.get(),
                     ),
