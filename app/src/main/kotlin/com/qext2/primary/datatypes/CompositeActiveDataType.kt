@@ -14,6 +14,7 @@ import com.qext2.primary.active.ActiveMessage
 import com.qext2.primary.active.ActiveClimbResolver
 import com.qext2.primary.active.ActiveMessageManager
 import com.qext2.primary.active.ClimbAnnouncementProducer
+import com.qext2.primary.active.ClimbPacingProducer
 import com.qext2.primary.active.WeatherMessageProducer
 import com.qext2.primary.active.WeatherMsgState
 import com.qext2.primary.active.BeepCooldownTracker
