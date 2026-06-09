@@ -30,6 +30,7 @@ import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.roundToInt
+import android.graphics.Color
 import pl.qbot.karoo.core.FieldColor
 import pl.qbot.karoo.core.RideSample
 
@@ -782,7 +783,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     speedFreshnessMs = now - speedFreshnessRef.get(),
                     gearFreshnessMs = now - gearFreshnessRef.get(),
                     gradeFreshnessMs = now - gradeFreshnessRef.get(),
-                    powerColor = powerOut?.color?.toAndroidColor() ?: computePowerColor(powerRef.get(), statsCalc.ftpWatts),
+                    powerColor = pacingPowerColor(powerRef.get(), getEffectiveLtpWatts(), now - powerFreshnessRef.get()),
                     hrColor = hrResult.color.hex,
                     cadenceColor = cadOut?.color.toAndroidColor(),
                     speedColor = speedOut?.color.toAndroidColor(),
@@ -1082,6 +1083,14 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         return decision.effectiveRoute
     }
 
+    fun getEffectiveLtpWatts(): Float {
+        val base = baseLtpWattsRef.get()
+        if (base <= 0f) return 0f
+        val cf = (todayFactorRef.get() * tempFactor(weatherTemperatureCRef.get()))
+            .coerceIn(0.75f, 1.10f)
+        return (base * cf).coerceAtLeast(50f)
+    }
+
     fun getNavClimbs(): List<KarooClimb> = navClimbsRef.get()
     fun getRouteKey(): String = navRouteKeyRef.get()
 
@@ -1312,6 +1321,17 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         FieldColor.BLUE -> 0xFF3B82F6.toInt()
         FieldColor.GRAY -> 0xFF9CA3AF.toInt()
         FieldColor.NEUTRAL, null -> 0xFFFFFFFF.toInt()
+    }
+
+    private fun pacingPowerColor(power: Int, effectiveLtp: Float, powerAgeMs: Long): Int {
+        if (effectiveLtp < 50f || power < 20 || powerAgeMs > 5_000L)
+            return Color.parseColor("#6B7280")
+        return when {
+            power >= (effectiveLtp * 1.15f).toInt() -> Color.parseColor("#FF5252") // za mocno
+            power >= (effectiveLtp * 0.90f).toInt() -> Color.parseColor("#4ADE80") // cel
+            power >= (effectiveLtp * 0.50f).toInt() -> Color.WHITE                 // mozna mocniej
+            else -> Color.parseColor("#6B7280")                                     // spokojnie
+        }
     }
 
     private fun computePowerColor(powerWatts: Int, ftpWatts: Int): Int {

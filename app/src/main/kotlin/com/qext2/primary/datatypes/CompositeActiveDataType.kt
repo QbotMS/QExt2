@@ -114,6 +114,9 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
     private val climbProducer = ClimbAnnouncementProducer(logger = { msg ->
         Log.i("QEXT_CLIMB_MSG", msg)
     })
+    private val climbPacingProducer = ClimbPacingProducer(logger = { msg ->
+        Log.d(TAG, "QEXT_PACING $msg")
+    })
     private val weatherProducer = WeatherMessageProducer(logger = { msg ->
         Log.i("QEXT_WEATHER_MSG", msg)
     })
@@ -304,6 +307,8 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
             Log.d(TAG, "QEXT_ACTIVE_STOP")
             QExt2PrimaryExtension.instance?.onFieldHidden()
             messageManager.clear()
+            climbProducer.reset()
+            climbPacingProducer.reset()
             currentSystem?.let { s -> consumerIds.forEach { id -> s.removeConsumer(id) } }
             consumerIds.clear()
             scope.cancel()
@@ -561,6 +566,19 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
             if (climbMsg != null) {
                 if (messageManager.show(climbMsg)) beepForMessage(climbMsg, "show")
             }
+            val climbPacingMsg = climbResolution.state?.takeIf { it.isWithinClimbBounds }?.let { cs ->
+                climbPacingProducer.checkAndProduce(
+                    power = agg.snapshot.value.power3s,
+                    wBalancePct = agg.statsSnapshot.value.wBalancePercent,
+                    effectiveLtpW = agg.getEffectiveLtpWatts(),
+                    isWithinBounds = true,
+                    ascentLeftM = cs.climbElevationM,
+                    grade = cs.avgGradePercent,
+                    climbIndex = cs.climbIndex,
+                    nowMs = now,
+                )
+            }
+            if (climbPacingMsg != null && messageManager.show(climbPacingMsg)) beepForMessage(climbPacingMsg, "pacing")
 
             val weatherMsg = weatherProducer.checkAndProduce(WeatherMsgState(
                 weatherFresh = agg.statsSnapshot.value.weatherFresh,

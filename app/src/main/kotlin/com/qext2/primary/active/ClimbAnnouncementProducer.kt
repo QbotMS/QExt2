@@ -69,20 +69,8 @@ class ClimbAnnouncementProducer(private val logger: (String) -> Unit = {}) {
             announcedActive = false
             announcedFinish = false
         }
-        if (announcedActive) { rejectLog("REJECT reason=alreadyAnnouncedActive"); return null }
         announcedActive = true
-        logger("TRIGGER type=climb_active elev=${s.climbElevationM}m grade=${s.avgGradePercent}%")
-        return ActiveMessage(
-            id = "climb_active_${s.nowMs}",
-            title = "PODJAZD",
-            line1 = formatActiveLine1(s),
-            line2 = null,
-            severity = ActiveMessageSeverity.INFO,
-            priority = ActiveMessagePriority.INFO,
-            resumePolicy = ActiveMessageResumePolicy.RESUME_IF_STILL_VALID,
-            createdAtMs = s.nowMs,
-            expiresAtMs = s.nowMs + 8_000L,
-        )
+        return null  // in-climb messaging handled by ClimbPacingProducer
     }
 
     private fun checkClimbFinish(s: ClimbState): ActiveMessage? {
