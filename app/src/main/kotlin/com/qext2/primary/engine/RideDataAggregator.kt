@@ -769,6 +769,10 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val gradeOut = outputs["GRADE"]
                 val gearOut = outputs["GEAR"]
                 val gradeBg = PrimaryRideSnapshot.gradeBackground(filteredGradeRef.get())
+                val remainingKmColor = distanceToDestinationMetersRef.get() / 1000.0
+                val speedKmhColor = speedRef.get()
+                val remainingHoursColor = if (speedKmhColor > 5.0 && remainingKmColor > 1.0)
+                    (remainingKmColor / speedKmhColor).toFloat() else -1f
                 _snapshot.value = PrimaryRideSnapshot(
                     hr = hrRef.get(),
                     cadence = cadenceRef.get(),
@@ -783,10 +787,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     speedFreshnessMs = now - speedFreshnessRef.get(),
                     gearFreshnessMs = now - gearFreshnessRef.get(),
                     gradeFreshnessMs = now - gradeFreshnessRef.get(),
-                    val remainingKmColor = distanceToDestinationMetersRef.get() / 1000.0
-                    val speedKmhColor = speedRef.get()
-                    val remainingHoursColor = if (speedKmhColor > 5.0 && remainingKmColor > 1.0)
-                        (remainingKmColor / speedKmhColor).toFloat() else -1f
                     powerColor = pacingPowerColor(
                         power = powerRef.get(),
                         effectiveLtp = getEffectiveLtpWatts(),
