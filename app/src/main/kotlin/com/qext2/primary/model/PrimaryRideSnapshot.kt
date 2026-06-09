@@ -21,6 +21,7 @@ data class PrimaryRideSnapshot(
     val cadenceColor: Int = Color.WHITE,
     val speedColor: Int = Color.WHITE,
     val gradeColor: Int = Color.WHITE,
+    val gradeBgColor: Int = 0xFF111827.toInt(),
     val gearColor: Int = Color.WHITE,
     val speedValue: String = "",
     val powerValue: String = "",
@@ -119,6 +120,28 @@ data class PrimaryRideSnapshot(
                 speedKmh < netAvg * 0.85 -> Color.parseColor("#FF5252")
                 else -> Color.WHITE
             }
+        }
+
+        fun gradeBackground(grade: Double): Int = when {
+            grade < -8.0 -> Color.parseColor("#2D58AF")
+            grade < -5.0 -> Color.parseColor("#4FC3F7")
+            grade < -2.0 -> Color.parseColor("#FFFFFF")
+            grade < 1.0 -> Color.parseColor("#111827")
+            grade < 2.0 -> Color.parseColor("#58C597")
+            grade < 5.0 -> Color.parseColor("#079D78")
+            grade < 8.0 -> Color.parseColor("#E7E021")
+            grade < 11.0 -> Color.parseColor("#E59174")
+            grade < 14.0 -> Color.parseColor("#E7693A")
+            grade < 20.0 -> Color.parseColor("#C82425")
+            else -> Color.parseColor("#B222A3")
+        }
+
+        fun contrastText(bg: Int): Int {
+            val r = (bg shr 16) and 0xFF
+            val g = (bg shr 8) and 0xFF
+            val b = bg and 0xFF
+            val lum = 0.299 * r + 0.587 * g + 0.114 * b
+            return if (lum >= 150.0) Color.parseColor("#0B0F1A") else Color.WHITE
         }
 
         private fun gradeColor(grade: Double): Int = when {

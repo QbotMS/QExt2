@@ -106,7 +106,7 @@ class PrimaryRenderOptimizer {
     private fun computeSignature(snap: PrimaryRideSnapshot): String {
         return "${snap.hrDisplay}|${snap.hrColor}|${snap.cadenceDisplay}|${snap.cadenceColor}|" +
                 "${snap.powerDisplay}|${snap.powerColor}|${snap.speedDisplay}|${snap.speedColor}|" +
-                "${snap.gearDisplay}|${snap.gearColor}|${snap.gradeDisplay}|${snap.gradeColor}"
+                "${snap.gearDisplay}|${snap.gearColor}|${snap.gradeDisplay}|${snap.gradeColor}|${snap.gradeBgColor}"
     }
 
     private fun isFastPath(snap: PrimaryRideSnapshot): Boolean {

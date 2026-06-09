@@ -124,11 +124,21 @@ class CompositePrimaryDataType : DataTypeImpl("qext2", "qext2-primary") {
         }
 
         val gradeText = snap.gradeDisplay
+        val gradeNumeric = gradeText != "WAIT" && gradeText != "NO" && gradeText != "INV" && gradeText != "--"
         views.setTextViewText(R.id.tv_grade, gradeText)
-        views.setTextColor(R.id.tv_grade, snap.gradeColor)
         views.setTextViewText(R.id.tv_grade_unit, "%")
-        val showGradeUnit = gradeText != "WAIT" && gradeText != "NO" && gradeText != "INV"
-        views.setViewVisibility(R.id.tv_grade_unit, if (showGradeUnit) View.VISIBLE else View.GONE)
+        if (gradeNumeric) {
+            views.setInt(R.id.grade_cell, "setBackgroundColor", snap.gradeBgColor)
+            views.setTextColor(R.id.tv_grade, snap.gradeColor)
+            views.setTextColor(R.id.tv_grade_arrow, snap.gradeColor)
+            views.setTextColor(R.id.tv_grade_unit, snap.gradeColor)
+        } else {
+            views.setInt(R.id.grade_cell, "setBackgroundColor", 0xFF111827.toInt())
+            views.setTextColor(R.id.tv_grade, Color.WHITE)
+            views.setTextColor(R.id.tv_grade_arrow, Color.parseColor("#CBD5E1"))
+            views.setTextColor(R.id.tv_grade_unit, Color.parseColor("#CBD5E1"))
+        }
+        views.setViewVisibility(R.id.tv_grade_unit, if (gradeNumeric) View.VISIBLE else View.GONE)
     }
 
     private fun hideAll(views: RemoteViews, vararg ids: Int) {

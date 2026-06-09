@@ -765,6 +765,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val cadOut = outputs["CADENCE"]
                 val gradeOut = outputs["GRADE"]
                 val gearOut = outputs["GEAR"]
+                val gradeBg = PrimaryRideSnapshot.gradeBackground(filteredGradeRef.get())
                 _snapshot.value = PrimaryRideSnapshot(
                     hr = hrRef.get(),
                     cadence = cadenceRef.get(),
@@ -783,7 +784,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     hrColor = hrResult.color.hex,
                     cadenceColor = cadOut?.color.toAndroidColor(),
                     speedColor = speedOut?.color.toAndroidColor(),
-                    gradeColor = gradeOut?.color.toAndroidColor(),
+                    gradeColor = PrimaryRideSnapshot.contrastText(gradeBg),
+                    gradeBgColor = gradeBg,
                     gearColor = gearOut?.color.toAndroidColor(),
                     speedValue = speedOut?.value ?: "WAIT",
                     powerValue = powerOut?.value ?: "WAIT",
