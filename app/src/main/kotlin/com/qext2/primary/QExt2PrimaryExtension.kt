@@ -108,6 +108,13 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
             aggregatorStreaming = true
             Log.i(TAG, "QEXT_AGG_START visibleFields=$visibleFieldCount")
         }
+        if (visibleFieldCount == 1) {
+            val staleMs = 30 * 60 * 1000L
+            if (System.currentTimeMillis() - AthleteDataStore.loadLastRefresh() > staleMs) {
+                _karooSystem?.let { fetchAthleteData(it) }
+                Log.i(TAG, "QEXT_AUTO_FETCH triggered on field visible")
+            }
+        }
     }
 
     fun onFieldHidden() {
