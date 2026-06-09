@@ -783,7 +783,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     speedFreshnessMs = now - speedFreshnessRef.get(),
                     gearFreshnessMs = now - gearFreshnessRef.get(),
                     gradeFreshnessMs = now - gradeFreshnessRef.get(),
-                    powerColor = pacingPowerColor(powerRef.get(), getEffectiveLtpWatts(), now - powerFreshnessRef.get()),
+                    powerColor = pacingPowerColor(powerRef.get(), getEffectiveLtpWatts(), wBalance, now - powerFreshnessRef.get()),
                     hrColor = hrResult.color.hex,
                     cadenceColor = cadOut?.color.toAndroidColor(),
                     speedColor = speedOut?.color.toAndroidColor(),
@@ -1323,14 +1323,16 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         FieldColor.NEUTRAL, null -> 0xFFFFFFFF.toInt()
     }
 
-    private fun pacingPowerColor(power: Int, effectiveLtp: Float, powerAgeMs: Long): Int {
+    private fun pacingPowerColor(power: Int, effectiveLtp: Float, wBalancePct: Int, powerAgeMs: Long): Int {
         if (effectiveLtp < 50f || power < 20 || powerAgeMs > 5_000L)
             return Color.parseColor("#6B7280")
+        val wFrac = wBalancePct.coerceIn(0, 100) / 100f
+        val ceiling = effectiveLtp * (1f + 0.20f * wFrac)
         return when {
-            power >= (effectiveLtp * 1.15f).toInt() -> Color.parseColor("#FF5252") // za mocno
-            power >= (effectiveLtp * 0.90f).toInt() -> Color.parseColor("#4ADE80") // cel
-            power >= (effectiveLtp * 0.50f).toInt() -> Color.WHITE                 // mozna mocniej
-            else -> Color.parseColor("#6B7280")                                     // spokojnie
+            power >= ceiling.toInt()             -> Color.parseColor("#FF5252") // za mocno
+            power >= (ceiling * 0.85f).toInt()   -> Color.parseColor("#4ADE80") // cel
+            power >= (ceiling * 0.55f).toInt()   -> Color.WHITE                 // mozna mocniej
+            else                                 -> Color.parseColor("#6B7280") // spokojnie
         }
     }
 
