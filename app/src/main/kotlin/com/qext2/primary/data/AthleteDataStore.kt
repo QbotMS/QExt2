@@ -201,14 +201,15 @@ object AthleteDataStore {
 
     // Riding mode: 0=defensive, 1=normal, 2=offensive
     fun saveRidingMode(mode: Int) {
-        prefs?.edit()?.putInt("riding_mode", mode.coerceIn(0, 2))?.apply()
+        prefs?.edit()?.putInt("riding_mode", mode.coerceIn(0, 3))?.apply()
     }
 
-    fun loadRidingMode(): Int = prefs?.getInt("riding_mode", 1) ?: 1
+    fun loadRidingMode(): Int = prefs?.getInt("riding_mode", 3) ?: 3
 
     fun loadRidingModeFactor(): Float = when (loadRidingMode()) {
         0 -> 0.88f
         2 -> 1.12f
+        3 -> 1.00f  // AUTO placeholder; aggregator overrides with todayFactor-derived value
         else -> 1.00f
     }
 

@@ -1107,7 +1107,18 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     fun getModeFactor(): Float = modeFactorRef.get()
 
     fun refreshModeFactor() {
-        modeFactorRef.set(AthleteDataStore.loadRidingModeFactor())
+        val rawMode = AthleteDataStore.loadRidingMode()
+        val tf = AthleteDataStore.load().todayFactor
+        modeFactorRef.set(when (rawMode) {
+            0 -> 0.88f
+            2 -> 1.12f
+            3 -> when {
+                tf < 0.90f -> 0.88f
+                tf > 1.02f -> 1.12f
+                else -> 1.00f
+            }
+            else -> 1.00f
+        })
     }
 
     fun getNavClimbs(): List<KarooClimb> = navClimbsRef.get()
@@ -1286,7 +1297,17 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         sunsetTimestampRef.set(data.sunsetTimestampMs)
         maxHrRef.set(data.maxHr.coerceIn(100, 220))
         todayFactorRef.set(data.todayFactor.coerceIn(0.5f, 1.1f))
-        modeFactorRef.set(AthleteDataStore.loadRidingModeFactor())
+        val rawMode = AthleteDataStore.loadRidingMode()
+        modeFactorRef.set(when (rawMode) {
+            0 -> 0.88f
+            2 -> 1.12f
+            3 -> when {                          // AUTO
+                data.todayFactor < 0.90f -> 0.88f
+                data.todayFactor > 1.02f -> 1.12f
+                else -> 1.00f
+            }
+            else -> 1.00f
+        })
         statsCalc.bodyWeightKg = data.bodyWeightKg
         if (data.wPrimeKj > 0.0 && data.ltpWatts > 0) {
             baseLtpWattsRef.set(data.ltpWatts.toFloat())

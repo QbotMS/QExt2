@@ -231,7 +231,8 @@ class SetupActivity : Activity() {
         val btnDef = findViewById<android.widget.TextView>(R.id.btn_mode_defensive)
         val btnNorm = findViewById<android.widget.TextView>(R.id.btn_mode_normal)
         val btnOff = findViewById<android.widget.TextView>(R.id.btn_mode_offensive)
-        val buttons = listOf(btnDef, btnNorm, btnOff)
+        val btnAuto = findViewById<android.widget.TextView>(R.id.btn_mode_auto)
+        val buttons = listOf(btnDef, btnNorm, btnOff, btnAuto)
 
         fun highlight(selected: Int) {
             buttons.forEachIndexed { idx, btn ->
@@ -249,7 +250,7 @@ class SetupActivity : Activity() {
         buttons.forEachIndexed { idx, btn ->
             btn?.setOnClickListener {
                 AthleteDataStore.saveRidingMode(idx)
-                QExt2PrimaryExtension.instance?.aggregator?.refreshModeFactor()
+                QExt2PrimaryExtension.instance?.refreshModeFactor()
                 highlight(idx)
             }
         }
