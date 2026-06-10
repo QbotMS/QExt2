@@ -985,6 +985,17 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         stopStreamingInternal("stop_streaming")
     }
 
+    /** Soft stop for field-visibility gating: detach streams + tick to save battery,
+     *  but PRESERVE all in-memory session state (W', RSRV, TSS, carbs, HR buffer)
+     *  and keep the periodic elapsed snapshot so mid-ride re-show resumes seamlessly. */
+    fun stopStreamingSoft() {
+        Log.i(TAG, "QEXT_AGGREGATOR_SOFT_STOP visibility")
+        consumerIds.forEach { id -> karooSystem.removeConsumer(id) }
+        consumerIds.clear()
+        tickJob?.cancel()
+        tickJob = null
+    }
+
     private fun stopStreamingInternal(reason: String) {
         Log.i(TAG, "QEXT_AGGREGATOR_STOP reason=$reason")
         AthleteDataStore.saveElapsedSnapshot(0L, 0.0)

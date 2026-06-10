@@ -80,9 +80,9 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                     if (visibleFieldCount > 0 && !aggregatorStreaming) {
                         _aggregator?.startStreaming()
                         aggregatorStreaming = true
+                        startBatteryPolling()
+                        startWeatherPolling()
                     }
-                    startBatteryPolling()
-                    startWeatherPolling()
                     ensureDefaultLocation()
                     fetchAthleteData(system)
                 } else {
@@ -106,6 +106,8 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         if (_aggregator != null && !aggregatorStreaming) {
             _aggregator?.startStreaming()
             aggregatorStreaming = true
+            startBatteryPolling()
+            startWeatherPolling()
             Log.i(TAG, "QEXT_AGG_START visibleFields=$visibleFieldCount")
         }
         if (visibleFieldCount == 1) {
@@ -124,9 +126,11 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
             stopJob = serviceScope.launch {
                 delay(20_000L)
                 if (visibleFieldCount == 0 && aggregatorStreaming) {
-                    _aggregator?.stopStreaming()
+                    _aggregator?.stopStreamingSoft()
                     aggregatorStreaming = false
-                    Log.i(TAG, "QEXT_AGG_STOP idle (no visible field 20s)")
+                    batteryPollJob?.cancel(); batteryPollJob = null
+                    weatherPollJob?.cancel(); weatherPollJob = null
+                    Log.i(TAG, "QEXT_AGG_SOFT_STOP idle (no visible field 20s)")
                 }
             }
         }
