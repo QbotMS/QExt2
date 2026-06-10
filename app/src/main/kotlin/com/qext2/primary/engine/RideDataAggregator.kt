@@ -819,13 +819,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val cadence = cadenceRef.get()
                 val movingElapsedSec = movingElapsedSecRef.get()
                 val powerFresh = now - powerFreshnessRef.get() < 8_000L
-                val baseLtp = baseLtpWattsRef.get()
-                val baseWp = baseWPrimeKjRef.get()
-                if (baseLtp > 0f && baseWp > 0f) {
-                    val cf = (todayFactorRef.get() * tempFactor(weatherTemperatureCRef.get()))
-                        .coerceIn(0.75f, 1.10f)
-                    statsCalc.setWPrimeParams(baseWp * cf, baseLtp * cf)
-                }
+                // W' physics runs on BASE LTP/W' (real physiology). The combined
+                // factor (temp/fatigue/mode) applies only to the pacing layer
+                // (power color ceiling, climb targets) — not to depletion math.
                 statsCalc.update(powerWatts, hr, movingElapsedSec, elapsedSec, powerFresh = powerFresh)
                 val npWhole = statsCalc.npWatts()
                 val ifWhole = ifRef.get().takeIf { it > 0f } ?: statsCalc.ifValue()
@@ -1403,7 +1399,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         powerAgeMs: Long,
     ): Int {
         if (effectiveLtp < 50f || power < 20 || powerAgeMs > 5_000L)
-            return Color.parseColor("#6B7280")
+            return Color.parseColor("#CBD5E1")
 
         // W' factor: tightens as W' depletes (short-term)
         val wFrac = wBalancePct.coerceIn(0, 100) / 100f
@@ -1428,8 +1424,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         return when {
             power >= ceiling.toInt()             -> Color.parseColor("#FF5252") // za mocno
             power >= (ceiling * 0.85f).toInt()   -> Color.parseColor("#4ADE80") // cel
-            power >= (ceiling * 0.55f).toInt()   -> Color.WHITE                 // mozna mocniej
-            else                                 -> Color.parseColor("#6B7280") // spokojnie
+            else                                 -> Color.WHITE                 // ponizej celu
         }
     }
 
