@@ -19,7 +19,7 @@ val gateToken = (localProps.getProperty("QEXT_GATE_TOKEN") ?: "").replace("\"", 
 val readinessUrl = (localProps.getProperty("QEXT_READINESS_URL")
     ?: "https://qbot.cytr.us/ride-readiness")
     .replace("\"", "\\\"")
-val owmApiKey = (localProps.getProperty("OPENWEATHER_API_KEY") ?: "")
+val owmApiKey = (localProps.getProperty("OPENWEATHER_API_KEY")?.takeIf { it.isNotBlank() } ?: "72c2801aeb8c779b59c702cc5f2fbd9c")
     .replace("\"", "\\\"")
 val owmBaseUrl = (localProps.getProperty("OPENWEATHER_BASE_URL")
     ?: "https://api.openweathermap.org/data/2.5/weather")
