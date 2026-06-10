@@ -581,6 +581,9 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
                 )
             }
             if (climbPacingMsg != null && messageManager.show(climbPacingMsg)) beepForMessage(climbPacingMsg, "pacing")
+            agg.consumePendingFuelMessage()?.let { fuelMsg ->
+                if (messageManager.show(fuelMsg)) beepForMessage(fuelMsg, "fuel")
+            }
 
             val weatherMsg = weatherProducer.checkAndProduce(WeatherMsgState(
                 weatherFresh = agg.statsSnapshot.value.weatherFresh,

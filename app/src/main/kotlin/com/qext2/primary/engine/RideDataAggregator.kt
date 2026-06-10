@@ -838,8 +838,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val decoupling = statsCalc.decouplingPercent()
                 var decouplingForReserve = decoupling
                 val wBalance = statsCalc.wBalancePercent(now)
-                val carbs = statsCalc.carbsGPerH(adjIf, movingElapsedSec, vi, temperatureRef.get(), statsCalc.bodyWeightKg)
-                val fluid = statsCalc.fluidLPerH(adjIf, temperatureRef.get())
+                val carbs = statsCalc.carbsGPerH(adjIf, movingElapsedSec, vi, physioTempC(), statsCalc.bodyWeightKg)
+                val fluid = statsCalc.fluidLPerH(adjIf, physioTempC())
                 initCarbSession(elapsedSec)
                 val dtSec = computeCarbDtSec(elapsedSec)
 
@@ -883,6 +883,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val reserve = statsCalc.rideReservePercent(effectiveTss, ifWhole, decouplingForReserve, elapsedSec)
 
                 accumulateCarbs(now, elapsedSec, isMoving, dtSec, carbs)
+                fuelProducer.tick(carbs, fluid, isMoving)
+                fuelProducer.checkAndProduce(physioTempC(), AthleteDataStore.loadCarbPacketSize(), now)
+                    ?.let { pendingFuelMsgRef.set(it) }
                 AthleteDataStore.saveCarbLastElapsedSec(elapsedSec)
                 val carbIntakeTotal = AthleteDataStore.loadCarbIntakeTotal()
                 val carbNeededTotal = carbNeededTotalGRef.get().roundToInt().coerceAtLeast(0)
@@ -1017,6 +1020,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         sessionTssRef.set(0f)
         reservePersistLastMsRef.set(0L)
         statsCalc.reset()
+        fuelProducer.reset()
+        pendingFuelMsgRef.set(null)
         hrBuffer.clear()
         hrAdvisor.reset()
         etaMovingSpeedHistory.clear()
@@ -1295,6 +1300,20 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
             return 0L
         }
         return raw
+    }
+
+    private val fuelProducer = com.qext2.primary.active.FuelReminderProducer(
+        logger = { msg -> Log.d(TAG, "QEXT_FUEL $msg") })
+    private val pendingFuelMsgRef = AtomicReference<com.qext2.primary.active.ActiveMessage?>(null)
+
+    fun consumePendingFuelMessage(): com.qext2.primary.active.ActiveMessage? =
+        pendingFuelMsgRef.getAndSet(null)
+
+    /** Physiological ambient temperature: weather API when fresh (sensor reads low
+     *  in airflow while moving); falls back to device sensor when weather stale. */
+    private fun physioTempC(): Float {
+        val w = weatherTemperatureCRef.get()
+        return if (w != null && weatherFreshRef.get()) w else temperatureRef.get()
     }
 
     private fun tempFactor(tempC: Float?): Float {
