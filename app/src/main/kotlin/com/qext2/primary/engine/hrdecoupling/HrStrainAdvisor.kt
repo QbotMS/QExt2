@@ -1,10 +1,10 @@
 package com.qext2.primary.engine.hrdecoupling
 
 enum class StatusColor(val hex: Int) {
-    GOOD(0xFF22C55E.toInt()),
+    GOOD(0xFF4ADE80.toInt()),
     NEUTRAL(0xFFFFFFFF.toInt()),
-    WARN(0xFFF97316.toInt()),
-    BAD(0xFFEF4444.toInt()),
+    WARN(0xFFFB923C.toInt()),
+    BAD(0xFFFF5252.toInt()),
 }
 
 data class HrStrainResult(

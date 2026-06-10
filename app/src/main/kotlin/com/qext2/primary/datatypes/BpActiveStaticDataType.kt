@@ -331,9 +331,9 @@ class BpActiveStaticDataType : DataTypeImpl("qext2", "qext2-active-static") {
             val deadlineMs = agg?.getDeadlineMs() ?: 0L
             if (etaMs > 0L && deadlineMs > 0L) {
                 views.setTextColor(R.id.tv_active_dtd, when {
-                    etaMs > deadlineMs -> 0xFFEF4444.toInt()
-                    deadlineMs - etaMs >= 30 * 60_000L -> 0xFF22C55E.toInt()
-                    deadlineMs - etaMs <= 10 * 60_000L -> 0xFFF59E0B.toInt()
+                    etaMs > deadlineMs -> 0xFFFF5252.toInt()
+                    deadlineMs - etaMs >= 30 * 60_000L -> 0xFF4ADE80.toInt()
+                    deadlineMs - etaMs <= 10 * 60_000L -> 0xFFFACC15.toInt()
                     else -> 0xFFFFFFFF.toInt()
                 })
             }
@@ -346,8 +346,8 @@ class BpActiveStaticDataType : DataTypeImpl("qext2", "qext2-active-static") {
         views.setTextViewText(R.id.tv_active_wbal, wbalText)
         views.setViewVisibility(R.id.tv_active_wbal_unit, if (wbalText == "NO") android.view.View.GONE else android.view.View.VISIBLE)
         views.setTextColor(R.id.tv_active_wbal, when (wbalTrend) {
-            "rising" -> 0xFF22C55E.toInt()
-            "falling", "plummeting" -> 0xFFEF4444.toInt()
+            "rising" -> 0xFF4ADE80.toInt()
+            "falling", "plummeting" -> 0xFFFF5252.toInt()
             else -> 0xFFFFFFFF.toInt()
         })
         views.setTextViewText(R.id.tv_active_wind, windText)

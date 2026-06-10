@@ -795,6 +795,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                         reserve = _statsSnapshot.value.rideReservePercent,
                         elapsedHours = elapsedSec.toFloat() / 3600f,
                         remainingHours = remainingHoursColor,
+                        decouplingPct = statsCalc.decouplingPercent(),
+                        hasDecoupling = statsCalc.hasDecouplingData(),
                         powerAgeMs = now - powerFreshnessRef.get(),
                     ),
                     hrColor = hrResult.color.hex,
@@ -1366,10 +1368,10 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     }
 
     private fun FieldColor?.toAndroidColor(): Int = when (this) {
-        FieldColor.GREEN -> 0xFF22C55E.toInt()
-        FieldColor.AMBER -> 0xFFF59E0B.toInt()
-        FieldColor.ORANGE -> 0xFFF97316.toInt()
-        FieldColor.RED -> 0xFFEF4444.toInt()
+        FieldColor.GREEN -> 0xFF4ADE80.toInt()
+        FieldColor.AMBER -> 0xFFFACC15.toInt()
+        FieldColor.ORANGE -> 0xFFFB923C.toInt()
+        FieldColor.RED -> 0xFFFF5252.toInt()
         FieldColor.BLUE -> 0xFF3B82F6.toInt()
         FieldColor.GRAY -> 0xFF9CA3AF.toInt()
         FieldColor.NEUTRAL, null -> 0xFFFFFFFF.toInt()
@@ -1378,6 +1380,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private fun pacingPowerColor(
         power: Int, effectiveLtp: Float, wBalancePct: Int,
         reserve: Int, elapsedHours: Float, remainingHours: Float,
+        decouplingPct: Float, hasDecoupling: Boolean,
         powerAgeMs: Long,
     ): Int {
         if (effectiveLtp < 50f || power < 20 || powerAgeMs > 5_000L)
@@ -1394,8 +1397,14 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
             1f + 0.20f * (projected / 100f)
         } else wFac  // no route or too early: fall back to W'-only
 
-        // Binding constraint × riding mode
-        val ceiling = effectiveLtp * minOf(wFac, rsvFac) * modeFactorRef.get()
+        // HR decoupling factor: heart drifting up at same power = overheating/overreaching.
+        // <5% normal (1.0); 5-15% linear down to 0.90; >15% capped at 0.90.
+        val decFac = if (hasDecoupling && decouplingPct > 5f)
+            (1f - 0.01f * (decouplingPct - 5f)).coerceAtLeast(0.90f)
+        else 1f
+
+        // Binding constraint × riding mode × decoupling
+        val ceiling = effectiveLtp * minOf(wFac, rsvFac) * modeFactorRef.get() * decFac
 
         return when {
             power >= ceiling.toInt()             -> Color.parseColor("#FF5252") // za mocno
@@ -1409,11 +1418,11 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         if (ftpWatts <= 0 || powerWatts <= 0) return 0xFFFFFFFF.toInt()
         val pct = powerWatts.toFloat() / ftpWatts
         return when {
-            pct < 0.55f -> 0xFF22C55E.toInt()  // GREEN — recovery
+            pct < 0.55f -> 0xFF4ADE80.toInt()  // GREEN — recovery
             pct < 0.76f -> 0xFFFFFFFF.toInt()   // WHITE — endurance
-            pct < 0.91f -> 0xFFF59E0B.toInt()   // AMBER — tempo
-            pct < 1.06f -> 0xFFF97316.toInt()   // ORANGE — threshold
-            else -> 0xFFEF4444.toInt()           // RED — VO2max+
+            pct < 0.91f -> 0xFFFACC15.toInt()   // AMBER — tempo
+            pct < 1.06f -> 0xFFFB923C.toInt()   // ORANGE — threshold
+            else -> 0xFFFF5252.toInt()           // RED — VO2max+
         }
     }
 

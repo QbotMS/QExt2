@@ -512,7 +512,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:text=""
-        android:textColor="#EF4444"
+        android:textColor="#FF5252"
         android:textSize="12sp"
         android:gravity="center" />
 
@@ -534,7 +534,7 @@
         android:textStyle="bold"
         android:clickable="true"
         android:focusable="true"
-        android:background="#EF4444" />
+        android:background="#FF5252" />
 
     <TextView
         android:id="@+id/btn_report_bug"

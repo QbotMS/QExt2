@@ -129,7 +129,7 @@ class SetupActivity : Activity() {
 
         val tfColor = when {
             data.todayFactor >= 0.90f -> Color.parseColor("#4ADE80")
-            data.todayFactor >= 0.80f -> Color.parseColor("#F59E0B")
+            data.todayFactor >= 0.80f -> Color.parseColor("#FACC15")
             else -> Color.parseColor("#FF5252")
         }
         findViewById<TextView>(R.id.tv_today_factor)?.apply {
@@ -143,7 +143,7 @@ class SetupActivity : Activity() {
             else "—"
             val color = when {
                 data.hrvDeviation30d >= -3f -> Color.parseColor("#4ADE80")
-                data.hrvDeviation30d >= -8f -> Color.parseColor("#F59E0B")
+                data.hrvDeviation30d >= -8f -> Color.parseColor("#FACC15")
                 else -> Color.parseColor("#FF5252")
             }
             setTextColor(color)
@@ -155,7 +155,7 @@ class SetupActivity : Activity() {
             else "—"
             val color = when {
                 data.sleepDev >= -0.5f -> Color.parseColor("#4ADE80")
-                data.sleepDev >= -1.5f -> Color.parseColor("#F59E0B")
+                data.sleepDev >= -1.5f -> Color.parseColor("#FACC15")
                 else -> Color.parseColor("#FF5252")
             }
             setTextColor(color)
@@ -168,7 +168,7 @@ class SetupActivity : Activity() {
         findViewById<TextView>(R.id.tv_baro_info)?.apply {
             val pct = data.baroAdjustPercent
             text = if (pct <= 0) "brak korekty" else "korekta −${pct}%"
-            setTextColor(if (pct <= 0) Color.parseColor("#4ADE80") else Color.parseColor("#F59E0B"))
+            setTextColor(if (pct <= 0) Color.parseColor("#4ADE80") else Color.parseColor("#FACC15"))
         }
 
         val sdf = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
@@ -187,7 +187,7 @@ class SetupActivity : Activity() {
 
         findViewById<TextView>(R.id.tv_pi_status)?.apply {
             text = if (data.profileComplete) "GBOT profile OK" else data.warningReasons.replace("|", ", ")
-            setTextColor(if (data.profileComplete) Color.parseColor("#4ADE80") else Color.parseColor("#F59E0B"))
+            setTextColor(if (data.profileComplete) Color.parseColor("#4ADE80") else Color.parseColor("#FACC15"))
         }
 
         findViewById<TextView>(R.id.tv_status)?.text = ""
