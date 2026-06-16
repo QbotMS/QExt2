@@ -84,6 +84,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val deadlineHourRef = AtomicReference(21)
     private val deadlineMinuteRef = AtomicReference(0)
     private val capTwilightRef = AtomicReference(false)
+    private val cassetteOverrideRef = AtomicReference(false)
+    private val cassetteCogsRef = AtomicReference(IntArray(0))
     private val civilDuskMsRef = AtomicReference(0L)
     private val maxHrRef = AtomicReference(180)
     private val todayFactorRef = AtomicReference(1.0f)
@@ -219,6 +221,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         deadlineHourRef.set(h)
         deadlineMinuteRef.set(m)
         capTwilightRef.set(AthleteDataStore.loadCapTwilight())
+        cassetteOverrideRef.set(AthleteDataStore.loadCassetteOverrideEnabled())
+        cassetteCogsRef.set(AthleteDataStore.loadCassetteCogs())
     }
 
     fun startStreaming() {
@@ -492,8 +496,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                         val values = s.dataPoint.values
                         val front = (values[DataType.Field.SHIFTING_FRONT_GEAR_TEETH] as? Double)?.toInt()
                             ?: (values[DataType.Field.SHIFTING_FRONT_GEAR] as? Double)?.toInt() ?: 0
-                        val rear = (values[DataType.Field.SHIFTING_REAR_GEAR_TEETH] as? Double)?.toInt()
-                            ?: (values[DataType.Field.SHIFTING_REAR_GEAR] as? Double)?.toInt() ?: 0
+                        val rearTeethReported = (values[DataType.Field.SHIFTING_REAR_GEAR_TEETH] as? Double)?.toInt() ?: 0
+                        val rearPos = (values[DataType.Field.SHIFTING_REAR_GEAR] as? Double)?.toInt() ?: 0
+                        val rear = resolveRearTeeth(rearPos, rearTeethReported)
                         val rearBattery = listOf(
                             "FIELD_REAR_DERAILLEUR_BATTERY_ID",
                             "FIELD_SHIFTING_REAR_BATTERY_ID",
@@ -506,7 +511,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                         gearRearRef.set(rear)
                         if (rearBattery != null) rearDerailleurBatteryRef.set(rearBattery.coerceIn(0, 100))
                         gearFreshnessRef.set(System.currentTimeMillis())
-                        if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "GEAR=${front}x${rear}")
+                        if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "GEAR=${front}x${rear} (pos=$rearPos axsTeeth=$rearTeethReported ovr=${cassetteOverrideRef.get()})")
                     }
                 }
             )
@@ -1064,6 +1069,25 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
 
     fun refreshCapTwilightFromStore() {
         capTwilightRef.set(AthleteDataStore.loadCapTwilight())
+    }
+
+    fun refreshCassetteOverride() {
+        cassetteOverrideRef.set(AthleteDataStore.loadCassetteOverrideEnabled())
+        cassetteCogsRef.set(AthleteDataStore.loadCassetteCogs())
+    }
+
+    /**
+     * Rozwiazuje liczbe zebow tylnej koronki.
+     * Gdy override wlaczony i pozycja biegu (SHIFTING_REAR_GEAR, 1..N) miesci sie
+     * w liscie custom kasety -> zwraca koronke z listy. W przeciwnym razie zachowuje
+     * dotychczasowe zachowanie: zeby z AXS, a gdy ich brak -> sam indeks pozycji.
+     */
+    private fun resolveRearTeeth(pos: Int, reportedTeeth: Int): Int {
+        val cogs = cassetteCogsRef.get()
+        if (cassetteOverrideRef.get() && cogs.isNotEmpty() && pos in 1..cogs.size) {
+            return cogs[pos - 1]
+        }
+        return if (reportedTeeth > 0) reportedTeeth else pos
     }
 
     fun getCivilDuskMs(): Long = civilDuskMsRef.get()

@@ -6,6 +6,7 @@ import android.app.TimePickerDialog
 import android.graphics.Color
 import android.os.Bundle
 import android.widget.CheckBox
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.NumberPicker
 import android.widget.TextView
@@ -224,7 +225,55 @@ class SetupActivity : Activity() {
             QExt2PrimaryExtension.instance?.refreshCapTwilight(checked)
         }
         bindRidingMode()
+        bindCassetteOverride()
         showSunsetData()
+    }
+
+    private fun bindCassetteOverride() {
+        val cb = findViewById<CheckBox>(R.id.cb_cassette_override)
+        val tvCogs = findViewById<TextView>(R.id.tv_cassette_cogs)
+
+        fun renderCogs() {
+            val raw = AthleteDataStore.loadCassetteCogsRaw()
+            val cogs = AthleteDataStore.parseCogs(raw)
+            tvCogs?.text = if (cogs.isEmpty()) "— (dotknij, wpisz np. 10,12,14,...,52)"
+            else cogs.joinToString(",") + "  (${cogs.size} biegów)"
+        }
+
+        cb?.isChecked = AthleteDataStore.loadCassetteOverrideEnabled()
+        renderCogs()
+
+        cb?.setOnCheckedChangeListener { _, checked ->
+            AthleteDataStore.saveCassetteOverrideEnabled(checked)
+            QExt2PrimaryExtension.instance?.refreshCassetteOverride()
+            setStatus(if (checked) "Override kasety: ON" else "Override kasety: OFF")
+        }
+
+        tvCogs?.setOnClickListener {
+            val input = EditText(this).apply {
+                setText(AthleteDataStore.loadCassetteCogsRaw())
+                hint = "10,12,14,16,18,21,24,28,32,36,42,52"
+                setSingleLine(true)
+            }
+            val container = LinearLayout(this).apply {
+                setPadding(32, 24, 32, 8)
+                addView(input)
+            }
+            AlertDialog.Builder(this)
+                .setTitle("Kaseta custom (od najmniejszej koronki)")
+                .setMessage("Wpisz koronki po przecinku, od 10T do największej. Bieg 1 = najmniejsza koronka.")
+                .setView(container)
+                .setPositiveButton("Zapisz") { _, _ ->
+                    val raw = input.text.toString()
+                    val cogs = AthleteDataStore.parseCogs(raw)
+                    AthleteDataStore.saveCassetteCogsRaw(cogs.joinToString(","))
+                    QExt2PrimaryExtension.instance?.refreshCassetteOverride()
+                    renderCogs()
+                    setStatus("Kaseta: ${cogs.size} koronek")
+                }
+                .setNegativeButton("Anuluj", null)
+                .show()
+        }
     }
 
     private fun bindRidingMode() {

@@ -196,6 +196,10 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         _aggregator?.refreshModeFactor()
     }
 
+    fun refreshCassetteOverride() {
+        _aggregator?.refreshCassetteOverride()
+    }
+
     private fun fetchAthleteData(system: KarooSystemService, isRetry: Boolean = false) {
         if (!isRetry) fetchAttempts = 0
         fetchConsumerId?.let { system.removeConsumer(it) }

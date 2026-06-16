@@ -426,4 +426,34 @@ object AthleteDataStore {
     fun loadStatsCalcSnapshot(): String? {
         return prefs?.getString(KEY_STATSCALC_SNAPSHOT, null)
     }
+
+    // --- Cassette override ---
+    // Pozwala wyswietlac biegi z fizycznej kasety (np. custom 10-52) zamiast
+    // tej wpisanej w AXS, bez edycji konfiguracji AXS pole-po-polu.
+    fun saveCassetteOverrideEnabled(enabled: Boolean) {
+        prefs?.edit()?.putBoolean("cassette_override", enabled)?.apply()
+    }
+
+    fun loadCassetteOverrideEnabled(): Boolean =
+        prefs?.getBoolean("cassette_override", false) ?: false
+
+    fun saveCassetteCogsRaw(raw: String) {
+        prefs?.edit()?.putString("cassette_cogs", raw)?.apply()
+    }
+
+    fun loadCassetteCogsRaw(): String =
+        prefs?.getString("cassette_cogs", "") ?: ""
+
+    fun loadCassetteCogs(): IntArray = parseCogs(loadCassetteCogsRaw())
+
+    /**
+     * Parsuje liste koronek "10,12,...,52" -> IntArray.
+     * Tolerancyjny: spacje, srednik, ukosnik, biale znaki jako separatory;
+     * ignoruje puste i niedodatnie tokeny. Kolejnosc zachowana (jak wpisano).
+     */
+    fun parseCogs(raw: String): IntArray =
+        raw.split(',', ';', ' ', '/', '\t', '\n')
+            .mapNotNull { it.trim().toIntOrNull() }
+            .filter { it > 0 }
+            .toIntArray()
 }
