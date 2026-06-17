@@ -884,18 +884,22 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val reserve = statsCalc.rideReservePercent(effectiveTss, ifWhole, decouplingForReserve, elapsedSec)
 
                 accumulateCarbs(now, elapsedSec, isMoving, dtSec, carbs)
+                val remainingMeters = distanceToDestinationMetersRef.get().coerceAtLeast(0.0)
+                val hasRoute = resolveHasRoute(getEffectiveRoute(), remainingMeters)
                 fuelProducer.tick(carbs, fluid, isMoving)
-                fuelProducer.checkAndProduce(physioTempC(), AthleteDataStore.loadCarbPacketSize(), now)
-                    ?.let { pendingFuelMsgRef.set(it) }
+                // Fuel reminders (jedz/pij/sod) tylko przy aktywnej trasie.
+                // Treningi/komutingi bez trasy -> bez przypomnien (mniej smietnika).
+                if (hasRoute) {
+                    fuelProducer.checkAndProduce(physioTempC(), AthleteDataStore.loadCarbPacketSize(), now)
+                        ?.let { pendingFuelMsgRef.set(it) }
+                }
                 AthleteDataStore.saveCarbLastElapsedSec(elapsedSec)
                 val carbIntakeTotal = AthleteDataStore.loadCarbIntakeTotal()
                 val carbNeededTotal = carbNeededTotalGRef.get().roundToInt().coerceAtLeast(0)
                 val carbBalance = carbIntakeTotal - carbNeededTotal
                 carbBalanceGRef.set(carbBalance)
                 logCarbTelemetry(now, isMoving, dtSec, carbs, carbIntakeTotal, carbNeededTotal, carbBalance)
-                val remainingMeters = distanceToDestinationMetersRef.get().coerceAtLeast(0.0)
                 val speedKmhNow = speedRef.get().coerceAtLeast(0.0)
-                val hasRoute = resolveHasRoute(getEffectiveRoute(), remainingMeters)
                 val routeClimbSourceReady = navRouteActiveRef.get()
 
                 logFieldDiagnostics(now, elapsedSec, carbs, carbIntakeTotal, carbNeededTotal, carbBalance,
