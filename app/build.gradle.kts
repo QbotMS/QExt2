@@ -13,8 +13,8 @@ val localProps = Properties().apply {
 }
 
 val qbotBaseUrl = (localProps.getProperty("QBOT_BASE_URL")
-    ?: "https://qbot.cytr.us").replace(""", "\"")
-val qbotBearer = (localProps.getProperty("QBOT_BEARER") ?: "").replace(""", "\"")
+    ?: "https://qbot.cytr.us")
+val qbotBearer = (localProps.getProperty("QBOT_BEARER") ?: "")
 val gateUrl = (localProps.getProperty("QEXT_GATE_URL")
     ?: "https://qbot.cytr.us/gate/open")
     .replace("\"", "\\\"")

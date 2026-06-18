@@ -856,7 +856,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                         com.qext2.primary.active.PacingEngine.PowerStatus.DANGER  -> 0x40FF4444.toInt()
                         com.qext2.primary.active.PacingEngine.PowerStatus.WARN    -> 0x40FF8C00.toInt()
                         com.qext2.primary.active.PacingEngine.PowerStatus.OPTIMAL -> 0x4044AA44.toInt()
-                        else -> android.graphics.Color.TRANSPARENT
+                        else -> 0  // Color.TRANSPARENT
                     },
                     speedValue = speedOut?.value ?: "WAIT",
                     powerValue = powerOut?.value ?: "WAIT",

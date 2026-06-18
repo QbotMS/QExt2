@@ -17,7 +17,7 @@ data class PrimaryRideSnapshot(
     val gearFreshnessMs: Long = 30000L,
     val gradeFreshnessMs: Long = 30000L,
     val powerColor: Int = Color.WHITE,
-    val powerBgColor: Int = Color.TRANSPARENT,
+    val powerBgColor: Int = 0,  // Color.TRANSPARENT
     val hrColor: Int = Color.WHITE,
     val cadenceColor: Int = Color.WHITE,
     val speedColor: Int = Color.WHITE,
@@ -81,7 +81,7 @@ data class PrimaryRideSnapshot(
                 com.qext2.primary.active.PacingEngine.PowerStatus.DANGER  -> 0x40FF4444.toInt()  // blado-czerwone
                 com.qext2.primary.active.PacingEngine.PowerStatus.WARN    -> 0x40FF8C00.toInt()  // blado-pomarańczowe
                 com.qext2.primary.active.PacingEngine.PowerStatus.OPTIMAL -> 0x4044AA44.toInt()  // blado-zielone
-                else -> Color.TRANSPARENT
+                else -> 0  // Color.TRANSPARENT
             }
             return intArrayOf(pc, hc, cc, sc, gc, gearC, powerBg)
         }
