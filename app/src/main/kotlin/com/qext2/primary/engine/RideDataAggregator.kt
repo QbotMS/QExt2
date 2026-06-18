@@ -662,7 +662,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                             navRouteKeyRef.set("")
                             navClimbsRef.set(emptyList())
                             currentSurfaceRef.set(com.qext2.primary.model.SurfaceType.PAVED)
-                            QExt2PrimaryExtension.instance?.onNavigationStateForSurface(event, null)
+                            com.qext2.primary.surface.SurfaceBridge.onNavigationState(event, null)
                             Log.i(TAG, "QEXT_NAV_STATE type=Idle name= routeDistance=-- climbs=0")
                         }
                         is OnNavigationState.NavigationState.NavigatingRoute -> {
@@ -684,7 +684,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                             for (c in parsed) {
                                 Log.i(TAG, "QEXT_ROUTE_CLIMB index=${c.index} start=${c.startDistance} len=${c.length} elev=${c.totalElevation} grade=${c.grade}%")
                             }
-                            QExt2PrimaryExtension.instance?.onNavigationStateForSurface(event, ns.name)
+                            com.qext2.primary.surface.SurfaceBridge.onNavigationState(event, ns.name)
                         }
                         is OnNavigationState.NavigationState.NavigatingToDestination -> {
                             navRouteActiveRef.set(true)
@@ -706,7 +706,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                             for (c in parsed) {
                                 Log.i(TAG, "QEXT_ROUTE_CLIMB index=${c.index} start=${c.startDistance} len=${c.length} elev=${c.totalElevation} grade=${c.grade}%")
                             }
-                            QExt2PrimaryExtension.instance?.onNavigationStateForSurface(event, destName)
+                            com.qext2.primary.surface.SurfaceBridge.onNavigationState(event, destName)
                         }
                     }
                     } catch (e: Exception) {
@@ -732,7 +732,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 onEvent = { event ->
                     val v = (event.state as? StreamState.Streaming)?.dataPoint?.singleValue
                     if (v != null) {
-                        QExt2PrimaryExtension.instance?.onRouteGraphSurface(v.toFloat())
+                        com.qext2.primary.surface.SurfaceBridge.onRouteGraphSurface(v.toFloat())
                         if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "ROUTEGRAPH_SURFACE value=$v")
                     }
                 }
@@ -936,7 +936,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val hasRoute = resolveHasRoute(getEffectiveRoute(), remainingMeters)
                 // Aktualizacja nawierzchni z cache (pozycja km wzdłuż trasy)
                 val kmAlongRoute = (distanceMetersRef.get() / 1000.0).toFloat().coerceAtLeast(0f)
-                val freshSurface = QExt2PrimaryExtension.instance?.currentSurface(kmAlongRoute)
+                val freshSurface = com.qext2.primary.surface.SurfaceBridge.currentSurface(kmAlongRoute)
                     ?: com.qext2.primary.model.SurfaceType.PAVED
                 currentSurfaceRef.set(freshSurface)
                 fuelProducer.tick(carbs, fluid, isMoving)

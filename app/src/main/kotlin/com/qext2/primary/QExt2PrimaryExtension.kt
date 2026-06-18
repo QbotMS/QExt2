@@ -70,10 +70,12 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         logBuildBaseline()
         runStartupSelfCheck()
         AthleteDataStore.init(this)
-        _surfaceCache = SurfaceProfileCache(
+        val surfaceCache = SurfaceProfileCache(
             qbotBaseUrl = BuildConfig.QBOT_BASE_URL,
             qbotBearer = BuildConfig.QBOT_BEARER,
         )
+        _surfaceCache = surfaceCache
+        com.qext2.primary.surface.SurfaceBridge.init(surfaceCache)
         val system = KarooSystemService(this)
         _karooSystem = system
         _karooSystemFlow.value = system
