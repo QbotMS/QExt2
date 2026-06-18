@@ -17,7 +17,6 @@ data class PrimaryRideSnapshot(
     val gearFreshnessMs: Long = 30000L,
     val gradeFreshnessMs: Long = 30000L,
     val powerColor: Int = Color.WHITE,
-    val powerBgColor: Int = Color.TRANSPARENT,
     val hrColor: Int = Color.WHITE,
     val cadenceColor: Int = Color.WHITE,
     val speedColor: Int = Color.WHITE,
@@ -58,32 +57,17 @@ data class PrimaryRideSnapshot(
             gearFront: Int, gearRear: Int, grade: Double,
             distanceMeters: Double, elapsedSec: Long, ascentLeftM: Int,
             ftp: Int, todayFactor: Float, maxHr: Int, nowMs: Long = 0L,
-            surface: com.qext2.primary.model.SurfaceType = com.qext2.primary.model.SurfaceType.PAVED,
-            decouplingPct: Float = 0f,
-            effectiveLtp: Float = 0f,
-            pacingCtx: com.qext2.primary.active.PacingContext = com.qext2.primary.active.PacingContext(
-                ceilingW = 9999, targetLowW = 0, targetHighW = 9999,
-                isClimbing = false, modeFactor = 1.0f,
-                surface = com.qext2.primary.model.SurfaceType.PAVED,
-                optCadenceLow = 70, optCadenceHigh = 90, isActive = false
-            ),
         ): IntArray {
             val adjFtp = (ftp * todayFactor.coerceIn(0.5f, 1.1f)).toInt().coerceAtLeast(50)
             val rawPower = powerColor(power, grade, ascentLeftM, adjFtp)
             val pc = powerColorHysteresis(rawPower, nowMs)
             val hc = Color.WHITE
-            val cc = cadenceColor(cadence, grade, effectiveLtp.coerceAtLeast(adjFtp.toFloat()), power, surface, todayFactor, decouplingPct)
+            val cc = cadenceColor(cadence, grade)
             val sc = speedColor(speedKmh, distanceMeters, elapsedSec)
             val gc = gradeColor(grade)
-            val rawGear = gearColor(power, cadence, gearFront, gearRear, grade, adjFtp, surface, todayFactor, decouplingPct)
+            val rawGear = gearColor(power, cadence, gearFront, gearRear, grade, adjFtp)
             val gearC = gearColorHysteresis(rawGear, nowMs)
-            val powerBg = when (com.qext2.primary.active.PacingEngine.assessPower(power, pacingCtx)) {
-                com.qext2.primary.active.PacingEngine.PowerStatus.DANGER  -> 0x40FF4444.toInt()  // blado-czerwone
-                com.qext2.primary.active.PacingEngine.PowerStatus.WARN    -> 0x40FF8C00.toInt()  // blado-pomarańczowe
-                com.qext2.primary.active.PacingEngine.PowerStatus.OPTIMAL -> 0x4044AA44.toInt()  // blado-zielone
-                else -> Color.TRANSPARENT
-            }
-            return intArrayOf(pc, hc, cc, sc, gc, gearC, powerBg)
+            return intArrayOf(pc, hc, cc, sc, gc, gearC)
         }
 
         private fun powerColor(watts: Int, grade: Double, ascentLeftM: Int, adjFtp: Int): Int {
@@ -110,31 +94,18 @@ data class PrimaryRideSnapshot(
             }
         }
 
-        private fun cadenceColor(
-            rpm: Int,
-            grade: Double,
-            effectiveFtp: Float,
-            power: Int,
-            surface: com.qext2.primary.model.SurfaceType,
-            todayFactor: Float,
-            decouplingPct: Float,
-        ): Int {
+        private fun cadenceColor(rpm: Int, grade: Double): Int {
             if (rpm <= 0) return Color.WHITE
-            if (grade < -2.0) return Color.WHITE  // zjazd — nie oceniamy
-            val range = com.qext2.primary.active.OptimalCadenceModel.compute(
-                powerW = power.coerceAtLeast(0),
-                effectiveFtp = effectiveFtp,
-                gradePercent = grade,
-                surface = surface,
-                todayFactor = todayFactor,
-                decouplingPct = decouplingPct,
-            )
-            return when (com.qext2.primary.active.OptimalCadenceModel.assess(rpm, range)) {
-                com.qext2.primary.active.OptimalCadenceModel.CadenceStatus.CRITICAL_LOW -> Color.parseColor("#FF5252")
-                com.qext2.primary.active.OptimalCadenceModel.CadenceStatus.LOW         -> Color.parseColor("#FB923C")
-                com.qext2.primary.active.OptimalCadenceModel.CadenceStatus.OPTIMAL     -> Color.parseColor("#4ADE80")
-                com.qext2.primary.active.OptimalCadenceModel.CadenceStatus.HIGH        -> Color.WHITE  // nie sygnalizujemy
-                com.qext2.primary.active.OptimalCadenceModel.CadenceStatus.NO_DATA     -> Color.WHITE
+            if (grade < -2.0) return Color.WHITE
+            val (lo, hi) = when {
+                grade > 4.0 -> 55 to 65
+                else -> 60 to 70
+            }
+            return when {
+                rpm in lo..hi -> Color.parseColor("#4ADE80")
+                rpm < lo - 5 -> Color.parseColor("#FF5252")
+                rpm < lo -> Color.parseColor("#FB923C")
+                else -> Color.WHITE
             }
         }
 
@@ -184,33 +155,15 @@ data class PrimaryRideSnapshot(
         private fun gearColor(
             power: Int, cadence: Int, gearFront: Int, gearRear: Int,
             grade: Double, adjFtp: Int,
-            surface: com.qext2.primary.model.SurfaceType,
-            todayFactor: Float,
-            decouplingPct: Float,
         ): Int {
             if (cadence <= 0 || power <= 0 || gearFront <= 0 || gearRear <= 0) return Color.WHITE
             if (adjFtp <= 0) return Color.WHITE
-            val effectiveFtp = adjFtp.toFloat()
-            val range = com.qext2.primary.active.OptimalCadenceModel.compute(
-                powerW = power,
-                effectiveFtp = effectiveFtp,
-                gradePercent = grade,
-                surface = surface,
-                todayFactor = todayFactor,
-                decouplingPct = decouplingPct,
-            )
-            // Kolorowanie czcionki pola GEAR na podstawie odchylenia kadencji od optimum:
-            // Czerwony = za ciężki bieg (kadencja poniżej zakresu — zrzuć)
-            // Pomarańczowy = lekko za ciężki (zrzuć 1 zębatkę)
-            // Biały = optimum
-            // Zielony = za lekki (wrzuć 1 zębatkę)
-            // Jasno-zielony = znacząco za lekki (wrzuć ≥2 zębatki)
             return when {
-                cadence < range.low - 10 -> Color.parseColor("#FF5252")   // za ciężko ≥2 zębatki
-                cadence < range.low - 5  -> Color.parseColor("#FB923C")   // za ciężko 1 zębatka
-                cadence > range.high + 10 -> Color.parseColor("#86EFAC")  // za lekko ≥2 zębatki
-                cadence > range.high + 5  -> Color.parseColor("#4ADE80")  // za lekko 1 zębatka
-                else -> Color.WHITE                                         // optimum
+                cadence <= 50 && power >= adjFtp * 1.10 && grade >= 5.0 -> Color.parseColor("#FF5252")
+                cadence < 55 && power >= adjFtp * 0.75 && grade >= 2.0 -> Color.parseColor("#FB923C")
+                cadence >= 90 && power <= adjFtp * 0.50 -> Color.parseColor("#FB923C")
+                cadence in 60..75 && power in (adjFtp * 0.75).toInt()..(adjFtp * 0.87).toInt() && grade in -5.0..5.0 -> Color.parseColor("#4ADE80")
+                else -> Color.WHITE
             }
         }
 

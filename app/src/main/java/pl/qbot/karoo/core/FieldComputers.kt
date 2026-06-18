@@ -1,5 +1,7 @@
 package pl.qbot.karoo.core
 
+import com.qext2.primary.core.RideContext
+import com.qext2.primary.model.SurfaceType
 import java.util.Locale
 
 class FieldComputers(
@@ -161,7 +163,7 @@ class FieldComputers(
         return FieldOutput("HR", hr.toInt().toString(), FieldColor.NEUTRAL, FieldStatus.OK, "hr_present", mapOf("age_s" to age))
     }
 
-    fun cadence(state: RideState): FieldOutput {
+    fun cadence(state: RideState, context: RideContext = RideContext()): FieldOutput {
         val cad = state.cadenceRpm ?: return FieldOutput("CADENCE", "WAIT", FieldColor.GRAY, FieldStatus.NO_DATA, "missing_cadence")
         val age = state.sensorAgeSec("cadenceRpm")
         if (age != null && age > config.sensorStaleSec) {
@@ -170,15 +172,26 @@ class FieldComputers(
         if (cad < 0.0 || cad > 180.0) {
             return FieldOutput("CADENCE", "INV", FieldColor.RED, FieldStatus.INVALID, "cadence_out_of_range", mapOf("cadence_rpm" to cad))
         }
-        val (color, reason) = when {
-            cad in 54.0..77.0 -> FieldColor.GREEN to "preferred_low_cadence_band"
-            cad == 0.0 -> FieldColor.GRAY to "coasting_or_stopped"
-            else -> FieldColor.AMBER to "outside_preferred_band"
+        if (cad == 0.0) return FieldOutput("CADENCE", "0", FieldColor.GRAY, FieldStatus.OK, "coasting_or_stopped", mapOf("age_s" to age))
+        val range = com.qext2.primary.active.OptimalCadenceModel.compute(
+            powerW = state.powerW?.toInt() ?: 0,
+            effectiveFtp = context.effectiveLtp.coerceAtLeast(50f),
+            gradePercent = state.gradePct ?: 0.0,
+            surface = context.surface,
+            todayFactor = context.todayFactor,
+            decouplingPct = context.decouplingPct,
+        )
+        val (color, reason) = when (com.qext2.primary.active.OptimalCadenceModel.assess(cad.toInt(), range)) {
+            com.qext2.primary.active.OptimalCadenceModel.CadenceStatus.CRITICAL_LOW -> FieldColor.RED to "cadence_critical_low"
+            com.qext2.primary.active.OptimalCadenceModel.CadenceStatus.LOW          -> FieldColor.AMBER to "cadence_low"
+            com.qext2.primary.active.OptimalCadenceModel.CadenceStatus.OPTIMAL      -> FieldColor.GREEN to "cadence_optimal"
+            com.qext2.primary.active.OptimalCadenceModel.CadenceStatus.HIGH         -> FieldColor.NEUTRAL to "cadence_high_no_signal"
+            com.qext2.primary.active.OptimalCadenceModel.CadenceStatus.NO_DATA      -> FieldColor.GRAY to "cadence_no_data"
         }
         return FieldOutput("CADENCE", cad.toInt().toString(), color, FieldStatus.OK, reason, mapOf("age_s" to age))
     }
 
-    fun gear(state: RideState): FieldOutput {
+    fun gear(state: RideState, context: RideContext = RideContext()): FieldOutput {
         val front = state.gearFront
         val rear = state.gearRear
         if (front == null || rear == null) {
@@ -187,6 +200,26 @@ class FieldComputers(
         val age = state.sensorAgeSec("gear")
         if (age != null && age > config.sensorStaleSec) {
             return FieldOutput("GEAR", "${front}×${rear}", FieldColor.GRAY, FieldStatus.STALE, "gear_stale", mapOf("age_s" to age))
+        }
+        val cadRpm = state.cadenceRpm?.toInt() ?: 0
+        val powerW = state.powerW?.toInt() ?: 0
+        if (cadRpm > 0 && powerW > 0 && context.effectiveLtp > 0f) {
+            val range = com.qext2.primary.active.OptimalCadenceModel.compute(
+                powerW = powerW,
+                effectiveFtp = context.effectiveLtp,
+                gradePercent = state.gradePct ?: 0.0,
+                surface = context.surface,
+                todayFactor = context.todayFactor,
+                decouplingPct = context.decouplingPct,
+            )
+            val gearColor = when {
+                cadRpm < range.low - 10 -> FieldColor.RED     // zrzuć ≥2
+                cadRpm < range.low - 5  -> FieldColor.AMBER   // zrzuć 1
+                cadRpm > range.high + 10 -> FieldColor.GREEN  // wrzuć ≥2
+                cadRpm > range.high + 5  -> FieldColor.GREEN  // wrzuć 1
+                else -> FieldColor.NEUTRAL                     // optimum
+            }
+            return FieldOutput("GEAR", "${front}×${rear}", gearColor, FieldStatus.OK, "gear_cadence_advisory")
         }
         return FieldOutput("GEAR", "${front}×${rear}", FieldColor.NEUTRAL, FieldStatus.OK, "gear_present_no_advice_model")
     }
@@ -203,8 +236,8 @@ class FieldComputers(
     fun batterySensors(state: RideState): FieldOutput =
         battery("BAT_SENS", state.batterySensorsPct)
 
-    fun mvp(state: RideState): List<FieldOutput> =
-        listOf(speed(state), power(state), hr(state), cadence(state), grade(state), gear(state))
+    fun mvp(state: RideState, context: RideContext = RideContext()): List<FieldOutput> =
+        listOf(speed(state), power(state), hr(state), cadence(state, context), grade(state), gear(state, context))
 
     fun all(state: RideState): List<FieldOutput> =
         listOf(

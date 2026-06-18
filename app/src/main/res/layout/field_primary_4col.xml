@@ -35,6 +35,7 @@
     <TextView android:layout_width="1dp" android:layout_height="match_parent" android:text="" android:background="#0D1424" />
 
     <FrameLayout
+        android:id="@+id/fl_power_cell"
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="28"

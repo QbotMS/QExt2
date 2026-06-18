@@ -95,7 +95,6 @@ class CompositePrimaryDataType : DataTypeImpl("qext2", "qext2-primary") {
         views.setViewVisibility(powerId, View.VISIBLE)
         views.setTextViewText(powerId, powerText)
         views.setTextColor(powerId, snap.powerColor)
-        views.setInt(R.id.fl_power_cell, "setBackgroundColor", snap.powerBgColor)
 
         val speedText = snap.speedDisplay
         hideAll(views, R.id.tv_speed_4, R.id.tv_speed_5, R.id.tv_speed_6)

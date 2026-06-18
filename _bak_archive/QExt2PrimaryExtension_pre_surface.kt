@@ -6,8 +6,6 @@ import android.content.IntentFilter
 import android.os.BatteryManager
 import com.qext2.primary.data.AthleteData
 import com.qext2.primary.data.AthleteDataStore
-import com.qext2.primary.model.SurfaceType
-import com.qext2.primary.surface.SurfaceProfileCache
 import com.qext2.primary.datatypes.BpActiveStaticDataType
 import com.qext2.primary.datatypes.CompositeActiveDataType
 import com.qext2.primary.datatypes.CompositePrimaryDataType
@@ -49,7 +47,6 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
     val aggregator: RideDataAggregator? get() = _aggregator
     private val _aggregatorFlow = MutableStateFlow<RideDataAggregator?>(null)
     val aggregatorFlow: StateFlow<RideDataAggregator?> = _aggregatorFlow.asStateFlow()
-    private var _surfaceCache: SurfaceProfileCache? = null
     private val _karooSystemFlow = MutableStateFlow<KarooSystemService?>(null)
     val karooSystemFlow: StateFlow<KarooSystemService?> = _karooSystemFlow.asStateFlow()
     private var fetchConsumerId: String? = null
@@ -70,10 +67,6 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         logBuildBaseline()
         runStartupSelfCheck()
         AthleteDataStore.init(this)
-        _surfaceCache = SurfaceProfileCache(
-            qbotBaseUrl = BuildConfig.QBOT_BASE_URL,
-            qbotBearer = BuildConfig.QBOT_BEARER,
-        )
         val system = KarooSystemService(this)
         _karooSystem = system
         _karooSystemFlow.value = system
@@ -206,34 +199,6 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
     fun refreshCassetteOverride() {
         _aggregator?.refreshCassetteOverride()
     }
-
-    /**
-     * Wołane gdy OnNavigationState się zmienia (z aggregatora lub zewnętrznie).
-     * Czyści cache i fetchuje profil nawierzchni dla nowej trasy.
-     */
-    fun onNavigationStateForSurface(
-        state: io.hammerhead.karooext.models.OnNavigationState,
-        routeName: String?,
-    ) {
-        _surfaceCache?.onNavigationState(state, routeName)
-    }
-
-    /**
-     * Fallback z RouteGraph surfacetype stream.
-     */
-    fun onRouteGraphSurface(value: Float) {
-        _surfaceCache?.onRouteGraphSurface(value)
-    }
-
-    /**
-     * Aktualizacja surface w aggregatorze z cache.
-     * Wołana z pętli 1 Hz w RideDataAggregator.
-     */
-    fun currentSurface(kmAlongRoute: Float): SurfaceType =
-        _surfaceCache?.surfaceAt(kmAlongRoute) ?: SurfaceType.PAVED
-
-    fun remainingSurface(kmAlongRoute: Float) =
-        _surfaceCache?.remainingByType(kmAlongRoute) ?: emptyMap()
 
     private fun fetchAthleteData(system: KarooSystemService, isRetry: Boolean = false) {
         if (!isRetry) fetchAttempts = 0

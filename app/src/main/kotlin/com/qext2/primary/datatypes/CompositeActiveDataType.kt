@@ -567,19 +567,19 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
             if (climbMsg != null) {
                 if (messageManager.show(climbMsg)) beepForMessage(climbMsg, "show")
             }
-            val climbPacingMsg = climbResolution.state?.takeIf { it.isWithinClimbBounds }?.let { cs ->
-                climbPacingProducer.checkAndProduce(
-                    power = agg.snapshot.value.power3s,
-                    wBalancePct = agg.statsSnapshot.value.wBalancePercent,
-                    effectiveLtpW = agg.getEffectiveLtpWatts(),
-                    isWithinBounds = true,
-                    ascentLeftM = cs.climbElevationM,
-                    grade = cs.avgGradePercent,
-                    climbIndex = cs.climbIndex,
-                    modeFactor = agg.getModeFactor(),
-                    nowMs = now,
-                )
-            }
+            // Pacing działa zawsze gdy mamy LTP — nie tylko na podjeździe
+            val climbState = climbResolution.state
+            val climbPacingMsg = climbPacingProducer.checkAndProduce(
+                power = agg.snapshot.value.power3s,
+                wBalancePct = agg.statsSnapshot.value.wBalancePercent,
+                effectiveLtpW = agg.getEffectiveLtpWatts(),
+                isWithinBounds = climbState?.isWithinClimbBounds == true,
+                ascentLeftM = climbState?.climbElevationM ?: 0,
+                grade = climbState?.avgGradePercent ?: agg.getEffectiveGrade(),
+                climbIndex = climbState?.climbIndex ?: -1,
+                modeFactor = agg.getModeFactor(),
+                nowMs = now,
+            )
             if (climbPacingMsg != null && messageManager.show(climbPacingMsg)) beepForMessage(climbPacingMsg, "pacing")
             agg.consumePendingFuelMessage()?.let { fuelMsg ->
                 if (messageManager.show(fuelMsg)) beepForMessage(fuelMsg, "fuel")

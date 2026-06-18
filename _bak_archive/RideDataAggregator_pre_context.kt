@@ -4,9 +4,6 @@ import android.util.Log
 import com.qext2.primary.data.AthleteData
 import com.qext2.primary.data.AthleteDataStore
 import com.qext2.primary.core.LabRideStateRepository
-import com.qext2.primary.core.RideContext
-import com.qext2.primary.active.PacingEngine
-import com.qext2.primary.model.SurfaceType
 import com.qext2.primary.engine.hrdecoupling.HrDecouplingBuffer
 import com.qext2.primary.engine.hrdecoupling.HrSample
 import com.qext2.primary.engine.hrdecoupling.HrStrainAdvisor
@@ -89,15 +86,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val capTwilightRef = AtomicReference(false)
     private val cassetteOverrideRef = AtomicReference(false)
     private val cassetteCogsRef = AtomicReference(IntArray(0))
-    // Nawierzchnia bieżącego segmentu — aktualizowana z cache QBot/RouteGraph fallback
-    private val currentSurfaceRef = AtomicReference(SurfaceType.PAVED)
-    // Adaptacyjny tryb AUTO i kontekst pacingu
-    private val adaptiveTracker = com.qext2.primary.active.AdaptiveModeTracker()
-    private val pacingContextRef = AtomicReference(com.qext2.primary.active.PacingContext(
-        ceilingW = 9999, targetLowW = 0, targetHighW = 9999,
-        isClimbing = false, modeFactor = 1.0f, surface = SurfaceType.PAVED,
-        optCadenceLow = 70, optCadenceHigh = 90, isActive = false,
-    ))
     private val civilDuskMsRef = AtomicReference(0L)
     private val maxHrRef = AtomicReference(180)
     private val todayFactorRef = AtomicReference(1.0f)
@@ -661,8 +649,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                             navRouteNameRef.set("")
                             navRouteKeyRef.set("")
                             navClimbsRef.set(emptyList())
-                            currentSurfaceRef.set(com.qext2.primary.model.SurfaceType.PAVED)
-                            QExt2PrimaryExtension.instance?.onNavigationStateForSurface(event, null)
                             Log.i(TAG, "QEXT_NAV_STATE type=Idle name= routeDistance=-- climbs=0")
                         }
                         is OnNavigationState.NavigationState.NavigatingRoute -> {
@@ -684,7 +670,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                             for (c in parsed) {
                                 Log.i(TAG, "QEXT_ROUTE_CLIMB index=${c.index} start=${c.startDistance} len=${c.length} elev=${c.totalElevation} grade=${c.grade}%")
                             }
-                            QExt2PrimaryExtension.instance?.onNavigationStateForSurface(event, ns.name)
                         }
                         is OnNavigationState.NavigationState.NavigatingToDestination -> {
                             navRouteActiveRef.set(true)
@@ -706,7 +691,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                             for (c in parsed) {
                                 Log.i(TAG, "QEXT_ROUTE_CLIMB index=${c.index} start=${c.startDistance} len=${c.length} elev=${c.totalElevation} grade=${c.grade}%")
                             }
-                            QExt2PrimaryExtension.instance?.onNavigationStateForSurface(event, destName)
                         }
                     }
                     } catch (e: Exception) {
@@ -721,25 +705,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         if (navConsumerId != null) {
             consumerIds.add(navConsumerId)
             Log.i(TAG, "QEXT_NAV_CONSUMER_OK id=$navConsumerId")
-        }
-
-        // Fallback nawierzchni z RouteGraph (miękka zależność — działa tylko jeśli zainstalowany)
-        try {
-            val rgConsumerId = karooSystem.addConsumer<io.hammerhead.karooext.models.OnStreamState>(
-                params = io.hammerhead.karooext.models.OnStreamState.StartStreaming(
-                    io.hammerhead.karooext.models.DataType.dataTypeId("karoo-routegraph", "surfacetype")
-                ),
-                onEvent = { event ->
-                    val v = (event.state as? io.hammerhead.karooext.models.StreamState.Streaming)?.dataPoint?.singleValue
-                    if (v != null) {
-                        QExt2PrimaryExtension.instance?.onRouteGraphSurface(v.toFloat())
-                        if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "ROUTEGRAPH_SURFACE value=$v")
-                    }
-                }
-            )
-            if (rgConsumerId != null) consumerIds.add(rgConsumerId)
-        } catch (e: Exception) {
-            Log.d(TAG, "RouteGraph surfacetype stream unavailable: ${e.message}")
         }
 
         tickJob = scope.launch {
@@ -787,12 +752,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     } else hrResultCached!!
                 }
 
-                val rideCtx = RideContext(
-                    surface = currentSurfaceRef.get(),
-                    decouplingPct = statsCalc.decouplingPercent(),
-                    effectiveLtp = getEffectiveLtpWatts(),
-                    todayFactor = AthleteDataStore.load().todayFactor,
-                )
                 val outputs = LabRideStateRepository.update(
                     RideSample(
                         tSec = elapsedSec.toDouble(),
@@ -807,8 +766,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                         gearRear = gearRearRef.get().takeIf { it > 0 },
                         batteryHeadunitPct = batteryPctRef.get()?.toDouble(),
                         batterySensorsPct = rearDerailleurBatteryRef.get()?.toDouble(),
-                    ),
-                    rideCtx
+                    )
                 )
                 val speedOut = outputs["SPEED"]
                 val powerOut = outputs["POWER"]
@@ -928,11 +886,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 accumulateCarbs(now, elapsedSec, isMoving, dtSec, carbs)
                 val remainingMeters = distanceToDestinationMetersRef.get().coerceAtLeast(0.0)
                 val hasRoute = resolveHasRoute(getEffectiveRoute(), remainingMeters)
-                // Aktualizacja nawierzchni z cache (pozycja km wzdłuż trasy)
-                val kmAlongRoute = ((totalDistanceRef.get() - remainingMeters) / 1000.0).toFloat().coerceAtLeast(0f)
-                val freshSurface = QExt2PrimaryExtension.instance?.currentSurface(kmAlongRoute)
-                    ?: com.qext2.primary.model.SurfaceType.PAVED
-                currentSurfaceRef.set(freshSurface)
                 fuelProducer.tick(carbs, fluid, isMoving)
                 // Fuel reminders (jedz/pij/sod) tylko przy aktywnej trasie.
                 // Treningi/komutingi bez trasy -> bez przypomnien (mniej smietnika).
@@ -940,34 +893,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     fuelProducer.checkAndProduce(physioTempC(), AthleteDataStore.loadCarbPacketSize(), now)
                         ?.let { pendingFuelMsgRef.set(it) }
                 }
-
-                // AUTO adaptacyjne: aktualizuj modeFactor z rolling window 20 min
-                val athleteData = AthleteDataStore.load()
-                val ridingModeCode = AthleteDataStore.loadRidingMode().toInt()
-                val effectiveModeFactor = if (ridingModeCode == 3) {
-                    // AUTO — adaptacyjne
-                    adaptiveTracker.update(now, powerRef.get(), getEffectiveLtpWatts())
-                } else {
-                    // Fixowany tryb — nie dotykamy
-                    when (ridingModeCode) { 1 -> 0.88f; 2 -> 1.12f; else -> 1.00f }
-                }
-
-                // Pacing context — produkowany co sekundę
-                val pacingCtx = PacingEngine.compute(
-                    powerW = powerRef.get(),
-                    effectiveLtp = getEffectiveLtpWatts(),
-                    effectiveFtp = (athleteData.ftp * athleteData.todayFactor).coerceAtLeast(50f),
-                    wBalancePct = statsCalc.wBalancePercent(now),
-                    reservePct = _statsSnapshot.value.rideReservePercent,
-                    decouplingPct = statsCalc.decouplingPercent(),
-                    windSpeedMps = weatherWindSpeedMpsRef.get() ?: 0f,
-                    isClimbing = gradeRef.get() > 2.5,
-                    gradePercent = gradeRef.get(),
-                    surface = currentSurfaceRef.get(),
-                    todayFactor = athleteData.todayFactor,
-                    modeFactor = effectiveModeFactor,
-                )
-                pacingContextRef.set(pacingCtx)
                 AthleteDataStore.saveCarbLastElapsedSec(elapsedSec)
                 val carbIntakeTotal = AthleteDataStore.loadCarbIntakeTotal()
                 val carbNeededTotal = carbNeededTotalGRef.get().roundToInt().coerceAtLeast(0)
@@ -1102,7 +1027,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         statsCalc.reset()
         fuelProducer.reset()
         pendingFuelMsgRef.set(null)
-        adaptiveTracker.reset()
         hrBuffer.clear()
         hrAdvisor.reset()
         etaMovingSpeedHistory.clear()
@@ -1150,14 +1074,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     fun refreshCapTwilightFromStore() {
         capTwilightRef.set(AthleteDataStore.loadCapTwilight())
     }
-
-    fun getPacingContext(): com.qext2.primary.active.PacingContext = pacingContextRef.get()
-
-    fun updateSurface(surface: SurfaceType) {
-        currentSurfaceRef.set(surface)
-    }
-
-    fun getCurrentSurface(): SurfaceType = currentSurfaceRef.get()
 
     fun refreshCassetteOverride() {
         cassetteOverrideRef.set(AthleteDataStore.loadCassetteOverrideEnabled())

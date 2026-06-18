@@ -12,9 +12,6 @@ val localProps = Properties().apply {
     }
 }
 
-val qbotBaseUrl = (localProps.getProperty("QBOT_BASE_URL")
-    ?: "https://qbot.cytr.us").replace(""", "\"")
-val qbotBearer = (localProps.getProperty("QBOT_BEARER") ?: "").replace(""", "\"")
 val gateUrl = (localProps.getProperty("QEXT_GATE_URL")
     ?: "https://qbot.cytr.us/gate/open")
     .replace("\"", "\\\"")
@@ -47,8 +44,6 @@ android {
         buildConfigField("String", "OPENWEATHER_BASE_URL", "\"$owmBaseUrl\"")
         buildConfigField("String", "WEATHER_LAT", "\"$weatherLatStr\"")
         buildConfigField("String", "WEATHER_LON", "\"$weatherLonStr\"")
-        buildConfigField("String", "QBOT_BASE_URL", "\"$qbotBaseUrl\"")
-        buildConfigField("String", "QBOT_BEARER", "\"$qbotBearer\"")
     }
 
     signingConfigs {
