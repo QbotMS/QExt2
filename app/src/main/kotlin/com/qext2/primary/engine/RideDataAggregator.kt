@@ -725,12 +725,12 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
 
         // Fallback nawierzchni z RouteGraph (miękka zależność — działa tylko jeśli zainstalowany)
         try {
-            val rgConsumerId = karooSystem.addConsumer<io.hammerhead.karooext.models.OnStreamState>(
-                params = io.hammerhead.karooext.models.OnStreamState.StartStreaming(
-                    io.hammerhead.karooext.models.DataType.dataTypeId("karoo-routegraph", "surfacetype")
+            val rgConsumerId = karooSystem.addConsumer<OnStreamState>(
+                params = OnStreamState.StartStreaming(
+                    DataType.dataTypeId("karoo-routegraph", "surfacetype")
                 ),
                 onEvent = { event ->
-                    val v = (event.state as? io.hammerhead.karooext.models.StreamState.Streaming)?.dataPoint?.singleValue
+                    val v = (event.state as? StreamState.Streaming)?.dataPoint?.singleValue
                     if (v != null) {
                         QExt2PrimaryExtension.instance?.onRouteGraphSurface(v.toFloat())
                         if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "ROUTEGRAPH_SURFACE value=$v")

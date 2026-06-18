@@ -176,7 +176,7 @@ class FieldComputers(
         val range = com.qext2.primary.active.OptimalCadenceModel.compute(
             powerW = state.powerW?.toInt() ?: 0,
             effectiveFtp = context.effectiveLtp.coerceAtLeast(50f),
-            gradePercent = state.gradePct ?: 0.0,
+            gradePercent = state.gradeDisplayPct ?: 0.0,
             surface = context.surface,
             todayFactor = context.todayFactor,
             decouplingPct = context.decouplingPct,
@@ -207,7 +207,7 @@ class FieldComputers(
             val range = com.qext2.primary.active.OptimalCadenceModel.compute(
                 powerW = powerW,
                 effectiveFtp = context.effectiveLtp,
-                gradePercent = state.gradePct ?: 0.0,
+                gradePercent = state.gradeDisplayPct ?: 0.0,
                 surface = context.surface,
                 todayFactor = context.todayFactor,
                 decouplingPct = context.decouplingPct,
