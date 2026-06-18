@@ -69,7 +69,7 @@ class ClimbPacingProducer(private val logger: (String) -> Unit = {}) {
             return ActiveMessage(
                 id = "pace_mode_$nowMs",
                 title = title,
-                line1 = null,
+                line1 = "",
                 line2 = null,
                 severity = ActiveMessageSeverity.INFO,
                 priority = ActiveMessagePriority.INFO,

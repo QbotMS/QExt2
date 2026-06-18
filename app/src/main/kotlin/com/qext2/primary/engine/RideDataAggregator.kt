@@ -852,6 +852,12 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     gradeColor = PrimaryRideSnapshot.contrastText(gradeBg),
                     gradeBgColor = gradeBg,
                     gearColor = gearOut?.color.toAndroidColor(),
+                    powerBgColor = when (com.qext2.primary.active.PacingEngine.assessPower(powerRef.get(), pacingContextRef.get())) {
+                        com.qext2.primary.active.PacingEngine.PowerStatus.DANGER  -> 0x40FF4444.toInt()
+                        com.qext2.primary.active.PacingEngine.PowerStatus.WARN    -> 0x40FF8C00.toInt()
+                        com.qext2.primary.active.PacingEngine.PowerStatus.OPTIMAL -> 0x4044AA44.toInt()
+                        else -> android.graphics.Color.TRANSPARENT
+                    },
                     speedValue = speedOut?.value ?: "WAIT",
                     powerValue = powerOut?.value ?: "WAIT",
                     hrValue = hrOut?.value ?: "WAIT",
@@ -929,7 +935,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val remainingMeters = distanceToDestinationMetersRef.get().coerceAtLeast(0.0)
                 val hasRoute = resolveHasRoute(getEffectiveRoute(), remainingMeters)
                 // Aktualizacja nawierzchni z cache (pozycja km wzdłuż trasy)
-                val kmAlongRoute = ((totalDistanceRef.get() - remainingMeters) / 1000.0).toFloat().coerceAtLeast(0f)
+                val kmAlongRoute = (distanceMetersRef.get() / 1000.0).toFloat().coerceAtLeast(0f)
                 val freshSurface = QExt2PrimaryExtension.instance?.currentSurface(kmAlongRoute)
                     ?: com.qext2.primary.model.SurfaceType.PAVED
                 currentSurfaceRef.set(freshSurface)
@@ -957,8 +963,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     powerW = powerRef.get(),
                     effectiveLtp = getEffectiveLtpWatts(),
                     effectiveFtp = (athleteData.ftp * athleteData.todayFactor).coerceAtLeast(50f),
-                    wBalancePct = statsCalc.wBalancePercent(now),
-                    reservePct = _statsSnapshot.value.rideReservePercent,
+                    wBalancePct = statsCalc.wBalancePercent(now).toFloat(),
+                    reservePct = _statsSnapshot.value.rideReservePercent.toFloat(),
                     decouplingPct = statsCalc.decouplingPercent(),
                     windSpeedMps = weatherWindSpeedMpsRef.get() ?: 0f,
                     isClimbing = gradeRef.get() > 2.5,
