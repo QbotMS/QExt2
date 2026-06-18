@@ -31,11 +31,6 @@ jobs:
           echo "Token starts with: ${GPR_TOKEN:0:4}..."
           echo "::endgroup::"
           echo "sdk.dir=$ANDROID_HOME" > local.properties
-          echo "QEXT_GATE_URL=${{ secrets.QEXT_GATE_URL }}" >> local.properties
-          echo "QEXT_GATE_TOKEN=${{ secrets.QEXT_GATE_TOKEN }}" >> local.properties
-          echo "QEXT_READINESS_URL=${{ secrets.QEXT_READINESS_URL }}" >> local.properties
-          echo "QBOT_BASE_URL=${{ secrets.QBOT_BASE_URL }}" >> local.properties
-          echo "QBOT_BEARER=${{ secrets.QBOT_BEARER }}" >> local.properties
       - run: ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4
         if: success()
