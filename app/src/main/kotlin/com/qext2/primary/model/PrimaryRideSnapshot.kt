@@ -58,32 +58,19 @@ data class PrimaryRideSnapshot(
             gearFront: Int, gearRear: Int, grade: Double,
             distanceMeters: Double, elapsedSec: Long, ascentLeftM: Int,
             ftp: Int, todayFactor: Float, maxHr: Int, nowMs: Long = 0L,
-            surface: com.qext2.primary.model.SurfaceType = com.qext2.primary.model.SurfaceType.PAVED,
-            decouplingPct: Float = 0f,
-            effectiveLtp: Float = 0f,
-            pacingCtx: com.qext2.primary.active.PacingContext = com.qext2.primary.active.PacingContext(
-                ceilingW = 9999, targetLowW = 0, targetHighW = 9999,
-                isClimbing = false, modeFactor = 1.0f,
-                surface = com.qext2.primary.model.SurfaceType.PAVED,
-                optCadenceLow = 70, optCadenceHigh = 90, isActive = false
-            ),
         ): IntArray {
             val adjFtp = (ftp * todayFactor.coerceIn(0.5f, 1.1f)).toInt().coerceAtLeast(50)
             val rawPower = powerColor(power, grade, ascentLeftM, adjFtp)
             val pc = powerColorHysteresis(rawPower, nowMs)
             val hc = Color.WHITE
-            val cc = cadenceColor(cadence, grade, effectiveLtp.coerceAtLeast(adjFtp.toFloat()), power, surface, todayFactor, decouplingPct)
+            val cc = cadenceColor(cadence, grade, adjFtp.toFloat(), power,
+                SurfaceType.PAVED, todayFactor, 0f)
             val sc = speedColor(speedKmh, distanceMeters, elapsedSec)
             val gc = gradeColor(grade)
-            val rawGear = gearColor(power, cadence, gearFront, gearRear, grade, adjFtp, surface, todayFactor, decouplingPct)
+            val rawGear = gearColor(power, cadence, gearFront, gearRear, grade, adjFtp,
+                SurfaceType.PAVED, todayFactor, 0f)
             val gearC = gearColorHysteresis(rawGear, nowMs)
-            val powerBg = when (com.qext2.primary.active.PacingEngine.assessPower(power, pacingCtx)) {
-                com.qext2.primary.active.PacingEngine.PowerStatus.DANGER  -> 0x40FF4444.toInt()  // blado-czerwone
-                com.qext2.primary.active.PacingEngine.PowerStatus.WARN    -> 0x40FF8C00.toInt()  // blado-pomarańczowe
-                com.qext2.primary.active.PacingEngine.PowerStatus.OPTIMAL -> 0x4044AA44.toInt()  // blado-zielone
-                else -> 0  // Color.TRANSPARENT
-            }
-            return intArrayOf(pc, hc, cc, sc, gc, gearC, powerBg)
+            return intArrayOf(pc, hc, cc, sc, gc, gearC)
         }
 
         private fun powerColor(watts: Int, grade: Double, ascentLeftM: Int, adjFtp: Int): Int {

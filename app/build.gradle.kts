@@ -39,7 +39,7 @@ android {
         minSdk = 23
         targetSdk = 35
         versionCode = (System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1).coerceAtLeast(1)
-        versionName = "0.2.1"
+        versionName = "0.3.0"
         buildConfigField("String", "QEXT_GATE_URL", "\"$gateUrl\"")
         buildConfigField("String", "QEXT_GATE_TOKEN", "\"$gateToken\"")
         buildConfigField("String", "QEXT_READINESS_URL", "\"$readinessUrl\"")
