@@ -64,12 +64,24 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         if (ltp > 0f) ltpWatts = ltp
     }
 
+    // Per-tick effective critical power + W' capacity (CP anchored on FTP, scaled by
+    // readiness/heat/decoupling). Does NOT refill wBalKj on zero (only clamps down).
+    fun setEffectiveWPrime(cpEff: Float, wPrimeMaxEff: Float) {
+        if (cpEff > 0f) ltpWatts = cpEff
+        if (wPrimeMaxEff > 0f) {
+            wPrimeKj = wPrimeMaxEff
+            if (wBalKj > wPrimeKj) wBalKj = wPrimeKj
+        }
+    }
+
     private fun updateWBalance(powerWatts: Int) {
         if (ltpWatts <= 0f || wPrimeKj <= 0f) return
         if (powerWatts > ltpWatts) {
             wBalKj -= (powerWatts - ltpWatts) * 1f / 1000f
         } else {
-            wBalKj += (wPrimeKj - wBalKj) * (1f - exp(-1f / tau))
+            val dcp = (ltpWatts - powerWatts).coerceAtLeast(0f)
+            val tauRec = 546f * exp(-0.01f * dcp) + 316f
+            wBalKj += (wPrimeKj - wBalKj) * (1f - exp(-1f / tauRec))
         }
         wBalKj = wBalKj.coerceIn(0f, wPrimeKj)
     }

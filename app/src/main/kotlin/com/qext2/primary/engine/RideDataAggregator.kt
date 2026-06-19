@@ -872,9 +872,20 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val cadence = cadenceRef.get()
                 val movingElapsedSec = movingElapsedSecRef.get()
                 val powerFresh = now - powerFreshnessRef.get() < 8_000L
-                // W' physics runs on BASE LTP/W' (real physiology). The combined
-                // factor (temp/fatigue/mode) applies only to the pacing layer
-                // (power color ceiling, climb targets) — not to depletion math.
+                // W' physics: CP anchored on FTP, modulated each tick by readiness
+                // (todayFactor), heat (tempFactor) and in-ride cardiac drift (decoupling).
+                run {
+                    val baseWp = baseWPrimeKjRef.get()
+                    val baseCp = statsCalc.ftpWatts.toFloat()
+                    if (baseWp > 0f && baseCp > 0f) {
+                        val readiness = todayFactorRef.get().coerceIn(0.85f, 1.05f)
+                        val heat = tempFactor(weatherTemperatureCRef.get())
+                        val drift = (statsCalc.decouplingPercent() - 5f).coerceIn(0f, 15f) * 0.0027f
+                        val acute = (1f - drift).coerceIn(0.96f, 1f)
+                        val cf = (readiness * heat * acute).coerceIn(0.88f, 1.06f)
+                        statsCalc.setEffectiveWPrime(baseCp * cf, baseWp * cf)
+                    }
+                }
                 statsCalc.update(powerWatts, hr, movingElapsedSec, elapsedSec, powerFresh = powerFresh)
                 val npWhole = statsCalc.npWatts()
                 val ifWhole = ifRef.get().takeIf { it > 0f } ?: statsCalc.ifValue()
@@ -1458,7 +1469,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         if (data.wPrimeKj > 0.0 && data.ltpWatts > 0) {
             baseLtpWattsRef.set(data.ltpWatts.toFloat())
             baseWPrimeKjRef.set(data.wPrimeKj.toFloat())
-            statsCalc.setWPrimeParams(data.wPrimeKj.toFloat(), data.ltpWatts.toFloat())
+            statsCalc.setWPrimeParams(data.wPrimeKj.toFloat(), data.ftp.toFloat())
         }
         if (resetStats) {
             statsCalc.reset()
