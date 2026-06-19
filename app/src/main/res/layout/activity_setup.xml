@@ -1,13 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0D1424">
-
-<LinearLayout
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
     android:orientation="vertical"
+    android:background="#0D1424"
     android:padding="20dp">
 
     <TextView
@@ -91,6 +87,16 @@
         android:layout_height="1dp"
         android:layout_marginTop="8dp"
         android:background="#374151" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
 
     <LinearLayout
         android:id="@+id/ll_tab_dane"
@@ -617,17 +623,20 @@
             android:textSize="12sp" />
     </LinearLayout>
 
+    </LinearLayout>
+    </ScrollView>
+
     <TextView
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="12dp"
         android:background="#374151" />
 
     <TextView
         android:id="@+id/tv_status"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="10dp"
         android:text=""
         android:textColor="#9CA3AF"
         android:textSize="12sp"
@@ -646,7 +655,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="10dp"
         android:orientation="horizontal"
         android:gravity="center_vertical">
 
@@ -676,4 +685,3 @@
     </LinearLayout>
 
 </LinearLayout>
-</ScrollView>
