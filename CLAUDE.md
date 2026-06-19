@@ -1,6 +1,6 @@
 # QExt2 — kontekst dla Claude
 
-**Stan: build-122 (2026-06-16). Czytaj ten plik na początku każdej sesji.**
+**Stan: 2026-06-19 (model W' przebudowany — kotwica na FTP, patrz niżej; build-122 nieaktualny w sekcji W'). Czytaj ten plik na początku każdej sesji.**
 
 ---
 
@@ -29,8 +29,10 @@ QExt2 to rozszerzenie Kotlin/Android dla komputera rowerowego **Hammerhead Karoo
 QExt2PrimaryExtension (serwis Android)
   └── RideDataAggregator (engine/)
         ├── StatsCalculator — W'bal, RSRV, TSS, karby, dekoupling
-        ├── HrStrainAdvisor — HR drift/strain
-        ├── AthleteDataStore — SharedPreferences + dane z QBota
+        ├── ReservePolicy — budżet RSRV (pochodna CTL)
+        ├── PrimaryRenderOptimizer — throttling renderu LIVE
+        ├── hrdecoupling/HrStrainAdvisor (+ HrDecouplingBuffer) — HR drift/strain
+        ├── AthleteDataStore (data/) — SharedPreferences + dane z QBota
         └── WeatherClient — OpenWeatherMap API
 ```
 
@@ -43,6 +45,8 @@ QExt2PrimaryExtension (serwis Android)
 | `WeatherMessageProducer` | WX BURZA, WX ULEWA, WX UPAL, WX WIATR itd. |
 | `SensorMessageProducer` | BRAK MOCY, BRAK HR, BRAK SENSORÓW |
 | `FuelReminderProducer` | ZJEDZ ~Ng, PIJ, SÓD 500-800mg |
+
+Infrastruktura `active/`: `ActiveMessageManager` (priorytety/cooldown), `ActiveMessageRenderer`, `ActiveClimbResolver`, `BeepCooldownTracker`, `PacingEngine`, `AdaptiveModeTracker` (tryb AUTO), `OptimalCadenceModel`, `NoSdkClimbLogGate`.
 
 ---
 
@@ -76,22 +80,34 @@ modeFactor = 0.88/1.00/1.12         (tryb jazdy)
 decFac = 1 - 0.01×(decoupling-5%)  (HR decoupling, floor 0.90)
 ```
 
+`effectiveLTP = baseLTP × cf`, gdzie pacing-cf = `(todayFactor × tempFactor)` clamp 0.75..1.10. To OSOBNA warstwa od fizyki W' (która ma własny cf clamp 0.88..1.06 na kotwicy FTP — patrz niżej). Pacing-cf koryguje tylko ceiling koloru i targety komunikatów.
+
 **Tryb jazdy (SetupActivity):** DEFENSYWNA=0.88 / NORMALNA=1.00 / OFENSYWNA=1.12 / AUTO (default). AUTO = z todayFactor: <0.90→def, >1.02→off, else norm. Ustawiony przy każdym fetchu QBota.
 
 ---
 
 ## Model W' (W prime)
 
-**Build #122 — krytyczna poprawka architektury:**
+**Przebudowa 2026-06-19 (commit d66a105) — zastępuje model build-122:**
 
-- **Fizyka W'** (`StatsCalculator.updateWBalance`) liczy na BAZOWYCH parametrach Xerta (LTP 194W, W' 22kJ). Deplecja tylko powyżej realnego progu fizjologicznego.
-- **Czynniki korygujące** (todayFactor, temperatura, modeFactor) działają WYŁĄCZNIE na pacing layer (ceiling koloru, targety komunikatów). Nie wchodzą do `setWPrimeParams`.
-- Model Skiby: `wBal -= (P - LTP)/1000` gdy P>LTP; `wBal += (wMax-wBal)×(1-e^(-1/tau))` gdy P<LTP; τ=546s.
+- **Powód zmiany:** build-122 liczył próg deplecji na LTP (~194W = 78% FTP), a to siedzi w strefie Z2 jeźdźca → W' zerowało się na lekkich jazdach. Naprawione przez zakotwiczenie CP na **FTP (248W)**.
+- **CP zakotwiczone na FTP**, NIE na LTP. Statyczna inicjalizacja też na FTP.
+- **cf MODULUJE fizykę per-tick** (odwrotność starej lekcji #2). Każdy tick agregator liczy efektywne parametry i woła `StatsCalculator.setEffectiveWPrime(cpEff, wPrimeMaxEff)`:
+  ```
+  readiness = clamp(todayFactor, 0.85..1.05)
+  heat      = tempFactor(physioTempC)
+  acute     = 1 - 0.0027 × clamp(decoupling-5%, 0..15)   (in-ride cardiac drift)
+  cf        = clamp(readiness × heat × acute, 0.88..1.06)
+  cpEff = FTP × cf ;  wPrimeMaxEff = W'base × cf          (BEZ refill-on-zero)
+  ```
+- **Recovery Skiby ze zmiennym τ** (`updateWBalance`):
+  - `wBal -= (P - CP)/1000` gdy P>CP
+  - `wBal += (wMax - wBal)×(1 - e^(-1/τ))` gdy P<CP
+  - `τ = 546 × e^(-0.01×(CP-P)) + 316` — realna regeneracja przy niskiej mocy (nie stałe 546s).
+- `tempFactor`: -0.7%/°C powyżej 20°C, floor 0.85 — używa `physioTempC()`.
+- `physioTempC()` = API pogodowe gdy świeże, fallback na sensor Karoo (sensor zaniżony w pędzie!).
 
-**Korekty na pacing layer** (nie na fizyce):
-- `effectiveLTP = baseLTP × cf` gdzie `cf = todayFactor × tempFactor` (floor 0.75, cap 1.10)
-- `tempFactor`: -0.7%/°C powyżej 20°C, floor 0.85 — używa `physioTempC()`
-- `physioTempC()` = API pogodowe gdy świeże, fallback na sensor Karoo (sensor zaniżony w pędzie!)
+> ⚠️ To ŚWIADOMIE odwraca regułę z build-122 ("cf nie wchodzi do fizyki"). Tamten model zerował W' w Z2. Nowy moduluje efektywne CP/W' per-tick, ale na kotwicy FTP i bez refill-on-zero. Patrz zaktualizowana lekcja #2.
 
 ---
 
@@ -194,10 +210,10 @@ Używaj tych wartości wszędzie:
 
 **Architektoniczne:**
 - Klucz OWM w kodzie (publiczne repo!) — zrotować po wyjeździe + przenieść do Secrets
-- `ClimbPacingProducer` i inne nowe pliki są untracked w lokalnym klonie → przy commitach przez API zawsze dodawać explicite do file listy
 
 **Pacing:**
 - RSRV projection (rsvFac) działa tylko gdy jest załadowana trasa z remaining distance
+- Budżet dzienny TSS dla RSRV = `(CTL × 5.4)` clamp 300..600 (auto-personalizacja z fitnessem; ~390 przy CTL 72.7). Nie hardcoded 390.
 - Decoupling factor: <5% normalne, 5-15% liniowe zaciskanie ceilingiem (−1%/pkt), cap −10%
 - `projectedRSRV` zakłada stałą stopę drain (liniowa ekstrapolacja) — wystarczające dla komunikatów
 
@@ -238,7 +254,7 @@ python3 -c "import xml.dom.minidom as m; m.parse('layout.xml'); print('OK')"
 ## Kluczowe lekcje z Toskanii 2026
 
 1. **`stopStreamingSoft()` vs `stopStreamingInternal()`** — soft stop zachowuje stan sesji, full stop zeruje. Mylenie = data loss mid-ride (było w build #101, naprawione #119).
-2. **cf NIE idzie do fizyki W'** — tylko do pacing layer. Inaczej deplecja 3× za szybka (było w build #104, naprawione #122).
+2. **Kotwica W' = FTP, nie LTP** (przebudowa 2026-06-19). Build-122 trzymał próg deplecji na LTP (78% FTP) → W' zerowało się w Z2. Teraz CP=FTP, a cf modulowo wchodzi do efektywnych CP/W' per-tick (`setEffectiveWPrime`), bez refill-on-zero. UWAGA: to ŚWIADOMIE cofa starą regułę "cf nie idzie do fizyki" — nie przywracaj jej bez kontekstu (historycznie cf na bazowych paramach dawało deplecję 3× za szybką w build #104).
 3. **Temperatura z API, nie z sensora** — Karoo sensor zaniżony w pędzie. `physioTempC()` = API gdy świeże.
 4. **Untracked files w git** — `create_file` tworzy lokalnie, nie przez git. `git diff --name-only` pomija. Dodawaj explicite.
 5. **`contains("partial")` na sources array** — fałszywy alarm profilu incomplete. "partial" to nazwa źródła, nie błąd.
