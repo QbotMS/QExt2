@@ -20,6 +20,7 @@ class StatsCalculator(var ftpWatts: Int = 200) {
     var todayFactor: Float = 1.0f
     var bodyWeightKg: Float = 75f
     var humidityPercent: Float = 50f
+    var ctlForBudget: Float = 0f
 
     private var batteryPctStart: Int? = null
     private var batteryPctCurrent: Int? = null
@@ -34,7 +35,6 @@ class StatsCalculator(var ftpWatts: Int = 200) {
     private var wPrimeKj: Float = 0f
     private var ltpWatts: Float = 0f
     private var wBalKj: Float = 0f
-    private val tau: Float = 546f
 
     private val wBalHistory = ArrayDeque<Pair<Long, Int>>()
 
@@ -229,7 +229,7 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         val baseReserve = safetyFloat(todayFactor) * 100f
         var reserve = baseReserve
 
-        val dailyBudgetTss = 390f
+        val dailyBudgetTss = if (ctlForBudget > 0f) (ctlForBudget * 5.4f).coerceIn(300f, 600f) else 390f
         val tssPenalty = if (tssSafe > 0f) tssSafe * (100f / dailyBudgetTss) else 0f
         reserve -= tssPenalty
 

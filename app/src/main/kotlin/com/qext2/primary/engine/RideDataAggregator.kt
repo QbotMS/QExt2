@@ -1449,6 +1449,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
 
     private fun applyAthleteData(data: AthleteData, resetStats: Boolean) {
         if (data.ftp > 0) statsCalc.ftpWatts = data.ftp
+        statsCalc.ctlForBudget = data.ctl
         statsCalc.todayFactor = data.todayFactor
         statsCalc.humidityPercent = data.humidityPercent
         sunsetTimestampRef.set(data.sunsetTimestampMs)
@@ -1554,18 +1555,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
             power >= ceiling.toInt()             -> Color.parseColor("#FF5252") // za mocno
             power >= (ceiling * 0.85f).toInt()   -> Color.parseColor("#4ADE80") // cel
             else                                 -> Color.WHITE                 // ponizej celu
-        }
-    }
-
-    private fun computePowerColor(powerWatts: Int, ftpWatts: Int): Int {
-        if (ftpWatts <= 0 || powerWatts <= 0) return 0xFFFFFFFF.toInt()
-        val pct = powerWatts.toFloat() / ftpWatts
-        return when {
-            pct < 0.55f -> 0xFF4ADE80.toInt()  // GREEN — recovery
-            pct < 0.76f -> 0xFFFFFFFF.toInt()   // WHITE — endurance
-            pct < 0.91f -> 0xFFFACC15.toInt()   // AMBER — tempo
-            pct < 1.06f -> 0xFFFB923C.toInt()   // ORANGE — threshold
-            else -> 0xFFFF5252.toInt()           // RED — VO2max+
         }
     }
 
