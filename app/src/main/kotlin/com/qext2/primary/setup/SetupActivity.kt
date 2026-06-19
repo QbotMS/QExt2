@@ -29,6 +29,7 @@ class SetupActivity : Activity() {
         bindDeadline()
         bindCarbPacket()
         bindCheckboxes()
+        setupTabs()
 
         findViewById<TextView>(R.id.tv_deadline)?.setOnClickListener {
             android.util.Log.e("QExt2Setup", "DEADLINE CLICKED!")
@@ -127,16 +128,6 @@ class SetupActivity : Activity() {
         findViewById<TextView>(R.id.tv_ftp)?.text = if (data.ftp > 0) "${data.ftp} W" else "—"
         findViewById<TextView>(R.id.tv_wmax)?.text = "${data.wPrimeJoules.toInt()} J"
         findViewById<TextView>(R.id.tv_pp)?.text = if (data.ltpWatts > 0) "${data.ltpWatts} W" else "—"
-
-        val tfColor = when {
-            data.todayFactor >= 0.90f -> Color.parseColor("#4ADE80")
-            data.todayFactor >= 0.80f -> Color.parseColor("#FACC15")
-            else -> Color.parseColor("#FF5252")
-        }
-        findViewById<TextView>(R.id.tv_today_factor)?.apply {
-            text = data.todayFactorDisplay
-            setTextColor(tfColor)
-        }
 
         findViewById<TextView>(R.id.tv_hrv)?.apply {
             text = if (data.hrvToday > 0 && data.hrvBaseline30d > 0f)
@@ -330,5 +321,28 @@ class SetupActivity : Activity() {
 
     private fun setStatus(msg: String) {
         findViewById<TextView>(R.id.tv_status)?.text = msg
+    }
+
+    private fun setupTabs() {
+        val tabs = listOf(
+            Pair(R.id.tab_dane, R.id.ll_tab_dane),
+            Pair(R.id.tab_jazda, R.id.ll_tab_jazda),
+            Pair(R.id.tab_paliwo, R.id.ll_tab_paliwo),
+            Pair(R.id.tab_naw, R.id.ll_tab_naw)
+        )
+        fun select(idx: Int) {
+            tabs.forEachIndexed { i, pair ->
+                findViewById<TextView>(pair.first)?.apply {
+                    setTextColor(if (i == idx) 0xFFFFFFFF.toInt() else 0xFF9CA3AF.toInt())
+                    setBackgroundColor(if (i == idx) 0xFF131C2E.toInt() else 0)
+                }
+                findViewById<LinearLayout>(pair.second)?.visibility =
+                    if (i == idx) android.view.View.VISIBLE else android.view.View.GONE
+            }
+        }
+        tabs.forEachIndexed { i, pair ->
+            findViewById<TextView>(pair.first)?.setOnClickListener { select(i) }
+        }
+        select(0)
     }
 }
