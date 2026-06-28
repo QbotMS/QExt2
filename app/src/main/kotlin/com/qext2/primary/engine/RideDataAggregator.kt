@@ -65,6 +65,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val gradeFilterInitializedRef = AtomicReference(false)
     private val distanceMetersRef = AtomicReference(0.0)
     private val elapsedSecRef = AtomicReference(0L)
+    // Czas BRUTTO z SDK (TYPE_RIDE_TIME_ID = "Total Time — including paused time").
+    // elapsedSecRef to ELAPSED_TIME = czas recording (netto, bez auto-pauzy).
+    private val rideTimeSecRef = AtomicReference(0L)
     private val temperatureRef = AtomicReference(20f)
     private val distanceToDestinationMetersRef = AtomicReference(0.0)
     private val ascentDoneMRef = AtomicReference(0)
@@ -365,6 +368,27 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                             karooElapsedReceivedRef.set(true)
                         } else {
                             if (QExt2DebugConfig.DEBUG_LOGGING) Log.w(TAG, "ELAPSED_TIME null value single=${s.dataPoint.singleValue} values=${s.dataPoint.values}")
+                        }
+                    }
+                }
+            )
+        )
+
+        // RIDE_TIME = czas BRUTTO (z pauzami). Vśr brutto = distance / RIDE_TIME.
+        // Ta sama walidacja ms/s co ELAPSED_TIME (parseElapsed wybiera sec vs ms).
+        consumerIds.add(
+            karooSystem.addConsumer<OnStreamState>(
+                params = OnStreamState.StartStreaming(DataType.Type.RIDE_TIME),
+                onEvent = { event ->
+                    val s = event.state
+                    if (s is StreamState.Streaming) {
+                        val v = s.dataPoint.singleValue
+                            ?: (s.dataPoint.values[DataType.Field.RIDE_TIME] as? Double)
+                        if (v != null) {
+                            val localGuess = ((System.currentTimeMillis() - rideStartWallMsRef.get()) / 1000L).coerceAtLeast(1L)
+                            val parsed = parseElapsed(v, localGuess)
+                            rideTimeSecRef.set(parsed.chosenSec)
+                            if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "RIDE_TIME raw=$v chosen=${parsed.chosenSec}s")
                         }
                     }
                 }
@@ -1072,7 +1096,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     batterySource = if (batterySourceReady) "headunit_polling" else null,
                     batteryDrainPctPerHour = drainPerHour,
                     batteryTimeLeftSec = batteryLeftSec,
-                    grossElapsedSec = elapsedSec,
+                    grossElapsedSec = rideTimeSecRef.get().takeIf { it > 0L } ?: elapsedSec,
                     distanceKm = (distanceMetersRef.get() / 1000.0).toFloat(),
                 )
                 if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "HR_DECOUPLING reason=${hrResult.reasonCode} decouplingPct=${hrResult.decouplingPct} color=${hrResult.color}")
