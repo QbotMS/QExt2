@@ -4,7 +4,7 @@
     displayName="@string/extension_name"
     icon="@drawable/ic_qext2_power"
     configurable="true"
-    fitFile="false">
+    fitFile="true">
 
     <DataType
         typeId="qext2-primary"

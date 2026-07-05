@@ -74,6 +74,10 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         }
     }
 
+    /** WATEK 2 (Strona A): efektywne CP i W' aktualnie uzyte przez model W'bal (do FIT). */
+    fun effectiveCpW(): Float = ltpWatts
+    fun effectiveWPrimeKj(): Float = wPrimeKj
+
     private fun updateWBalance(powerWatts: Int) {
         if (ltpWatts <= 0f || wPrimeKj <= 0f) return
         if (powerWatts > ltpWatts) {

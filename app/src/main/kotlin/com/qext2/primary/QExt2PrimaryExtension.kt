@@ -20,6 +20,9 @@ import io.hammerhead.karooext.extension.DataTypeImpl
 import io.hammerhead.karooext.extension.KarooExtension
 import io.hammerhead.karooext.internal.Emitter
 import io.hammerhead.karooext.models.FitEffect
+import io.hammerhead.karooext.models.DeveloperField
+import io.hammerhead.karooext.models.FieldValue
+import io.hammerhead.karooext.models.WriteToRecordMesg
 import io.hammerhead.karooext.models.HttpResponseState
 import io.hammerhead.karooext.models.OnHttpResponse
 import kotlinx.coroutines.CoroutineScope
@@ -181,7 +184,42 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
     override val types: List<DataTypeImpl> get() = _types
 
     override fun startFit(emitter: Emitter<FitEffect>) {
-        emitter.setCancellable { }
+        // WATEK 2 Strona A: co sekunde zapis stanu modelu QExt2 do FIT jako developer fields.
+        // Kontrakt nazw MUSI sie zgadzac ze Strona B (QBot fit_ingest / fitmodel_qext2_ride).
+        val fWbal = DeveloperField(0.toShort(), 2.toShort(), "qext2_wbal_pct", "%")
+        val fCp = DeveloperField(1.toShort(), 132.toShort(), "qext2_cp_eff_w", "W")
+        val fWp = DeveloperField(2.toShort(), 136.toShort(), "qext2_wprime_eff_kj", "kJ")
+        val fCf = DeveloperField(3.toShort(), 136.toShort(), "qext2_cf", "factor")
+        val fZero = DeveloperField(4.toShort(), 2.toShort(), "qext2_wbal_zero", "bool")
+        val fRdy = DeveloperField(5.toShort(), 136.toShort(), "qext2_readiness", "factor")
+        val fRsrv = DeveloperField(6.toShort(), 2.toShort(), "qext2_rsrv_pct", "%")
+        val job = serviceScope.launch {
+            while (true) {
+                val agg = _aggregator
+                if (agg != null) {
+                    val s = agg.statsSnapshot.value
+                    if (s.wBalancePercent >= 0) {
+                        val zero = if (s.wBalancePercent <= 0) 1.0 else 0.0
+                        emitter.onNext(
+                            WriteToRecordMesg(
+                                listOf(
+                                    FieldValue(fWbal, s.wBalancePercent.toDouble()),
+                                    FieldValue(fCp, s.cpEffW.toDouble()),
+                                    FieldValue(fWp, s.wPrimeEffKj.toDouble()),
+                                    FieldValue(fCf, s.cfEff.toDouble()),
+                                    FieldValue(fZero, zero),
+                                    FieldValue(fRdy, s.readiness.toDouble()),
+                                    FieldValue(fRsrv, s.rideReservePercent.toDouble()),
+                                )
+                            )
+                        )
+                    }
+                }
+                delay(1000L)
+            }
+        }
+        emitter.setCancellable { job.cancel() }
+        Log.i(TAG, "QEXT_FIT_START writing 7 developer fields @1Hz")
     }
 
     fun refetchAthleteData() {

@@ -104,6 +104,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val civilDuskMsRef = AtomicReference(0L)
     private val maxHrRef = AtomicReference(180)
     private val todayFactorRef = AtomicReference(1.0f)
+    private val cfRef = AtomicReference(1.0f)  // WATEK 2: cf uzyte w tym ticku (do FIT)
     private val modeFactorRef = AtomicReference(1.0f)
     private val baseLtpWattsRef = AtomicReference(0f)
     private val baseWPrimeKjRef = AtomicReference(0f)
@@ -907,6 +908,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                         val drift = (statsCalc.decouplingPercent() - 5f).coerceIn(0f, 15f) * 0.0027f
                         val acute = (1f - drift).coerceIn(0.96f, 1f)
                         val cf = (readiness * heat * acute).coerceIn(0.88f, 1.06f)
+                        cfRef.set(cf)
                         statsCalc.setEffectiveWPrime(baseCp * cf, baseWp * cf)
                     }
                 }
@@ -1075,6 +1077,10 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     rideReservePercent = reserve,
                     wBalancePercent = wBalance,
                     wBalanceTrend = statsCalc.wBalanceTrend(),
+                    cfEff = cfRef.get(),
+                    cpEffW = statsCalc.effectiveCpW(),
+                    wPrimeEffKj = statsCalc.effectiveWPrimeKj(),
+                    readiness = todayFactorRef.get(),
                     etaTimestamp = etaMs,
                     ascentDoneM = ascentDoneMRef.get(),
                     ascentLeftM = ascentLeftMRef.get(),
