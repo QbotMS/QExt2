@@ -43,6 +43,8 @@ data class PrimaryRideSnapshot(
         private const val GRADE_STALE_MS = 45000L
         private const val SPEED_ZERO_THRESHOLD = 0.01
         private const val GEAR_HYSTERESIS_MS = 30_000L
+        // LTHR estimate z fitmodel_segment (32 odcinki, 170-240W, >=4min, maj-lip 2026); Coggan %LTHR strefy
+        private const val LTHR_BPM = 132
 
         private var lastGearColor = Color.WHITE
         private var gearColorSinceMs = 0L
@@ -257,12 +259,12 @@ data class PrimaryRideSnapshot(
             val bpm = raw.toIntOrNull() ?: return raw
             val inZoneMode = com.qext2.primary.data.AthleteDataStore.loadHrZoneMode()
             if (!inZoneMode) return bpm.toString()
-            val pct = bpm.toFloat() / maxHr
+            val pct = bpm.toFloat() / LTHR_BPM
             return when {
-                pct < 0.60f -> "Z1"
-                pct < 0.75f -> "Z2"
-                pct < 0.85f -> "Z3"
-                pct < 0.95f -> "Z4"
+                pct < 0.81f -> "Z1"
+                pct < 0.90f -> "Z2"
+                pct < 0.95f -> "Z3"
+                pct < 1.06f -> "Z4"
                 else -> "Z5"
             }
         }
