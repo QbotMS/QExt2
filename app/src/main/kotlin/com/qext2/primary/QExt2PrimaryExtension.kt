@@ -193,6 +193,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         val fZero = DeveloperField(4.toShort(), 2.toShort(), "qext2_wbal_zero", "bool")
         val fRdy = DeveloperField(5.toShort(), 136.toShort(), "qext2_readiness", "factor")
         val fRsrv = DeveloperField(6.toShort(), 2.toShort(), "qext2_rsrv_pct", "%")
+        val fXss = DeveloperField(7.toShort(), 136.toShort(), "qext2_xss", "pts")
         val job = serviceScope.launch {
             while (true) {
                 val agg = _aggregator
@@ -210,6 +211,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                                     FieldValue(fZero, zero),
                                     FieldValue(fRdy, s.readiness.toDouble()),
                                     FieldValue(fRsrv, s.rideReservePercent.toDouble()),
+                                    FieldValue(fXss, s.xssValue.toDouble()),
                                 )
                             )
                         )
@@ -219,7 +221,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
             }
         }
         emitter.setCancellable { job.cancel() }
-        Log.i(TAG, "QEXT_FIT_START writing 7 developer fields @1Hz")
+        Log.i(TAG, "QEXT_FIT_START writing 8 developer fields @1Hz")
     }
 
     fun refetchAthleteData() {

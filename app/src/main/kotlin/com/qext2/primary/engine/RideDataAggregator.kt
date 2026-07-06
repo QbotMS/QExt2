@@ -1081,6 +1081,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     cpEffW = statsCalc.effectiveCpW(),
                     wPrimeEffKj = statsCalc.effectiveWPrimeKj(),
                     readiness = todayFactorRef.get(),
+                    xssValue = statsCalc.xssValue(),
                     etaTimestamp = etaMs,
                     ascentDoneM = ascentDoneMRef.get(),
                     ascentLeftM = ascentLeftMRef.get(),

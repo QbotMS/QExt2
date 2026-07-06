@@ -16,6 +16,7 @@ data class StatsRideSnapshot(
     val cpEffW: Float = 0f,
     val wPrimeEffKj: Float = 0f,
     val readiness: Float = 1f,
+    val xssValue: Float = 0f,
     val etaTimestamp: Long = 0L,
     val ascentDoneM: Int = 0,
     val ascentLeftM: Int = 0,

@@ -36,6 +36,10 @@ class StatsCalculator(var ftpWatts: Int = 200) {
     private var ltpWatts: Float = 0f
     private var wBalKj: Float = 0f
 
+    // XSS (odpowiednik Xert Strain Score) -- ten sam wzor co ModelQ w QBocie (DECISIONS.md 2026-07-06).
+    // Rosnacy licznik przez cala jazde, 1h @ CP = 100 XSS z definicji.
+    private var xssAccum: Float = 0f
+
     private val wBalHistory = ArrayDeque<Pair<Long, Int>>()
 
     fun captureStartReserve() {
@@ -80,6 +84,9 @@ class StatsCalculator(var ftpWatts: Int = 200) {
 
     private fun updateWBalance(powerWatts: Int) {
         if (ltpWatts <= 0f || wPrimeKj <= 0f) return
+        // XSS: zmeczenie liczone ze stanu W'bal PRZED zuzyciem tej sekundy (spojnie z ModelQ).
+        val fatigue = (1f - (wBalKj / wPrimeKj)).coerceIn(0f, 1f)
+        xssAccum += (powerWatts / ltpWatts) * (1f + XSS_BETA * fatigue) * (100f / 3600f)
         if (powerWatts > ltpWatts) {
             wBalKj -= (powerWatts - ltpWatts) * 1f / 1000f
         } else {
@@ -89,6 +96,9 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         }
         wBalKj = wBalKj.coerceIn(0f, wPrimeKj)
     }
+
+    /** WATEK 2 (Strona A): XSS narastajaco od startu jazdy (do FIT + ewentualnego UI). */
+    fun xssValue(): Float = xssAccum
 
     fun wBalancePercent(nowMs: Long = System.currentTimeMillis()): Int {
         val pct = if (wPrimeKj > 0f) ((wBalKj / wPrimeKj) * 100f).roundToInt().coerceIn(0, 100) else -1
@@ -304,6 +314,7 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         decoupleHr.clear()
         decouplePower.clear()
         wBalKj = wPrimeKj
+        xssAccum = 0f
         lastMovingSec = 0L
         lastReserve = 100f
         startReserve = 100f
@@ -325,6 +336,7 @@ class StatsCalculator(var ftpWatts: Int = 200) {
             lastReserve = lastReserve,
             startReserve = startReserve,
             wBalKj = wBalKj,
+            xssAccum = xssAccum,
             batteryPctStart = batteryPctStart,
             batteryPctCurrent = batteryPctCurrent,
             batteryStartMs = batteryStartMs,
@@ -342,6 +354,7 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         lastReserve = snap.lastReserve
         startReserve = snap.startReserve
         wBalKj = snap.wBalKj
+        xssAccum = snap.xssAccum
         batteryPctStart = snap.batteryPctStart
         batteryPctCurrent = snap.batteryPctCurrent
         batteryStartMs = snap.batteryStartMs
@@ -358,6 +371,7 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         val lastReserve: Float,
         val startReserve: Float,
         val wBalKj: Float,
+        val xssAccum: Float = 0f,
         val batteryPctStart: Int? = null,
         val batteryPctCurrent: Int? = null,
         val batteryStartMs: Long? = null,
@@ -367,6 +381,9 @@ class StatsCalculator(var ftpWatts: Int = 200) {
     private fun roundToNearest5(value: Float): Int = (kotlin.math.round(value / 5f) * 5).toInt()
 
     companion object {
+        // Skalibrowane do Xert training_load (EWMA-CTL 59.6 vs 62.4) -- DECISIONS.md 2026-07-06.
+        const val XSS_BETA = 1.0f
+
         @JvmStatic
         fun safetyFloat(v: Float): Float = if (v.isNaN() || v.isInfinite()) 0f else v.coerceAtLeast(0f)
     }
