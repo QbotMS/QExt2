@@ -1,6 +1,6 @@
 # QExt2 Major Features Roadmap
 
-Based on: architecture contracts, feature map, open items audit, current status, and all sub-system audits.
+Based on: architecture contracts and feature map.
 
 ## 1. Crash / Incident Detection
 
