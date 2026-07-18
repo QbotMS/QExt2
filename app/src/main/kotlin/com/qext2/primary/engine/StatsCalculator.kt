@@ -208,15 +208,33 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         val n = decoupleHr.size
         if (n < 120) return 0f
         val half = n / 2
-        val firstHr = decoupleHr.subList(0, half).average()
-        val firstPwr = decouplePower.subList(0, half).average()
-        val secondHr = decoupleHr.subList(half, n).average()
-        val secondPwr = decouplePower.subList(half, n).average()
-        if (firstPwr <= 0.0 || secondPwr <= 0.0) return 0f
-        val r1 = firstHr / firstPwr
-        val r2 = secondHr / secondPwr
-        if (r1 <= 0.0) return 0f
-        val drift = ((r2 - r1) / r1) * 100f
+        // Dryf "przy tej samej mocy" (DECISIONS 2026-07-18): binuj moc co 15 W i porownaj
+        // srednie HR w tych samych binach mocy (2. polowa vs 1.). Odporne na to, ze zmiana
+        // tempa (spadek mocy) sama zawyza stosunek HR/moc na jazdach lekkich/szarpanych.
+        val firstByBin = HashMap<Int, MutableList<Int>>()
+        val secondByBin = HashMap<Int, MutableList<Int>>()
+        for (i in 0 until half) {
+            firstByBin.getOrPut(decouplePower[i] / 15) { mutableListOf() }.add(decoupleHr[i])
+        }
+        for (i in half until n) {
+            secondByBin.getOrPut(decouplePower[i] / 15) { mutableListOf() }.add(decoupleHr[i])
+        }
+        var num = 0.0
+        var base = 0.0
+        var den = 0.0
+        for ((bin, first) in firstByBin) {
+            val second = secondByBin[bin] ?: continue
+            if (first.size >= 20 && second.size >= 20) {
+                val m1 = first.average()
+                val m2 = second.average()
+                val w = kotlin.math.min(first.size, second.size).toDouble()
+                num += (m2 - m1) * w
+                base += m1 * w
+                den += w
+            }
+        }
+        if (den < 200.0 || base <= 0.0) return 0f
+        val drift = (num / base) * 100.0
         return drift.toFloat().coerceIn(0f, 50f)
     }
 
@@ -284,8 +302,9 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         val tssPenalty = if (tssSafe > 0f) tssSafe * (100f / dailyBudgetTss) else 0f
         reserve -= tssPenalty
 
-        if (hasDecouplingData() && decoupleSafe > 5f) {
-            reserve -= (decoupleSafe - 5f) * 1.5f
+        if (hasDecouplingData() && decoupleSafe > 3f) {
+            // kara na PRAWDZIWYM dryfie (DECISIONS 2026-07-18): prog 3%, x3, limit 18 pkt
+            reserve -= ((decoupleSafe - 3f) * 3f).coerceAtMost(18f)
         }
 
         val stopSec = (elapsedSec - lastMovingSec).coerceAtLeast(0L)
