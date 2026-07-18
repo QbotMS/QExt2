@@ -34,18 +34,4 @@
         graphical="true"
         icon="@drawable/ic_qext2_power" />
 
-    <DataType
-        typeId="qext2-cpe5"
-        displayName="@string/qext2_cpe5_name"
-        description="@string/qext2_cpe5_desc"
-        graphical="true"
-        icon="@drawable/ic_qext2_power" />
-
-    <DataType
-        typeId="qext2-ife"
-        displayName="@string/qext2_ife_name"
-        description="@string/qext2_ife_desc"
-        graphical="true"
-        icon="@drawable/ic_qext2_power" />
-
 </ExtensionInfo>

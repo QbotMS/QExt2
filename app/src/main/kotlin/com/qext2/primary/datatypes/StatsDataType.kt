@@ -122,7 +122,7 @@ class StatsDataType : DataTypeImpl("qext2", "qext2-stats") {
         bindAdvanced(v, R.id.tv_asc_done, StatsAdvancedFieldPolicy.ascentDone(snap.hasRoute, snap.routeClimbSourceReady, snap.ascentDoneM, snap.ascentLeftM), "up")
         bindAdvanced(v, R.id.tv_asc_left, StatsAdvancedFieldPolicy.ascentLeft(snap.hasRoute, snap.routeClimbSourceReady, snap.ascentDoneM, snap.ascentLeftM), "left")
         bindAdvanced(v, R.id.tv_avg_gross, StatsAdvancedFieldPolicy.localAvgGross(snap.distanceKm, snap.grossElapsedSec), "avg_gross")
-        bindAdvanced(v, R.id.tv_wprime, StatsAdvancedFieldPolicy.localWPrime(snap.wPrimeModelReady, snap.wBalancePercent), "wprime")
+        setValue(v, R.id.tv_wprime, StatsValueFormatter.ifEff(snap.ifEffWholeRide).main)
 
         bindAdvanced(
             v,

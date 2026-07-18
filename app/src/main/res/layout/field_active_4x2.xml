@@ -127,7 +127,7 @@
                 android:layout_gravity="top|start"
                 android:layout_marginTop="1dp"
                 android:layout_marginStart="3dp"
-                android:text="IF&#10;10"
+                android:text="CpE&#10;5"
                 android:textColor="#CBD5E1"
                 android:textSize="8sp"
                 android:includeFontPadding="false" />

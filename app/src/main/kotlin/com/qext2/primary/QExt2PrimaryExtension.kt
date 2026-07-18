@@ -12,8 +12,6 @@ import com.qext2.primary.datatypes.BpActiveStaticDataType
 import com.qext2.primary.datatypes.CompositeActiveDataType
 import com.qext2.primary.datatypes.CompositePrimaryDataType
 import com.qext2.primary.datatypes.StatsDataType
-import com.qext2.primary.datatypes.Cpe5DataType
-import com.qext2.primary.datatypes.IfeDataType
 import com.qext2.primary.engine.RideDataAggregator
 import com.qext2.primary.field.StatsAdvancedFieldPolicy
 import com.qext2.primary.weather.WeatherClient
@@ -182,7 +180,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         }
     }
 
-    private val _types: List<DataTypeImpl> = listOf(CompositePrimaryDataType(), CompositeActiveDataType(), BpActiveStaticDataType(), StatsDataType(), Cpe5DataType(), IfeDataType())
+    private val _types: List<DataTypeImpl> = listOf(CompositePrimaryDataType(), CompositeActiveDataType(), BpActiveStaticDataType(), StatsDataType())
     override val types: List<DataTypeImpl> get() = _types
 
     override fun startFit(emitter: Emitter<FitEffect>) {

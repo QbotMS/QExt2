@@ -497,11 +497,11 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
 
         val distText = formatDistanceKm(displayDist)
         val dtdText = if (displayDtdHas) formatDistanceKm(displayDtd) else "--"
-        val if10Text = String.format("%.2f", intensityFactor)
         val vsrText = String.format("%.1f", displaySpeed)
         val tempText = formatTemp(displayTemp)
         val agg = QExt2PrimaryExtension.instance?.aggregator
         val snap = agg?.statsSnapshot?.value
+        val if10Text = (snap?.ifEff5Live ?: 0f).let { if (it > 0f) String.format("%.2f", it) else "--" }
         val wbalText = if (snap != null && snap.wBalancePercent >= 0) snap.wBalancePercent.toString() else "NO"
         val wbalTrend = snap?.wBalanceTrend ?: "stable"
         val windText = formatWind()

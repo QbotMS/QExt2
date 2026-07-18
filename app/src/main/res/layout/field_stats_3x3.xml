@@ -163,7 +163,7 @@
         </FrameLayout>
 
         <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
-            <TextView android:id="@+id/tv_wprime_unit" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="top|start" android:text="D BAT" android:textColor="#CBD5E1" android:textSize="9sp" android:includeFontPadding="false" />
+            <TextView android:id="@+id/tv_wprime_unit" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="top|start" android:text="IFe" android:textColor="#CBD5E1" android:textSize="9sp" android:includeFontPadding="false" />
             <TextView android:id="@+id/tv_wprime" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="end|bottom" android:text="--" android:textColor="#FFFFFF" android:textSize="25sp" android:fontFamily="monospace" android:textStyle="bold" android:includeFontPadding="false" />
         </FrameLayout>
     </LinearLayout>
