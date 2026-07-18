@@ -234,6 +234,30 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Korekta dnia (todayFactor)"
+                android:textColor="#9CA3AF"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/tv_today_factor"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="—"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
         <TextView
             android:id="@+id/tv_pi_status"
             android:layout_width="wrap_content"
@@ -609,9 +633,6 @@
             android:textSize="12sp" />
     </LinearLayout>
 
-    </LinearLayout>
-    </ScrollView>
-
     <TextView
         android:layout_width="match_parent"
         android:layout_height="1dp"
@@ -638,36 +659,16 @@
         android:textSize="12sp"
         android:gravity="center" />
 
-    <LinearLayout
+    <TextView
+        android:id="@+id/tv_version"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:text="v0.1.0"
+        android:textColor="#6B7280"
+        android:textSize="12sp" />
 
-        <TextView
-            android:id="@+id/tv_version"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="v0.1.0"
-            android:textColor="#6B7280"
-            android:textSize="12sp" />
-
-        <TextView
-            android:id="@+id/btn_report_bug"
-            android:layout_width="wrap_content"
-            android:layout_height="44dp"
-            android:gravity="center"
-            android:paddingLeft="20dp"
-            android:paddingRight="20dp"
-            android:text="ZGLOS BLAD"
-            android:textColor="#FFFFFF"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:clickable="true"
-            android:focusable="true"
-            android:background="#3B82F6" />
     </LinearLayout>
+    </ScrollView>
 
 </LinearLayout>

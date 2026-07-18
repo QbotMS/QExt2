@@ -94,25 +94,6 @@ class SetupActivity : Activity() {
                 .setNegativeButton("NIE", null)
                 .show()
         }
-
-        findViewById<TextView>(R.id.btn_report_bug)?.setOnClickListener {
-            val logs = com.qext2.primary.LogCollector.collect()
-            val tv = TextView(this@SetupActivity).apply {
-                setText(logs)
-                setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 10f)
-                setTextColor(Color.WHITE)
-                setPadding(16, 16, 16, 16)
-                setTextIsSelectable(true)
-            }
-            val scrollView = android.widget.ScrollView(this).apply {
-                addView(tv)
-            }
-            AlertDialog.Builder(this)
-                .setTitle("Logi QExt2")
-                .setView(scrollView)
-                .setPositiveButton("OK", null)
-                .show()
-        }
     }
 
     override fun onResume() {
@@ -177,8 +158,10 @@ class SetupActivity : Activity() {
         } else ""
         findViewById<TextView>(R.id.tv_fetch_date)?.text = dateStr + refreshStr
 
+        findViewById<TextView>(R.id.tv_today_factor)?.text = data.todayFactorDisplay
+
         findViewById<TextView>(R.id.tv_pi_status)?.apply {
-            text = if (data.profileComplete) "GBOT profile OK" else data.warningReasons.replace("|", ", ")
+            text = if (data.profileComplete) "QBOT profile OK" else data.warningReasons.replace("|", ", ")
             setTextColor(if (data.profileComplete) Color.parseColor("#4ADE80") else Color.parseColor("#FACC15"))
         }
 
