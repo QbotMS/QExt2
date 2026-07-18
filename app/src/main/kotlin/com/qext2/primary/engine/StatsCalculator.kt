@@ -40,6 +40,14 @@ class StatsCalculator(var ftpWatts: Int = 200) {
     // Rosnacy licznik przez cala jazde, 1h @ CP = 100 XSS z definicji.
     private var xssAccum: Float = 0f
 
+    // CP_eff (LIN) + IF_eff -- DECISIONS.md 2026-07-18. realLtp trzymane OSOBNO,
+    // bo ltpWatts jest nadpisywane cf-owym CP przez setEffectiveWPrime.
+    private var realLtpWatts: Float = 0f
+    private val powerBuffer300s = ArrayDeque<Int>(300)
+    private var sumOf4thPowersEff = 0.0
+    private var countEff = 0L
+    private var lastCpEffLinW: Float = 0f
+
     private val wBalHistory = ArrayDeque<Pair<Long, Int>>()
 
     fun captureStartReserve() {
@@ -81,6 +89,26 @@ class StatsCalculator(var ftpWatts: Int = 200) {
     /** WATEK 2 (Strona A): efektywne CP i W' aktualnie uzyte przez model W'bal (do FIT). */
     fun effectiveCpW(): Float = ltpWatts
     fun effectiveWPrimeKj(): Float = wPrimeKj
+
+    // --- CP_eff (LIN) i IF_eff (DECISIONS.md 2026-07-18) ---
+    fun setRealLtp(ltp: Float) { if (ltp > 0f) realLtpWatts = ltp }
+    private fun cpEffLinNow(): Float {
+        val cp = ftpWatts.toFloat()
+        if (realLtpWatts <= 0f || cp <= 0f || wPrimeKj <= 0f) return cp
+        val bal = (wBalKj / wPrimeKj).coerceIn(0f, 1f)
+        return realLtpWatts + bal * (cp - realLtpWatts)
+    }
+    fun cpEffLinW(): Float = lastCpEffLinW
+    fun ifEff5Live(): Float {
+        val cpe = lastCpEffLinW
+        if (cpe <= 0f || powerBuffer300s.isEmpty()) return 0f
+        val p5 = powerBuffer300s.average().toFloat()
+        return (p5 / cpe).coerceIn(0f, 2.5f)
+    }
+    fun ifEffWholeRide(): Float {
+        if (countEff == 0L) return 0f
+        return (sumOf4thPowersEff / countEff).pow(0.25).toFloat().coerceIn(0f, 2.5f)
+    }
 
     private fun updateWBalance(powerWatts: Int) {
         if (ltpWatts <= 0f || wPrimeKj <= 0f) return
@@ -124,6 +152,8 @@ class StatsCalculator(var ftpWatts: Int = 200) {
             totalPowerSum += powerWatts
             totalPowerCount++
             totalEnergyKj += powerWatts / 1000.0
+            powerBuffer300s.addLast(powerWatts)
+            if (powerBuffer300s.size > 300) powerBuffer300s.removeFirst()
         }
 
         if (activeSample && heartRate > 0) {
@@ -136,6 +166,13 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         }
 
         if (powerFresh) updateWBalance(powerWatts)
+        lastCpEffLinW = cpEffLinNow()
+        if (activeSample && powerBuffer30s.size == 30 && lastCpEffLinW > 0f) {
+            val avg30sEff = powerBuffer30s.average()
+            val eff = avg30sEff / lastCpEffLinW
+            sumOf4thPowersEff += eff.pow(4)
+            countEff++
+        }
         lastMovingSec = kotlin.math.max(lastMovingSec, movingSec)
     }
 
@@ -315,6 +352,10 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         decouplePower.clear()
         wBalKj = wPrimeKj
         xssAccum = 0f
+        powerBuffer300s.clear()
+        sumOf4thPowersEff = 0.0
+        countEff = 0L
+        lastCpEffLinW = 0f
         lastMovingSec = 0L
         lastReserve = 100f
         startReserve = 100f

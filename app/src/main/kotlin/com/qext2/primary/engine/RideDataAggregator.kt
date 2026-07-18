@@ -1103,6 +1103,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     wPrimeEffKj = statsCalc.effectiveWPrimeKj(),
                     readiness = todayFactorRef.get(),
                     xssValue = statsCalc.xssValue(),
+                    ifEff5Live = statsCalc.ifEff5Live(),
+                    ifEffWholeRide = statsCalc.ifEffWholeRide(),
+                    cpEffLinW = statsCalc.cpEffLinW(),
                     etaTimestamp = etaMs,
                     ascentDoneM = ascentDoneMRef.get(),
                     ascentLeftM = ascentLeftMRef.get(),
@@ -1527,6 +1530,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
             baseLtpWattsRef.set(data.ltpWatts.toFloat())
             baseWPrimeKjRef.set(data.wPrimeKj.toFloat())
             statsCalc.setWPrimeParams(data.wPrimeKj.toFloat(), data.ftp.toFloat())
+            statsCalc.setRealLtp(data.ltpWatts.toFloat())
         }
         if (resetStats) {
             statsCalc.reset()

@@ -23,6 +23,11 @@ object StatsValueFormatter {
         return StatsFormattedValue(String.format(Locale.US, "%.2f", value.coerceAtMost(1.99f)))
     }
 
+    fun ifEff(value: Float): StatsFormattedValue {
+        if (value <= 0f) return StatsFormattedValue("--")
+        return StatsFormattedValue(String.format(Locale.US, "%.2f", value.coerceAtMost(2.49f)))
+    }
+
     fun carbsG(gPerH: Int): StatsFormattedValue {
         if (gPerH <= 0) return StatsFormattedValue("--")
         return StatsFormattedValue("${gPerH.coerceIn(0, 999)}", "g")

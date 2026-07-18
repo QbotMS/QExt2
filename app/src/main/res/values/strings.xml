@@ -10,4 +10,8 @@
     <string name="qext2_active_static_desc">Distance, IF10, speed, temp, W prime balance, wind (no overlay)</string>
     <string name="qext2_stats_name">QExt2 STATS</string>
     <string name="qext2_stats_desc">NP, IF, VI, TSS, reserve, HRD, route, battery, deadline</string>
+    <string name="qext2_cpe5_name">QExt2 CpE 5</string>
+    <string name="qext2_cpe5_desc">Live IF vs effective CP (5 min, fatigue-aware)</string>
+    <string name="qext2_ife_name">QExt2 IFe</string>
+    <string name="qext2_ife_desc">Whole-ride fatigue-aware IF (effective CP)</string>
 </resources>
