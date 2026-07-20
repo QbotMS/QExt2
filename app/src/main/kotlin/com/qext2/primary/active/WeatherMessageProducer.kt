@@ -14,6 +14,8 @@ data class WeatherMsgState(
 class WeatherMessageProducer(private val logger: (String) -> Unit = {}) {
 
     private val cooldowns = mutableMapOf<String, Long>()
+    // Log WEATHER_REJECT tylko przy wejsciu w stan "nieswieze", nie co 1s (spam logcat).
+    private var weatherWasFresh = true
 
     companion object {
         private const val STORM_KEYWORDS = "thunder|storm|burza"
@@ -27,9 +29,13 @@ class WeatherMessageProducer(private val logger: (String) -> Unit = {}) {
 
     fun checkAndProduce(state: WeatherMsgState): ActiveMessage? {
         if (!state.weatherFresh) {
-            logger("WEATHER_REJECT reason=weather_not_fresh")
+            if (weatherWasFresh) {
+                logger("WEATHER_REJECT reason=weather_not_fresh")
+                weatherWasFresh = false
+            }
             return null
         }
+        weatherWasFresh = true
         return checkStorm(state)
             ?: checkHeavyRain(state)
             ?: checkColdWet(state)

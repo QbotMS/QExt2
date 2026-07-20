@@ -1216,8 +1216,18 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         if (!WeatherClient.isKeyConfigured()) return
         val lat = AthleteDataStore.loadLocationLat() ?: return
         val lon = AthleteDataStore.loadLocationLon() ?: return
-        val data = WeatherClient.fetch(karooSystem, lat, lon)
-        if (data != null) updateWeather(data)
+        // Krotki retry: fetch OWM bywa wolny/kruchy (~12s przy limicie 15s).
+        // Bez tego jeden nieudany fetch = pelne 10 min ciszy do nastepnego pollingu.
+        val backoffsMs = longArrayOf(0L, 8_000L, 20_000L)
+        for (i in backoffsMs.indices) {
+            if (backoffsMs[i] > 0L) kotlinx.coroutines.delay(backoffsMs[i])
+            val data = WeatherClient.fetch(karooSystem, lat, lon)
+            if (data != null) {
+                updateWeather(data)
+                return
+            }
+            Log.w(TAG, "QEXT_WEATHER_FETCH_RETRY attempt=${i + 1} failed")
+        }
     }
 
     fun refreshDeadlineFromStore() {
