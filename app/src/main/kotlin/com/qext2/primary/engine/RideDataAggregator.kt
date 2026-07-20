@@ -924,7 +924,10 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                         val acute = (1f - drift).coerceIn(0.96f, 1f)
                         val cf = (readiness * heat * acute).coerceIn(0.88f, 1.06f)
                         cfRef.set(cf)
-                        statsCalc.setEffectiveWPrime(baseCp * cf, baseWp * cf)
+                        // Fix W'-sufit (2026-07-20): dzienny cf NIE moze ZAWYZYC sufitu
+                        // ponad realne W' -- forma/upal tylko OBNIZAJA bak. Inaczej dobry
+                        // dzien (cf>1) startuje ponizej 100% (balans nie dopelnia sie w gore).
+                        statsCalc.setEffectiveWPrime(baseCp * cf, baseWp * cf.coerceAtMost(1.0f))
                     }
                 }
                 statsCalc.update(powerWatts, hr, movingElapsedSec, elapsedSec, powerFresh = powerFresh)
