@@ -33,7 +33,8 @@ class WeatherMessageProducer(private val logger: (String) -> Unit = {}) {
         return checkStorm(state)
             ?: checkHeavyRain(state)
             ?: checkColdWet(state)
-            ?: checkLightRain(state)
+            ?: checkRain(state)
+            ?: checkDrizzle(state)
             ?: checkHeat(state)
             ?: checkCold(state)
             ?: checkStrongWind(state)
@@ -76,15 +77,19 @@ class WeatherMessageProducer(private val logger: (String) -> Unit = {}) {
     }
 
     private fun checkColdWet(state: WeatherMsgState): ActiveMessage? {
-        val rain = state.rain1hMm ?: return null
         val temp = state.temperatureC ?: return null
-        if (rain < RAIN_LIGHT_MM || temp > COLD_WET_TEMP_C) return null
+        val rain = state.rain1hMm
+        val cond = state.condition?.lowercase()
+        val wet = (cond != null && (cond.contains("rain") || cond.contains("drizzle"))) ||
+            (rain != null && rain >= RAIN_LIGHT_MM)
+        if (!wet || temp > COLD_WET_TEMP_C) return null
         if (!useCooldown("cold_wet", state.nowMs, 900_000L)) return null
-        logger("WEATHER_TRIGGER type=cold_wet temp=${String.format(Locale.US, "%.0f", temp)}C rain=${String.format(Locale.US, "%.1f", rain)}mm")
+        val rainTxt = if (rain != null) "${String.format(Locale.US, "%.1f", rain)} mm/h" else "MOKRO"
+        logger("WEATHER_TRIGGER type=cold_wet temp=${String.format(Locale.US, "%.0f", temp)}C rain=$rainTxt")
         return ActiveMessage(
             id = "weather_cold_wet_${state.nowMs}",
             title = "WX ZIMNO+MOKRO",
-            line1 = "${String.format(Locale.US, "%.0f", temp)}°C · ${String.format(Locale.US, "%.1f", rain)} mm/h",
+            line1 = "${String.format(Locale.US, "%.0f", temp)}°C · $rainTxt",
             line2 = "SHELL READY",
             severity = ActiveMessageSeverity.WARNING,
             priority = ActiveMessagePriority.WARNING,
@@ -94,16 +99,41 @@ class WeatherMessageProducer(private val logger: (String) -> Unit = {}) {
         )
     }
 
-    private fun checkLightRain(state: WeatherMsgState): ActiveMessage? {
-        val rain = state.rain1hMm ?: return null
-        if (rain < RAIN_LIGHT_MM) return null
-        if (!useCooldown("rain_light", state.nowMs, 600_000L)) return null
-        logger("WEATHER_TRIGGER type=light_rain rain=${String.format(Locale.US, "%.1f", rain)}mm")
+    private fun checkRain(state: WeatherMsgState): ActiveMessage? {
+        val rain = state.rain1hMm
+        val cond = state.condition?.lowercase()
+        val isRain = (cond != null && cond.contains("rain")) || (rain != null && rain >= RAIN_LIGHT_MM)
+        if (!isRain) return null
+        if (!useCooldown("rain", state.nowMs, 600_000L)) return null
+        val line1 = if (rain != null) "${String.format(Locale.US, "%.1f", rain)} mm/h" else "OPADY"
+        logger("WEATHER_TRIGGER type=rain rain=$line1 cond=$cond")
         return ActiveMessage(
-            id = "weather_light_rain_${state.nowMs}",
+            id = "weather_rain_${state.nowMs}",
             title = "WX DESZCZ",
-            line1 = "${String.format(Locale.US, "%.1f", rain)} mm/h",
+            line1 = line1,
             line2 = "SHELL READY",
+            severity = ActiveMessageSeverity.WARNING,
+            priority = ActiveMessagePriority.WARNING,
+            resumePolicy = ActiveMessageResumePolicy.DROP_ON_INTERRUPT,
+            createdAtMs = state.nowMs,
+            expiresAtMs = state.nowMs + 10_000L,
+        )
+    }
+
+    private fun checkDrizzle(state: WeatherMsgState): ActiveMessage? {
+        val rain = state.rain1hMm
+        val cond = state.condition?.lowercase()
+        val isDrizzle = (cond != null && cond.contains("drizzle")) ||
+            (rain != null && rain > 0f && rain < RAIN_LIGHT_MM)
+        if (!isDrizzle) return null
+        if (!useCooldown("drizzle", state.nowMs, 600_000L)) return null
+        val line1 = if (rain != null) "${String.format(Locale.US, "%.1f", rain)} mm/h" else "MŻAWKA"
+        logger("WEATHER_TRIGGER type=drizzle rain=$line1 cond=$cond")
+        return ActiveMessage(
+            id = "weather_drizzle_${state.nowMs}",
+            title = "WX MŻAWKA",
+            line1 = line1,
+            line2 = "MOKRA NAWIERZCHNIA",
             severity = ActiveMessageSeverity.WARNING,
             priority = ActiveMessagePriority.WARNING,
             resumePolicy = ActiveMessageResumePolicy.DROP_ON_INTERRUPT,
