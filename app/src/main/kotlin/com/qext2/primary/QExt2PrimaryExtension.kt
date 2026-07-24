@@ -319,12 +319,18 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                                 wPrimeKj = json.optDouble("wPrimeKj", 3.75),
                                 todayFactor = AthleteData.clampTodayFactor(json.optDouble("todayFactor", 1.0).toFloat()),
                                 ltpWatts = json.optInt("ltpWatts", 0),
-                                ctl = json.optDouble("ctl", 60.0).toFloat(),
+                                // ctlXss: CTL wyrazone w XSS (fitmodel_daily.ctl_xss, ModelQ = kanon).
+                                // NIE czytamy pola "ctl" jako fallbacku: ono pochodzi z Intervals.icu
+                                // i jest liczone w TSS, wiec uzyte jako budzet XSS przywrociloby
+                                // mieszanie skal (audyt pkt C1). 0 = brak -> budzet na stalej.
+                                ctlXss = json.optDouble("ctlXss", 0.0).toFloat(),
                                 atl = json.optDouble("atl", 40.0).toFloat(),
                                 humidityPercent = json.optDouble("humidityPercent", 50.0).toFloat(),
                                 sunsetTimestampMs = json.optLong("sunsetTimestampMs", json.optLong("twilightMs", json.optLong("sunsetMs", 0L))),
                                 maxHr = json.optInt("maxHrBpm", json.optInt("MaxHRBPM", json.optInt("maxHr", json.optInt("maxHeartRate", 180)))),
-                                bodyWeightKg = json.optDouble("bodyWeightKg", 75.0).toFloat(),
+                                // Serwer wysyla klucz "weightKg" -- alias konieczny, inaczej
+                                // waga leciala na domyslne 75 kg i zanizala model zywienia.
+                                bodyWeightKg = json.optDouble("bodyWeightKg", json.optDouble("weightKg", 75.0)).toFloat(),
                                 xertStatus = sig?.optString("xertStatus", "--") ?: "--",
                                 hrvToday = sig?.optInt("hrvToday", 0) ?: 0,
                                 hrvBaseline30d = sig?.optDouble("hrvBaseline30d", 0.0)?.toFloat() ?: 0f,

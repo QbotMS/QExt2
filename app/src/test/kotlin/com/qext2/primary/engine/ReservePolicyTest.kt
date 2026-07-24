@@ -8,13 +8,13 @@ import org.junit.Test
 class ReservePolicyTest {
 
     @Test
-    fun effectiveTssAddsDailyBaseAndSession() {
-        assertEquals(84.5f, ReservePolicy.effectiveTss(60f, 24.5f), 0.0001f)
+    fun effectiveLoadAddsDailyBaseAndSession() {
+        assertEquals(84.5f, ReservePolicy.effectiveLoad(60f, 24.5f), 0.0001f)
     }
 
     @Test
-    fun effectiveTssSanitizesNegativeAndNan() {
-        assertEquals(0f, ReservePolicy.effectiveTss(-2f, Float.NaN), 0.0001f)
+    fun effectiveLoadSanitizesNegativeAndNan() {
+        assertEquals(0f, ReservePolicy.effectiveLoad(-2f, Float.NaN), 0.0001f)
     }
 
     @Test

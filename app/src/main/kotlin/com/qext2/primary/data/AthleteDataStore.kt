@@ -8,7 +8,7 @@ data class AthleteData(
     val wPrimeKj: Double = 3.75,
     val todayFactor: Float = 1.0f,
     val ltpWatts: Int = 0,
-    val ctl: Float = 60f,
+    val ctlXss: Float = 0f,
     val atl: Float = 40f,
     val humidityPercent: Float = 50f,
     val sunsetTimestampMs: Long = 0L,
@@ -147,7 +147,7 @@ object AthleteDataStore {
             wPrimeKj = p.getDouble(KEY_WPRIME_KJ, 3.75),
             todayFactor = AthleteData.clampTodayFactor(p.getFloat(KEY_FACTOR, 1.0f)),
             ltpWatts = p.getInt(KEY_LTP, 0),
-            ctl = p.getFloat(KEY_CTL, 60f),
+            ctlXss = p.getFloat(KEY_CTL, 0f),
             atl = p.getFloat(KEY_ATL, 40f),
             humidityPercent = p.getFloat(KEY_HUMIDITY, 50f),
             sunsetTimestampMs = p.getLong(KEY_SUNSET_TS, 0L),
@@ -177,7 +177,7 @@ object AthleteDataStore {
             putDouble(KEY_WPRIME_KJ, data.wPrimeKj)
             putFloat(KEY_FACTOR, AthleteData.clampTodayFactor(data.todayFactor))
             putInt(KEY_LTP, data.ltpWatts)
-            putFloat(KEY_CTL, data.ctl)
+            putFloat(KEY_CTL, data.ctlXss)
             putFloat(KEY_ATL, data.atl)
             putFloat(KEY_HUMIDITY, data.humidityPercent)
             putLong(KEY_SUNSET_TS, data.sunsetTimestampMs)

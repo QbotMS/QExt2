@@ -103,6 +103,32 @@ Uwaga: NP i VI ze strumieni SDK NIE maja choroby FTP — sa od FTP niezalezne
 (NP to czysta matematyka z mocy, VI = NP/srednia), dlatego zostaly.
 Do rozstrzygniecia w pkt 4: czy ujednolicic na jedno NP.
 
+## B1b SPROSTOWANIE (2026-07-24, po weryfikacji na zywo)
+
+Czesc zarzutow z sekcji "kontrakt serwer <-> Karoo" byla **BLEDNA**. Zrodlo pomylki:
+czytalem `/opt/qbot/app/qbot_api.py`, ktory ma wlasny `/ride-readiness`, ale
+**nie obsluguje ruchu z Karoo**. Zywy handler to `/opt/qbot/app/mcp_server.py`
+pod `q-bot.service` (port 8000), przez proxy mostu `/root/qbot-mcp` (20181).
+
+Zweryfikowane `curl`-em na publicznym adresie -- serwer WYSYLA poprawnie:
+`bodyWeightKg=102.0`, `maxHrBpm=184`, `baroMultiplier=0.97`, `humidityPercent=80`,
+`ctl=66.6`, `atl`, `pressure*`, `signals`.
+
+Wycofuje zatem:
+- ~~waga leci na domyslne 75 kg, zywienie zanizone o 20%~~ -- NIEPRAWDA, waga dociera.
+- ~~maxHr = 180~~ -- NIEPRAWDA, dociera 184 z Intervals.
+- ~~korekta barometryczna martwa~~ -- NIEPRAWDA, `baroMultiplier` dociera.
+- ~~ctl nie dociera, budzet to stala 324~~ -- NIEPRAWDA, `ctl=66.6` dociera.
+
+**Realny defekt pozostaje jeden:** `ctl` jest liczone w TSS (Intervals), a budzet
+obciazany XSS-em. To jest tresc punktu C1 i zostalo naprawione przez dodanie `ctlXss`.
+
+**Nowe znaleziska strukturalne (wazniejsze niz pierwotny zarzut):**
+- TRZY implementacje `/ride-readiness`; dwie martwe. Zmiana w martwej nie dociera nigdzie.
+- `q-bot.service` -- usluga obslugujaca realny ruch -- NIE jest wymieniona w CONTEXT.md.
+- Most `/root/qbot-mcp` to osobne repo lokalne BEZ remote, z niescommitowanym
+  `server.py` i pozostalosciami `patch_*.py` / `.bak`. Produkcja stoi na tym pliku.
+
 ## E. Kolejnosc naprawy (uzgodniona)
 
 | # | Punkt | Waga |
@@ -136,5 +162,12 @@ Status naprawy dopisywac ponizej.
       zywienia (nadal niewyswietlane). Wszystkie trzy z JEDNEJ bazy: FTP z QBota.
       Skutek uboczny: IF w QExt2 moze sie roznic od IF w natywnych polach Karoo,
       jesli FTP w urzadzeniu != FTP z QBota. To zamierzone.
-- [ ] 3. RSRV w jednej walucie
+- [x] 3. RSRV w jednej walucie — ZROBIONE 2026-07-24.
+      Zmierzone na danych: mediana XSS/TSS = 1.21 (41 jazd, ModelQ2 vs training_sessions).
+      Serwer (`mcp_server.py`): nowe pole `ctlXss` z `fitmodel_daily.ctl_xss`;
+      zweryfikowane na zywo = 63.9. QExt2: budzet `ctlXss * 5.4`, widelki 300-720 XSS,
+      fallback 470 gdy brak pola. Pola `ctl` (TSS z Intervals) QExt2 celowo NIE uzywa.
+      Nazwy: `ctl`->`ctlXss`, `ctlForBudget`->`ctlXssForBudget`, param `tss`->`loadXss`,
+      `ReservePolicy.effectiveTss`->`effectiveLoad`. Punkt C2 zniknal juz przy pkt 2a.
+      Patrz tez sekcja B1b (sprostowanie blednych zarzutow).
 - [ ] 4. Porzadki nazewnicze

@@ -945,7 +945,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     Log.i(TAG, "RSRV sleep refresh applied marker=${AthleteDataStore.loadSleepDataDateMarker()} stop=${stopDurationSec}s")
                 }
 
-                val effectiveXss = ReservePolicy.effectiveTss(dailyXssBaseRef.get(), sessionXssForReserve)
+                val effectiveXss = ReservePolicy.effectiveLoad(dailyXssBaseRef.get(), sessionXssForReserve)
                 maybePersistReserveBase(effectiveXss, now)
                 val reserve = statsCalc.rideReservePercent(effectiveXss, ifWhole, decouplingForReserve, elapsedSec)
 
@@ -1110,7 +1110,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         AthleteDataStore.saveElapsedSnapshot(0L, 0.0)
         Log.d(TAG, "QEXT_NAV_CONSUMER_STOP")
         Log.d(TAG, "stopStreaming: removing ${consumerIds.size} consumers")
-        val committedDailyXss = ReservePolicy.effectiveTss(dailyXssBaseRef.get(), sessionXssRef.get())
+        val committedDailyXss = ReservePolicy.effectiveLoad(dailyXssBaseRef.get(), sessionXssRef.get())
         AthleteDataStore.saveReserveDailyXssBase(committedDailyXss)
         AthleteDataStore.saveReserveDailyXssBaseDate(java.time.LocalDate.now().toString())
         dailyXssBaseRef.set(committedDailyXss)
@@ -1477,7 +1477,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         athleteFetchTsRef.set(data.fetchTimestamp)
         val tf = AthleteData.ageAdjustedTodayFactor(tfRaw, data.fetchTimestamp, System.currentTimeMillis())
         if (data.ftp > 0) statsCalc.ftpWatts = data.ftp
-        statsCalc.ctlForBudget = data.ctl
+        statsCalc.ctlXssForBudget = data.ctlXss
         statsCalc.todayFactor = tf
         statsCalc.humidityPercent = data.humidityPercent
         sunsetTimestampRef.set(data.sunsetTimestampMs)

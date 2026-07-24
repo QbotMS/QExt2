@@ -20,7 +20,7 @@ class StatsCalculator(var ftpWatts: Int = 200) {
     var todayFactor: Float = 1.0f
     var bodyWeightKg: Float = 75f
     var humidityPercent: Float = 50f
-    var ctlForBudget: Float = 0f
+    var ctlXssForBudget: Float = 0f
 
     private var batteryPctStart: Int? = null
     private var batteryPctCurrent: Int? = null
@@ -282,15 +282,25 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         return ((base * tm * hm * (bodyWeightKg / 70f) / 0.05f).roundToInt() * 0.05f).coerceIn(0.30f, 1.50f)
     }
 
-    fun rideReservePercent(tss: Float, intensityFactor: Float, decoupling: Float, elapsedSec: Long): Int {
-        val tssSafe = safetyFloat(tss)
+    fun rideReservePercent(loadXss: Float, intensityFactor: Float, decoupling: Float, elapsedSec: Long): Int {
+        val loadSafe = safetyFloat(loadXss)
         val decoupleSafe = safetyFloat(decoupling)
         val baseReserve = safetyFloat(todayFactor) * 100f
         var reserve = baseReserve
 
-        val dailyBudgetTss = if (ctlForBudget > 0f) (ctlForBudget * 5.4f).coerceIn(300f, 600f) else 390f
-        val tssPenalty = if (tssSafe > 0f) tssSafe * (100f / dailyBudgetTss) else 0f
-        reserve -= tssPenalty
+        // BUDZET W XSS (2026-07-24, audyt pkt C1). Wczesniej obciazano XSS budzetem
+        // wyrazonym w TSS -- inna skala (XSS/TSS = 1.21 mediana na 41 jazdach z ModelQ2).
+        // Zrodlo: fitmodel_daily.ctl_xss (pokrycie ModelQ2 dla ostatnich 42 dni = 100%).
+        // Fallback 470 = dawne 390 przeskalowane o 1.21, gdy serwer nie przysyla ctlXss.
+        // Widelki: dol 300 XSS (~3 h przy CP) zostawiony nieprzeskalowany, zeby realne
+        // ctlXss faktycznie sterowalo budzetem; gora 720 XSS (~7 h przy CP).
+        val dailyBudgetXss = if (ctlXssForBudget > 0f) {
+            (ctlXssForBudget * 5.4f).coerceIn(300f, 720f)
+        } else {
+            470f
+        }
+        val loadPenalty = if (loadSafe > 0f) loadSafe * (100f / dailyBudgetXss) else 0f
+        reserve -= loadPenalty
 
         if (hasDecouplingData() && decoupleSafe > 3f) {
             // kara na PRAWDZIWYM dryfie (DECISIONS 2026-07-18): prog 3%, x3, limit 18 pkt
