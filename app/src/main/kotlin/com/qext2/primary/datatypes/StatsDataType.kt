@@ -106,7 +106,7 @@ class StatsDataType : DataTypeImpl("qext2", "qext2-stats") {
         setValue(v, R.id.tv_vi, StatsValueFormatter.vi(snap.viValue).main)
         v.setTextColor(R.id.tv_vi, viColor(snap.viValue))
         Log.d(TAG, "QEXT_STATS_ADV field=np value=${snap.npWholeWatts} status=OK reason=sdk_or_local")
-        Log.d(TAG, "QEXT_STATS_ADV field=if value=${"%.2f".format(snap.ifWholeRide)} status=OK reason=sdk_or_local")
+        Log.d(TAG, "QEXT_STATS_ADV field=if value=${"%.2f".format(snap.ifWholeRide)} status=OK reason=local_ftp_qbot")
         Log.d(TAG, "QEXT_STATS_ADV field=vi value=${"%.2f".format(snap.viValue)} status=OK reason=sdk_or_local")
 
         bindAdvanced(v, R.id.tv_xss, StatsAdvancedFieldPolicy.localXss(snap.xssValue), "xss")

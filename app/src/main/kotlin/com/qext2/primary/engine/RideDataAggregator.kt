@@ -114,7 +114,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val baseWPrimeKjRef = AtomicReference(0f)
     private val kcalRef = AtomicReference(0)
     private val npRef = AtomicReference(0)
-    private val ifRef = AtomicReference(0f)
     private val viRef = AtomicReference(0f)
 
     private val hrFreshnessRef = AtomicReference(0L)
@@ -611,19 +610,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         )
 
         consumerIds.add(
-            karooSystem.addConsumer<OnStreamState>(
-                params = OnStreamState.StartStreaming(DataType.Type.INTENSITY_FACTOR),
-                onEvent = { event ->
-                    val s = event.state
-                    if (s is StreamState.Streaming) {
-                        val v = s.dataPoint.values[DataType.Field.INTENSITY_FACTOR] as? Double
-                        if (v != null) ifRef.set(v.toFloat())
-                    }
-                }
-            )
-        )
-
-        consumerIds.add(
             karooSystem.addConsumer<OnLocationChanged>(
                 onEvent = { event ->
                     val now = System.currentTimeMillis()
@@ -900,7 +886,17 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 }
                 statsCalc.update(powerWatts, hr, movingElapsedSec, elapsedSec, powerFresh = powerFresh)
                 val npWhole = statsCalc.npWatts()
-                val ifWhole = ifRef.get().takeIf { it > 0f } ?: statsCalc.ifValue()
+                // IF liczone z FTP QBota (audyt pkt A1). Wczesniej bralo sie ze strumienia
+                // SDK, czyli z FTP ustawionego w Karoo -- innej bazy niz reszta modelu,
+                // przez co IF i IFe w tej samej siatce opisywaly innego zawodnika.
+                // Dzielnik to NP, ktore jest WYSWIETLANE (npRef), zeby arytmetyka w siatce
+                // sie zgadzala; fallback na NP liczone wewnetrznie.
+                val ftpForIf = statsCalc.ftpWatts.toFloat()
+                val ifWhole = if (ftpForIf > 0f && npRef.get() > 0) {
+                    (npRef.get() / ftpForIf).coerceAtMost(2.0f)
+                } else {
+                    statsCalc.ifValue()
+                }
                 val adjFtp = (statsCalc.ftpWatts * todayFactorRef.get()).toInt().coerceAtLeast(50)
                 val adjIf = if (adjFtp > 0 && npWhole > 0) (npWhole.toFloat() / adjFtp).coerceAtMost(2.0f) else 0f
                 val vi = statsCalc.viValue()
@@ -1045,7 +1041,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val fluidModelReady = elapsedSec > 60L && hasActivity
                 _statsSnapshot.value = StatsRideSnapshot(
                     npWholeWatts = npRef.get(),
-                    ifWholeRide = ifRef.get(),
+                    ifWholeRide = ifWhole,
                     viValue = viRef.get(),
                     caloriesKcal = kcalRef.get(),
                     carbsGPerH = carbs,

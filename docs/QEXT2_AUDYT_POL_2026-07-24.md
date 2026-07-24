@@ -94,6 +94,15 @@ po stronie serwera.
 
 ---
 
+## C5 (NOWE, znalezione przy pkt 2b) — dwa rozne NP
+`npRef` (strumien SDK) jest WYSWIETLANE w komorce NP i od 2026-07-24 dzieli sie przez FTP
+QBota dajac IF. Rownolegle `statsCalc.npWatts()` (liczone wewnetrznie z bufora 30 s) napedza
+`adjIf` -> model zywienia. Oba powinny byc zblizone (ten sam strumien mocy, ten sam wzor),
+ale nie musza byc identyczne (inne wygladzanie / okno).
+Uwaga: NP i VI ze strumieni SDK NIE maja choroby FTP — sa od FTP niezalezne
+(NP to czysta matematyka z mocy, VI = NP/srednia), dlatego zostaly.
+Do rozstrzygniecia w pkt 4: czy ujednolicic na jedno NP.
+
 ## E. Kolejnosc naprawy (uzgodniona)
 
 | # | Punkt | Waga |
@@ -112,6 +121,20 @@ Status naprawy dopisywac ponizej.
       (rampa dziala tez w dlugiej jezdzie). FTP/LTP/W'/CTL bez zmian.
       Sygnalizacja: ACTIVE `DANE STARE` / wiek / dyspozycja — raz na jazde
       (`SensorMessageProducer.checkStaleAthleteData`). Testy: +6.
-- [ ] 2. Jedna intensywnosc
+- [x] 2. Jedna intensywnosc — ZROBIONE 2026-07-24 (dwa kroki).
+      2a (inna sesja, `cbd74ac`): TSS usuniety z QExt2 w calosci — nie napedzal
+      niczego (RSRV jedzie na XSS), a utrzymywal martwa ksiege dzienna i bral sie
+      z FTP ustawionego w Karoo. Komorka TSS -> XSS (XSS bylo liczone i szlo do FIT,
+      ale bylo niewidoczne dla zawodnika). Znika tez punkt C2.
+      2b: IF liczone z FTP QBota zamiast ze strumienia SDK. Usuniety konsument
+      `INTENSITY_FACTOR` i `ifRef`. Dzielna to NP ktore jest WYSWIETLANE (`npRef`),
+      zeby arytmetyka w siatce sie zgadzala; fallback `statsCalc.ifValue()`.
+      Snapshot i RSRV dostaja te sama liczbe (wczesniej snapshot bral `ifRef`
+      bezposrednio, a RSRV `ifWhole` — mogly sie roznic).
+      Decyzja: IF pozostaje KLASYCZNE `NP/FTP` (porownywalne miedzy jazdami).
+      "Dzisiejszosc" niesie IFe, a `adjIf` = NP/(FTP x tf) zostaje wejsciem modelu
+      zywienia (nadal niewyswietlane). Wszystkie trzy z JEDNEJ bazy: FTP z QBota.
+      Skutek uboczny: IF w QExt2 moze sie roznic od IF w natywnych polach Karoo,
+      jesli FTP w urzadzeniu != FTP z QBota. To zamierzone.
 - [ ] 3. RSRV w jednej walucie
 - [ ] 4. Porzadki nazewnicze
