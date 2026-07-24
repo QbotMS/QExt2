@@ -25,3 +25,9 @@
 - Pola bez SDK source, ale z gotowym lokalnym modelem (ETA/WPRIME/RSRV) sa odblokowane przez `local_model` policy z readiness.
 - Pola bez SDK source i bez lokalnego modelu: pozostaja `WAIT`.
 - MVP LIVE path bez zmian.
+
+## 2026-07-20 - ENDURANCE tryb-komunikat WYLACZONY
+PACING ENDURANCE ON (ClimbPacingProducer, Priority 2) nie trafia juz na ekran.
+Powod: nic nie wnosil; roznica zachowania climbing vs endurance i tak nie jest zaimplementowana (tylko napis).
+Realizacja: `if (!isClimbing) return null` po aktualizacji stanu trybu; CLIMBING ON dziala normalnie.
+Odwracalne: usun ten warunek i przywroc `val title = if (isClimbing) ... else "PACING ENDURANCE ON"`.

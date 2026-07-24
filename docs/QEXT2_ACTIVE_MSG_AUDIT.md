@@ -56,3 +56,9 @@ Nie zalezy od `StatsRideSnapshot` — uzywa wlasnych stanow sensorowych, route/c
 - ACTIVE MSG does NOT use weather data to produce messages (obsolete — now has `WeatherMessageProducer`).
 - No hardcoded weather defaults produce fake ACTIVE messages.
 - Weather message production: **WORKING** (via `WeatherMessageProducer`, requires `OPENWEATHER_API_KEY` in `local.properties` + location + weather freshness).
+
+## 2026-07-20 - ENDURANCE tryb-komunikat WYLACZONY
+PACING ENDURANCE ON (ClimbPacingProducer, Priority 2) nie trafia juz na ekran.
+Powod: nic nie wnosil; roznica zachowania climbing vs endurance i tak nie jest zaimplementowana (tylko napis).
+Realizacja: `if (!isClimbing) return null` po aktualizacji stanu trybu; CLIMBING ON dziala normalnie.
+Odwracalne: usun ten warunek i przywroc `val title = if (isClimbing) ... else "PACING ENDURANCE ON"`.

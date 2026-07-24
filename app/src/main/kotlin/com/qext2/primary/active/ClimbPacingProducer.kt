@@ -64,11 +64,13 @@ class ClimbPacingProducer(private val logger: (String) -> Unit = {}) {
         if (modeCtx != lastModeCtx || nowMs - lastModeMs > MODE_MSG_COOLDOWN_MS) {
             lastModeCtx = modeCtx
             lastModeMs = nowMs
-            val title = if (isClimbing) "PACING CLIMBING ON" else "PACING ENDURANCE ON"
+            // ENDURANCE tryb-komunikat wylaczony 2026-07-20 (patrz docs/QEXT2_ACTIVE_MSG_AUDIT.md).
+            // Stan trybu sledzony powyzej -> CLIMBING ON dziala; endurance = brak komunikatu. Odwracalne.
+            if (!isClimbing) return null
             logger("PACING_TRIGGER type=mode_change ctx=$modeCtx")
             return ActiveMessage(
                 id = "pace_mode_$nowMs",
-                title = title,
+                title = "PACING CLIMBING ON",
                 line1 = "",
                 line2 = null,
                 severity = ActiveMessageSeverity.INFO,
