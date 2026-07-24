@@ -317,7 +317,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                             val data = AthleteData(
                                 ftp = json.optInt("ftpWatts", 250),
                                 wPrimeKj = json.optDouble("wPrimeKj", 3.75),
-                                todayFactor = json.optDouble("todayFactor", 1.0).toFloat(),
+                                todayFactor = AthleteData.clampTodayFactor(json.optDouble("todayFactor", 1.0).toFloat()),
                                 ltpWatts = json.optInt("ltpWatts", 0),
                                 ctl = json.optDouble("ctl", 60.0).toFloat(),
                                 atl = json.optDouble("atl", 40.0).toFloat(),

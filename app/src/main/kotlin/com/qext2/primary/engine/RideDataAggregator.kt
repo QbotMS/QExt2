@@ -831,7 +831,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     surface = currentSurfaceRef.get(),
                     decouplingPct = statsCalc.decouplingPercent(),
                     effectiveLtp = getEffectiveLtpWatts(),
-                    todayFactor = AthleteDataStore.load().todayFactor,
+                    todayFactor = todayFactorRef.get(),
                 )
                 val outputs = LabRideStateRepository.update(
                     RideSample(
@@ -918,7 +918,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     val baseWp = baseWPrimeKjRef.get()
                     val baseCp = statsCalc.ftpWatts.toFloat()
                     if (baseWp > 0f && baseCp > 0f) {
-                        val readiness = todayFactorRef.get().coerceIn(0.85f, 1.05f)
+                        val readiness = todayFactorRef.get()
                         val heat = tempFactor(weatherTemperatureCRef.get())
                         val drift = (statsCalc.decouplingPercent() - 5f).coerceIn(0f, 15f) * 0.0027f
                         val acute = (1f - drift).coerceIn(0.96f, 1f)
@@ -934,7 +934,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 statsCalc.update(powerWatts, hr, movingElapsedSec, elapsedSec, powerFresh = powerFresh)
                 val npWhole = statsCalc.npWatts()
                 val ifWhole = ifRef.get().takeIf { it > 0f } ?: statsCalc.ifValue()
-                val adjFtp = (statsCalc.ftpWatts * todayFactorRef.get().coerceIn(0.5f, 1.1f)).toInt().coerceAtLeast(50)
+                val adjFtp = (statsCalc.ftpWatts * todayFactorRef.get()).toInt().coerceAtLeast(50)
                 val adjIf = if (adjFtp > 0 && npWhole > 0) (npWhole.toFloat() / adjFtp).coerceAtMost(2.0f) else 0f
                 val vi = statsCalc.viValue()
                 val sessionTss = tssRef.get().takeIf { it > 0f } ?: statsCalc.tssValue(movingElapsedSec)
@@ -1024,7 +1024,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val pacingCtx = PacingEngine.compute(
                     powerW = powerRef.get(),
                     effectiveLtp = getEffectiveLtpWatts(),
-                    effectiveFtp = (athleteData.ftp * athleteData.todayFactor).coerceAtLeast(50f),
+                    effectiveFtp = (athleteData.ftp * todayFactorRef.get()).coerceAtLeast(50f),
                     wBalancePct = statsCalc.wBalancePercent(now).toFloat(),
                     reservePct = _statsSnapshot.value.rideReservePercent.toFloat(),
                     decouplingPct = statsCalc.decouplingPercent(),
@@ -1032,7 +1032,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     isClimbing = gradeRef.get() > 2.5,
                     gradePercent = gradeRef.get(),
                     surface = currentSurfaceRef.get(),
-                    todayFactor = athleteData.todayFactor,
+                    todayFactor = todayFactorRef.get(),
                     modeFactor = effectiveModeFactor,
                 )
                 pacingContextRef.set(pacingCtx)
@@ -1315,6 +1315,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     fun getEffectiveLtpWatts(): Float {
         val base = baseLtpWattsRef.get()
         if (base <= 0f) return 0f
+        // Klamra na ILOCZYNIE (dyspozycja x upal), nie na samym todayFactor --
+        // ten jest juz kanoniczny (0.70-1.10) u zrodla.
         val cf = (todayFactorRef.get() * tempFactor(weatherTemperatureCRef.get()))
             .coerceIn(0.75f, 1.10f)
         return (base * cf).coerceAtLeast(50f)
@@ -1324,7 +1326,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
 
     fun refreshModeFactor() {
         val rawMode = AthleteDataStore.loadRidingMode()
-        val tf = AthleteDataStore.load().todayFactor
+        val tf = todayFactorRef.get()
         modeFactorRef.set(when (rawMode) {
             0 -> 0.88f
             2 -> 1.12f
@@ -1521,20 +1523,22 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     }
 
     private fun applyAthleteData(data: AthleteData, resetStats: Boolean) {
+        // Jedno zrodlo prawdy dla todayFactor w calej metodzie (kanon 0.70-1.10).
+        val tf = AthleteData.clampTodayFactor(data.todayFactor)
         if (data.ftp > 0) statsCalc.ftpWatts = data.ftp
         statsCalc.ctlForBudget = data.ctl
-        statsCalc.todayFactor = data.todayFactor
+        statsCalc.todayFactor = tf
         statsCalc.humidityPercent = data.humidityPercent
         sunsetTimestampRef.set(data.sunsetTimestampMs)
         maxHrRef.set(data.maxHr.coerceIn(100, 220))
-        todayFactorRef.set(data.todayFactor.coerceIn(0.5f, 1.1f))
+        todayFactorRef.set(tf)
         val rawMode = AthleteDataStore.loadRidingMode()
         modeFactorRef.set(when (rawMode) {
             0 -> 0.88f
             2 -> 1.12f
             3 -> when {                          // AUTO
-                data.todayFactor < 0.90f -> 0.88f
-                data.todayFactor > 1.02f -> 1.12f
+                tf < 0.90f -> 0.88f
+                tf > 1.02f -> 1.12f
                 else -> 1.00f
             }
             else -> 1.00f

@@ -277,10 +277,19 @@ Tło: `#111315`. Nagłówki: 9sp bold `#9CA3AF`. Wartości: 20sp bold `#FFFFFF`.
 
 ### TodayFactor
 ```
-todayFactor_raw  = z API ride-readiness (0.50–1.10)
+todayFactor_raw  = z API ride-readiness (readiness_effective, k=0.10)
 baroMultiplier   = z API (0.80–1.00)
 todayFactor      = todayFactor_raw × baroMultiplier    (gdy baroSensitive = true)
-todayFactor      = clamp(todayFactor, 0.70, 1.10)
+todayFactor      = clamp(todayFactor, 0.70, 1.10)   [KANON: AthleteData.clampTodayFactor]
+
+KANON 2026-07-24: obcinane U ZRODLA - przy parsowaniu JSON, w load() i w save().
+Konsumenci NIE obcinaja juz po swojemu. Wczesniej bylo 5 roznych klamer
+(0.85-1.05, 0.75-1.10, 0.50-1.10 x3, brak) oraz DWA zrodla tej samej liczby
+(todayFactorRef vs AthleteDataStore.load()) - CP i RSRV liczyly sie z roznych
+wartosci w tym samym ticku. Teraz wszyscy czytaja todayFactorRef.
+Klamry na ILOCZYNACH zostaja (pilnuja czego innego niz sam todayFactor):
+  cf  = dyspozycja x upal x dryf   -> clamp 0.88-1.06
+  LTP = dyspozycja x upal          -> clamp 0.75-1.10
 ```
 - NIE jest liczony lokalnie — przychodzi z Qbot API
 - Baro adjustment: obniża todayFactor przy niskim ciśnieniu (maks -20%)
@@ -442,18 +451,19 @@ Wynik: round(lastReserve).clamp(0, 100)
 ### W'BAL (ACTIVE)
 
 ```
-Model wykładniczy Skiba:
-  tau        = 546
-  ltpWatts   = z API (próg mleczanowy, default 192W)
-  cap        = wPrimeMax × todayFactor.coerceIn(0.5, 1.1)
+Model Skiba/Bartram (stan 2026-07-24, zweryfikowany w StatsCalculator):
+  CP    = cpEff = FTP x cf         (cf = dyspozycja x upal x dryf, clamp 0.88-1.06)
+  cap   = wPrimeMax                [ZAMROZONE 2026-07-24: cf NIE skaluje juz W']
+  tau   = 546 x e^(-0.01 x (CP - power)) + 316    [DYNAMICZNE, nie stale 546]
 
-Co 1 sekundę:
-  if power > ltpWatts:
-    wBalKj  -= (power − ltpWatts) / 1000        [deplecja]
+Co 1 sekunde:
+  if power > CP:
+    wBalKj -= (power - CP) / 1000                 [deplecja LINIOWA]
   else:
-    wBalKj  += (cap − wBalKj) × (1 − e^(−1/546))  [recovery wykładnicza]
+    wBalKj += (cap - wBalKj) x (1 - e^(-1/tau))   [odbudowa WYKLADNICZA]
 
-  wBalKj = clamp(wBalKj, 0, cap)
+  wBalKj = clamp(wBalKj, 0, cap)    -> z definicji NIE MA "ponizej 0%";
+                                       0% = bomba (moment wyczerpania W')
 
 Wyświetlacz:
   percent = round(wBalKj / cap × 100).clamp(0, 100)
@@ -777,18 +787,18 @@ Jeśli `formatWindDir()` zwróci `""`, strzałka jest ukrywana (`View.GONE`).
 ## 6. TodayFactor — przepływ
 
 ```
-API ride-readiness → todayFactor (0.50-1.10)
+API ride-readiness → todayFactor (0.70-1.10, kanon)
     ↓
 AthleteDataStore.load()
     ↓
 applyBaroAdjustment(baroSensitive)
     todayFactor × baroMultiplier (0.80-1.00)
-    clamp (0.70-1.10)
+    clamp (0.70-1.10)  — jedyne miejsce obcinania
     ↓
 ┌─── RideDataAggregator.todayFactorRef ──→ POWER target (adjFtp = ftp × tf)
 │                                          GEAR assessment (adjFtp)
 ├─── StatsCalculator.todayFactor ──→ RSRV baseReserve (tf × 100)
-│                                    W'BAL cap (wPrimeMax × tf)
+│                                    (W'BAL cap NIE zalezy juz od tf — zamrozone)
 └─── AthleteData (SETUP display) ──→ kolorowane ≥0.90 zielony, ≥0.80 żółty
 ```
 
@@ -798,7 +808,7 @@ fun applyBaroAdjustment(baroSensitive: Boolean): AthleteData {
     if (!baroSensitive) return this
     val m = baroMultiplier.coerceIn(0.80f, 1.00f)
     if (m >= 1.00f) return this
-    return copy(todayFactor = (todayFactor * m).coerceIn(0.70f, 1.10f))
+    return copy(todayFactor = clampTodayFactor(todayFactor * m))
 }
 ```
 

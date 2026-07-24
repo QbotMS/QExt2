@@ -32,11 +32,29 @@ data class AthleteData(
 ) {
     val wPrimeJoules: Double get() = wPrimeKj * 1000
 
+    companion object {
+        // KANON todayFactor (2026-07-24). Jedne widelki, zgodne z modelem serwera
+        // (readiness_effective, k=0.10, clamp [0.70, 1.10]). Obcinamy U ZRODLA:
+        // przy parsowaniu JSON, przy load() i przy save().
+        // Konsumenci NIE obcinaja juz po swojemu -- wczesniej bylo 5 roznych klamer
+        // (0.85-1.05, 0.75-1.10, 0.50-1.10 x3, brak) i DWA zrodla tej samej liczby
+        // (todayFactorRef vs AthleteDataStore.load()), wiec CP i RSRV liczyly sie
+        // z innych wartosci w tym samym ticku.
+        // Klamry na ILOCZYNACH (cf 0.88-1.06, LTP 0.75-1.10) zostaja -- pilnuja
+        // czegos innego niz sam todayFactor.
+        const val TODAY_FACTOR_MIN = 0.70f
+        const val TODAY_FACTOR_MAX = 1.10f
+
+        fun clampTodayFactor(v: Float): Float =
+            if (v.isNaN() || v.isInfinite()) 1.0f
+            else v.coerceIn(TODAY_FACTOR_MIN, TODAY_FACTOR_MAX)
+    }
+
     fun applyBaroAdjustment(baroSensitive: Boolean): AthleteData {
         if (!baroSensitive) return this
         val m = baroMultiplier.coerceIn(0.80f, 1.00f)
         if (m >= 1.00f) return this
-        return copy(todayFactor = (todayFactor * m).coerceIn(0.70f, 1.10f))
+        return copy(todayFactor = clampTodayFactor(todayFactor * m))
     }
 
     val baroAdjustPercent: Int
@@ -97,7 +115,7 @@ object AthleteDataStore {
         return AthleteData(
             ftp = p.getInt(KEY_FTP, 250),
             wPrimeKj = p.getDouble(KEY_WPRIME_KJ, 3.75),
-            todayFactor = p.getFloat(KEY_FACTOR, 1.0f),
+            todayFactor = AthleteData.clampTodayFactor(p.getFloat(KEY_FACTOR, 1.0f)),
             ltpWatts = p.getInt(KEY_LTP, 0),
             ctl = p.getFloat(KEY_CTL, 60f),
             atl = p.getFloat(KEY_ATL, 40f),
@@ -127,7 +145,7 @@ object AthleteDataStore {
         prefs?.edit()?.apply {
             putInt(KEY_FTP, data.ftp)
             putDouble(KEY_WPRIME_KJ, data.wPrimeKj)
-            putFloat(KEY_FACTOR, data.todayFactor)
+            putFloat(KEY_FACTOR, AthleteData.clampTodayFactor(data.todayFactor))
             putInt(KEY_LTP, data.ltpWatts)
             putFloat(KEY_CTL, data.ctl)
             putFloat(KEY_ATL, data.atl)

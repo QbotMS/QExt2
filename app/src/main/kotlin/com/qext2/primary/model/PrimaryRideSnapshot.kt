@@ -61,7 +61,7 @@ data class PrimaryRideSnapshot(
             distanceMeters: Double, elapsedSec: Long, ascentLeftM: Int,
             ftp: Int, todayFactor: Float, maxHr: Int, nowMs: Long = 0L,
         ): IntArray {
-            val adjFtp = (ftp * todayFactor.coerceIn(0.5f, 1.1f)).toInt().coerceAtLeast(50)
+            val adjFtp = (ftp * todayFactor).toInt().coerceAtLeast(50)
             val rawPower = powerColor(power, grade, ascentLeftM, adjFtp)
             val pc = powerColorHysteresis(rawPower, nowMs)
             val hc = Color.WHITE
