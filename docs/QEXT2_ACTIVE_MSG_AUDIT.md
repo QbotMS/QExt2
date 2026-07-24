@@ -62,3 +62,45 @@ PACING ENDURANCE ON (ClimbPacingProducer, Priority 2) nie trafia juz na ekran.
 Powod: nic nie wnosil; roznica zachowania climbing vs endurance i tak nie jest zaimplementowana (tylko napis).
 Realizacja: `if (!isClimbing) return null` po aktualizacji stanu trybu; CLIMBING ON dziala normalnie.
 Odwracalne: usun ten warunek i przywroc `val title = if (isClimbing) ... else "PACING ENDURANCE ON"`.
+
+## 2026-07-24 - KOMUNIKAT W' (zastapil "ZA MOCNO") + zamrozenie W'
+
+### Komunikat ACTIVE
+Stary `ZA MOCNO / W' X%` USUNIETY. Jeden komunikat `UWAGA!` z czterema obliczami
+(`ClimbPacingProducer.wPrimeMessage`). Os podzialu to **pale / odbudowuje**, NIE "powyzej/ponizej 0%"
+(W'bal jest z definicji przyciete do [0, W'max] - nie ma ujemnego W').
+
+Wyzwalacz: `W'bal < 55%` (bez warunku "za mocno" - odpala tez przy spokojnej jezdzie).
+Moc: srednia **3 s** (`snapshot.power3s`). CP: **`cpEffW`** - to samo CP, ktorym liczy sie W'bal
+(UWAGA: NIE `getEffectiveLtpWatts()`, to LTP ~240 W, inna liczba niz CP ~253 W).
+
+| stan | warunek | line2 | severity | rytm |
+|---|---|---|---|---|
+| TRZYMASZ | \|moc-CP\| <= 10 W | `TRZYMASZ!` | WARNING | co 60 s, 10 s na ekranie |
+| odbudowa | moc < CP-10 | `odbudowa MM:SS` | WARNING | co 60 s, 10 s na ekranie |
+| bomba daleko | moc > CP+10, t > 2 min | `bomba MM:SS` | WARNING | co 30 s, 10 s |
+| bomba blisko | 30 s - 2 min | `bomba MM:SS` | WARNING | co 10 s, 10 s |
+| bomba krytyczna | < 30 s | `bomba MM:SS` | CRITICAL | co 1 s (tyka), beep |
+| PRZEPAL | 0% W' + moc > CP+10 | `PRZEPAŁ` | CRITICAL | co 10 s |
+
+Wzory:
+- bomba: `t = W'bal[J] / (moc - CP)` (spadek jest liniowy)
+- odbudowa: `tau = 546*e^(-0.01*(CP-moc)) + 316`, `t = tau * ln(luka_teraz / luka_cel)`,
+  cel = **90%**. 100% jest ASYMPTOTA (kazda sekunda domyka ulamek luki) - czas do pelna
+  formalnie nieskonczony, dlatego cel 90%.
+
+Martwa strefa +-10 W istnieje, bo obie formuly maja `(moc-CP)` w mianowniku - przy jezdzie
+dokladnie na progu dawaly absurdy typu "bomba 247:33".
+
+PRZEPAL = model mowi "pusto", a nogi jada dalej => dowod, ze **W' jest ustawione za nisko**
+(material do kalibracji breakthrough).
+
+### Zamrozenie W' (RideDataAggregator)
+`setEffectiveWPrime(baseCp * cf, baseWp)` - dzienny wspolczynnik `cf` (gotowosc x upal x dryf)
+dziala juz **wylacznie na CP**. Wczesniej skalowal tez sufit W' (w dol).
+Powody: (1) W' to pojemnosc strukturalna, stabilniejsza niz CP; (2) ruchomy sufit uniemozliwia
+kalibracje breakthrough - mierzysz wzgledem celu, ktory sam sie przesuwa; (3) obnizone CP juz
+przyspiesza drenaz, obnizanie baku karze za gorszy dzien dwa razy.
+Odwracalne: przywroc `baseWp * cf.coerceAtMost(1.0f)`.
+
+Testy: `ClimbPacingProducerTest` (8).

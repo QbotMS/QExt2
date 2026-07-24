@@ -573,6 +573,8 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
                 power = agg.snapshot.value.power3s,
                 wBalancePct = agg.statsSnapshot.value.wBalancePercent,
                 effectiveLtpW = agg.getEffectiveLtpWatts(),
+                cpEffW = agg.statsSnapshot.value.cpEffW,
+                wPrimeEffKj = agg.statsSnapshot.value.wPrimeEffKj,
                 isWithinBounds = climbState?.isWithinClimbBounds == true,
                 ascentLeftM = climbState?.climbElevationM ?: 0,
                 grade = climbState?.avgGradePercent ?: agg.getEffectiveGrade(),
