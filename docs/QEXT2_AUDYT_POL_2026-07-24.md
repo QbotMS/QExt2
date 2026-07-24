@@ -106,7 +106,12 @@ po stronie serwera.
 Status naprawy dopisywac ponizej.
 
 ## Status
-- [ ] 1. Bramka wieku danych zawodnika
+- [x] 1. Bramka wieku danych zawodnika — ZROBIONE 2026-07-24.
+      `AthleteData.ageAdjustedTodayFactor()`: <=24 h pelna wartosc, 24-48 h liniowe
+      sciaganie odchylenia do 1.0, >48 h / brak odczytu => 1.0. Przeliczane co tick
+      (rampa dziala tez w dlugiej jezdzie). FTP/LTP/W'/CTL bez zmian.
+      Sygnalizacja: ACTIVE `DANE STARE` / wiek / dyspozycja — raz na jazde
+      (`SensorMessageProducer.checkStaleAthleteData`). Testy: +6.
 - [ ] 2. Jedna intensywnosc
 - [ ] 3. RSRV w jednej walucie
 - [ ] 4. Porzadki nazewnicze

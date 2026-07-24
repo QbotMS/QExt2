@@ -11,6 +11,10 @@ data class SensorState(
     val hasRoute: Boolean,
     val elapsedSec: Long,
     val nowMs: Long,
+    /** Wiek danych zawodnika w godzinach (audyt pkt B1). Domyslnie swieze. */
+    val athleteDataAgeH: Double = 0.0,
+    /** todayFactor JUZ po bramce wieku -- to, czym naprawde liczy model. */
+    val effectiveTodayFactor: Float = 1.0f,
 )
 
 class SensorMessageProducer(private val logger: (String) -> Unit = {}) {
@@ -18,12 +22,39 @@ class SensorMessageProducer(private val logger: (String) -> Unit = {}) {
     private val cooldowns = mutableMapOf<String, Long>()
     private var routeFired = false
     private var sensorsFired = false
+    private var staleAthleteFired = false
 
     fun checkAndProduce(state: SensorState): ActiveMessage? {
         return checkPowerMissing(state)
             ?: checkHrMissing(state)
             ?: checkSensorsMissing(state)
+            ?: checkStaleAthleteData(state)
             ?: checkRouteMissing(state)
+    }
+
+    /**
+     * Dane zawodnika starsze niz doba -> model jedzie na zdegradowanej dyspozycji.
+     * Raz na jazde, zeby bylo wiadomo skad inne liczby (audyt pkt B1).
+     */
+    private fun checkStaleAthleteData(s: SensorState): ActiveMessage? {
+        if (staleAthleteFired) return null
+        if (s.elapsedSec <= 10L) return null
+        if (s.athleteDataAgeH <= 24.0) return null
+        staleAthleteFired = true
+        val ageTxt = if (s.athleteDataAgeH >= 480.0) ">20d"
+            else "${s.athleteDataAgeH.toInt()}h"
+        logger("TRIGGER type=stale_athlete ageH=${s.athleteDataAgeH.toInt()} tf=${s.effectiveTodayFactor}")
+        return ActiveMessage(
+            id = "sensor_stale_athlete_${s.nowMs}",
+            title = "DANE STARE",
+            line1 = ageTxt,
+            line2 = "dyspozycja %.2f".format(s.effectiveTodayFactor),
+            severity = ActiveMessageSeverity.WARNING,
+            priority = ActiveMessagePriority.WARNING,
+            resumePolicy = ActiveMessageResumePolicy.DROP_ON_INTERRUPT,
+            createdAtMs = s.nowMs,
+            expiresAtMs = s.nowMs + 15_000L,
+        )
     }
 
     private fun checkPowerMissing(s: SensorState): ActiveMessage? {
@@ -118,6 +149,7 @@ class SensorMessageProducer(private val logger: (String) -> Unit = {}) {
     fun reset() {
         routeFired = false
         sensorsFired = false
+        staleAthleteFired = false
         cooldowns.clear()
     }
 }

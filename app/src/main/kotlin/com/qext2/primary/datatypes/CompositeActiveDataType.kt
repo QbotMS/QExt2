@@ -533,6 +533,8 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
                 hasRoute = agg.getEffectiveRoute(),
                 elapsedSec = agg.getElapsedSec(),
                 nowMs = now,
+                athleteDataAgeH = agg.getAthleteDataAgeHours(now),
+                effectiveTodayFactor = agg.statsSnapshot.value.readiness,
             )
             val shouldClear = sensorState.speedKmh > 2.0 ||
                 (sensorState.cadence > 0 && sensorState.cadenceFreshnessMs < 8_000L) ||

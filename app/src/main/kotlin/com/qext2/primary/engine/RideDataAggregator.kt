@@ -104,6 +104,10 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val civilDuskMsRef = AtomicReference(0L)
     private val maxHrRef = AtomicReference(180)
     private val todayFactorRef = AtomicReference(1.0f)
+    // Surowa wartosc + znacznik pobrania: todayFactorRef jest z nich PRZELICZANY co tick
+    // (bramka wieku, audyt pkt B1), wiec rampa dziala tez w trakcie dlugiej jazdy.
+    private val todayFactorRawRef = AtomicReference(1.0f)
+    private val athleteFetchTsRef = AtomicReference(0L)
     private val cfRef = AtomicReference(1.0f)  // WATEK 2: cf uzyte w tym ticku (do FIT)
     private val modeFactorRef = AtomicReference(1.0f)
     private val baseLtpWattsRef = AtomicReference(0f)
@@ -912,6 +916,12 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val cadence = cadenceRef.get()
                 val movingElapsedSec = movingElapsedSecRef.get()
                 val powerFresh = now - powerFreshnessRef.get() < 8_000L
+                // Bramka wieku danych zawodnika (audyt pkt B1) -- przeliczane co sekunde.
+                todayFactorRef.set(
+                    AthleteData.ageAdjustedTodayFactor(
+                        todayFactorRawRef.get(), athleteFetchTsRef.get(), now,
+                    )
+                )
                 // W' physics: CP anchored on FTP, modulated each tick by readiness
                 // (todayFactor), heat (tempFactor) and in-ride cardiac drift (decoupling).
                 run {
@@ -1324,6 +1334,10 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
 
     fun getModeFactor(): Float = modeFactorRef.get()
 
+    /** Wiek danych zawodnika w godzinach (audyt pkt B1). */
+    fun getAthleteDataAgeHours(nowMs: Long): Double =
+        AthleteData.dataAgeHours(athleteFetchTsRef.get(), nowMs)
+
     fun refreshModeFactor() {
         val rawMode = AthleteDataStore.loadRidingMode()
         val tf = todayFactorRef.get()
@@ -1523,8 +1537,12 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     }
 
     private fun applyAthleteData(data: AthleteData, resetStats: Boolean) {
-        // Jedno zrodlo prawdy dla todayFactor w calej metodzie (kanon 0.70-1.10).
-        val tf = AthleteData.clampTodayFactor(data.todayFactor)
+        // Jedno zrodlo prawdy dla todayFactor w calej metodzie (kanon 0.70-1.10)
+        // + bramka wieku danych (audyt pkt B1).
+        val tfRaw = AthleteData.clampTodayFactor(data.todayFactor)
+        todayFactorRawRef.set(tfRaw)
+        athleteFetchTsRef.set(data.fetchTimestamp)
+        val tf = AthleteData.ageAdjustedTodayFactor(tfRaw, data.fetchTimestamp, System.currentTimeMillis())
         if (data.ftp > 0) statsCalc.ftpWatts = data.ftp
         statsCalc.ctlForBudget = data.ctl
         statsCalc.todayFactor = tf

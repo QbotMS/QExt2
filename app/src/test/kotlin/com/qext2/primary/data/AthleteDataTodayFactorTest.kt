@@ -35,4 +35,48 @@ class AthleteDataTodayFactorTest {
         val out = d.applyBaroAdjustment(baroSensitive = true)
         assertEquals(0.70f, out.todayFactor, 0.0001f)
     }
+
+    // --- bramka wieku danych (audyt pkt B1) ---
+
+    private val h = 3_600_000L
+
+    @Test
+    fun `dane swieze - pelna wartosc`() {
+        val now = 1_000_000_000L
+        assertEquals(0.86f, AthleteData.ageAdjustedTodayFactor(0.86f, now - 5 * h, now), 0.0001f)
+        assertEquals(0.86f, AthleteData.ageAdjustedTodayFactor(0.86f, now - 24 * h, now), 0.0001f)
+    }
+
+    @Test
+    fun `36h - polowa odchylenia`() {
+        val now = 1_000_000_000L
+        assertEquals(0.93f, AthleteData.ageAdjustedTodayFactor(0.86f, now - 36 * h, now), 0.0001f)
+    }
+
+    @Test
+    fun `powyzej 48h - neutralne 1_0`() {
+        val now = 1_000_000_000L
+        assertEquals(1.0f, AthleteData.ageAdjustedTodayFactor(0.86f, now - 60 * h, now), 0.0001f)
+        assertEquals(1.0f, AthleteData.ageAdjustedTodayFactor(1.08f, now - 60 * h, now), 0.0001f)
+    }
+
+    @Test
+    fun `brak odczytu - neutralne 1_0`() {
+        assertEquals(1.0f, AthleteData.ageAdjustedTodayFactor(0.86f, 0L, 1_000_000_000L), 0.0001f)
+    }
+
+    @Test
+    fun `rampa dziala tez w gore`() {
+        val now = 1_000_000_000L
+        // 1.10 przy 36 h -> polowa odchylenia = 1.05
+        assertEquals(1.05f, AthleteData.ageAdjustedTodayFactor(1.10f, now - 36 * h, now), 0.0001f)
+    }
+
+    @Test
+    fun `flaga degradacji`() {
+        val now = 1_000_000_000L
+        assertEquals(false, AthleteData.isTodayFactorDegraded(now - 10 * h, now))
+        assertEquals(true, AthleteData.isTodayFactorDegraded(now - 30 * h, now))
+        assertEquals(true, AthleteData.isTodayFactorDegraded(0L, now))
+    }
 }

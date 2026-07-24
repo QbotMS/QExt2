@@ -48,6 +48,37 @@ data class AthleteData(
         fun clampTodayFactor(v: Float): Float =
             if (v.isNaN() || v.isInfinite()) 1.0f
             else v.coerceIn(TODAY_FACTOR_MIN, TODAY_FACTOR_MAX)
+
+        // --- Bramka wieku danych zawodnika (2026-07-24, audyt pol pkt B1) ---
+        // todayFactor to sygnal DZIENNY -- po dobie przestaje byc prawdziwy. Wczesniej
+        // stary odczyt (brak zasiegu rano, niedostepny serwer) cicho napedzal CP, RSRV
+        // i pacing jako dane biezace. Rampa zamiast progu skokowego, zeby liczba nie
+        // skoczyla w srodku dlugiej jazdy przekraczajacej dobe.
+        // FTP / LTP / W' / CTL NIE sa degradowane -- zmieniaja sie wolno.
+        const val TODAY_FACTOR_FRESH_H = 24.0
+        const val TODAY_FACTOR_DEAD_H = 48.0
+
+        /** Wiek danych w godzinach; brak odczytu => nieskonczonosc. */
+        fun dataAgeHours(fetchTimestampMs: Long, nowMs: Long): Double =
+            if (fetchTimestampMs <= 0L) Double.MAX_VALUE
+            else (nowMs - fetchTimestampMs).coerceAtLeast(0L) / 3_600_000.0
+
+        /**
+         * todayFactor skorygowany o wiek: <=24 h pelna wartosc, 24-48 h liniowe sciaganie
+         * odchylenia do 1.0, >48 h lub brak odczytu => neutralne 1.0.
+         */
+        fun ageAdjustedTodayFactor(raw: Float, fetchTimestampMs: Long, nowMs: Long): Float {
+            val tf = clampTodayFactor(raw)
+            val ageH = dataAgeHours(fetchTimestampMs, nowMs)
+            if (ageH <= TODAY_FACTOR_FRESH_H) return tf
+            if (ageH >= TODAY_FACTOR_DEAD_H) return 1.0f
+            val k = ((TODAY_FACTOR_DEAD_H - ageH) /
+                (TODAY_FACTOR_DEAD_H - TODAY_FACTOR_FRESH_H)).toFloat()
+            return 1.0f + (tf - 1.0f) * k
+        }
+
+        fun isTodayFactorDegraded(fetchTimestampMs: Long, nowMs: Long): Boolean =
+            dataAgeHours(fetchTimestampMs, nowMs) > TODAY_FACTOR_FRESH_H
     }
 
     fun applyBaroAdjustment(baroSensitive: Boolean): AthleteData {
