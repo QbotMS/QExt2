@@ -13,6 +13,7 @@ Nie zalezy od `StatsRideSnapshot` — uzywa wlasnych stanow sensorowych, route/c
 | Message manager | `ActiveMessageManager.kt` | WORKING | `show()`, `getCurrent()`, `hideExpired()` | thread-safe priority queue | yes (expiry, resume, suspend) | 13 tests (`ActiveMessageManagerTest.kt`) | — | — |
 | Renderer | `ActiveMessageRenderer.kt` | WORKING | `RemoteViews` + ActiveMessage -> R.id.message_overlay | wizualna tylko | severity colors (INFO/WARNING/CRITICAL) | tested via CompositeActiveDataType smoke | renderuje tylko gdy message != null; brak -> GONE | — |
 | Climb producer | `ClimbAnnouncementProducer.kt` | WORKING | `ClimbState` (hasRoute, distanceToClimbM, climbElevationM, avgGradePercent) | route + climb SDK | pre-climb / active / finish phases | 4 tests (`ClimbAnnouncementProducerTest.kt`) | — | — |
+| W' / pacing producer | `ClimbPacingProducer.kt` | WORKING | power3s, wBalancePct, cpEffW, wPrimeEffKj | StatsCalculator (W'bal) | stan W': hold/recover/bomb/overdraft | 8 tests (`ClimbPacingProducerTest.kt`) | — | — |
 | Sensor producer | `SensorMessageProducer.kt` | WORKING | `SensorState` (speed, cadence, hr, power, freshness, route, elapsed) | sensor SDK | power/HR/sensors/route missing warnings | 7 tests (`SensorMessageProducerTest.kt`) | — | — |
 | Climb resolver | `ActiveClimbResolver.kt` | WORKING | `RideDataAggregator` climb list + current distance | SDK navigation climbs | real clims only (fake mode has separate path) | 3 tests (`ActiveClimbResolverTest.kt`) | — | — |
 | Beep cooldown | `BeepCooldownTracker.kt` | WORKING | per-severity cooldown timestamps | runtime state | success=10s, error=2s cooldown | 3 tests (`BeepCooldownTrackerTest.kt`) | — | — |
@@ -23,7 +24,7 @@ Nie zalezy od `StatsRideSnapshot` — uzywa wlasnych stanow sensorowych, route/c
 
 | status | count | components |
 |---|---|---|
-| WORKING | 9 | wszystkie |
+| WORKING | 10 | wszystkie |
 | PARTIAL | 0 | — |
 | UNKNOWN | 0 | — |
 | DISABLED | 0 | — |
@@ -49,7 +50,8 @@ Nie zalezy od `StatsRideSnapshot` — uzywa wlasnych stanow sensorowych, route/c
 | `ActiveClimbResolverTest` | 3 | PASS |
 | `BeepCooldownTrackerTest` | 3 | PASS |
 | `NoSdkClimbLogGateTest` | 2 | PASS |
-| **Total** | **32** | all PASS |
+| `ClimbPacingProducerTest` | 8 | NOWE (weryfikacja w CI) |
+| **Total** | **40** | 32 PASS + 8 nowych (CI) |
 
 ## Weather data usage (audit 2026-05-24)
 

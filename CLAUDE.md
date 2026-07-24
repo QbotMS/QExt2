@@ -39,7 +39,7 @@ QExt2PrimaryExtension (serwis Android)
 | Klasa | Komunikaty |
 |-------|-----------|
 | `ClimbAnnouncementProducer` | Pre-climb (podejście), PODJAZD DONE |
-| `ClimbPacingProducer` | CEL: X-Y W, ZA MOCNO, MOZESZ MOCNIEJ |
+| `ClimbPacingProducer` | UWAGA! — stan W' (TRZYMASZ / odbudowa MM:SS / bomba MM:SS / PRZEPAŁ), PACING CLIMBING ON |
 | `WeatherMessageProducer` | WX BURZA, WX ULEWA, WX UPAL, WX WIATR itd. |
 | `SensorMessageProducer` | BRAK MOCY, BRAK HR, BRAK SENSORÓW |
 | `FuelReminderProducer` | ZJEDZ ~Ng, PIJ, SÓD 500-800mg |
@@ -131,11 +131,26 @@ Tekst dobierany luminancją tła (≥150→czarny, else biały).
 - `checkClimbActive` → tylko zarządza stanem (brak komunikatu — zastąpiony pacing)
 - `checkClimbFinish` → "PODJAZD DONE ↑Ym"
 
-`ClimbPacingProducer` (przy `isWithinClimbBounds`):
-- "CEL: X-Y W" co pierwsze wejście (refresh co 5 min)
-- "ZA MOCNO" gdy P > LTP×1.15×mode i W'<55% (cooldown 60s)
-- "MOZESZ MOCNIEJ" gdy P < LTP×0.88×mode i W'>75% (cooldown 90s; wyłączone w defensive)
-- Wszystkie progi skalowane przez `modeFactor`
+`ClimbPacingProducer` — dwa niezalezne watki:
+
+**1. Stan W' (Priority 1)** — dziala ZAWSZE, nie tylko na podjezdzie.
+Wyzwalacz: `W'bal < 55%`. Moc: srednia 3 s. CP: `cpEffW` (NIE `getEffectiveLtpWatts()` — to LTP, inna liczba!).
+Jeden komunikat `UWAGA!` / `X% W'` + druga linia zalezna od tego, czy palisz czy odbudowujesz:
+
+| druga linia | warunek | severity | rytm |
+|---|---|---|---|
+| `TRZYMASZ!` | \|moc-CP\| <= 10 W | WARNING | co 60 s |
+| `odbudowa MM:SS` | moc < CP-10 (cel 90%) | WARNING | co 60 s |
+| `bomba MM:SS` | moc > CP+10, t > 2 min | WARNING | co 30 s |
+| `bomba MM:SS` | 30 s - 2 min | WARNING | co 10 s |
+| `bomba MM:SS` | < 30 s | CRITICAL | co 1 s + beep |
+| `PRZEPAŁ` | 0% W' i moc > CP+10 | CRITICAL | co 10 s |
+
+**2. PACING CLIMBING ON (Priority 2)** — przy zmianie kontekstu na climbing (cooldown 10 min).
+Wariant ENDURANCE wylaczony 2026-07-20.
+
+UWAGA — czego TU NIE MA (bylo w starej wersji tego dokumentu, w kodzie nie istnieje):
+"CEL: X-Y W" i "MOZESZ MOCNIEJ" nie sa produkowane. "ZA MOCNO" usuniete 2026-07-24.
 
 ---
 

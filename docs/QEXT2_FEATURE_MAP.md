@@ -1,6 +1,6 @@
 # QExt2 Feature Map (from code inventory)
 
-Generated from actual code, not from docs. 41 Kotlin source files, 5 layouts, 20 test classes.
+Generated from actual code, not from docs. 41 Kotlin source files, 5 layouts, 25 test classes.
 
 ## DataTypes / Extensions
 
@@ -8,7 +8,7 @@ Generated from actual code, not from docs. 41 Kotlin source files, 5 layouts, 20
 |---|---|---|---|---|
 | QExt2 primary | `CompositePrimaryDataType` | `field_primary_4col.xml` | `qext2-primary` | SyntheticVirtualRideScenariosTest, VirtualReplayGateTest |
 | STATS | `StatsDataType` | `field_stats_3x3.xml` | `qext2-stats` | StatsSdkFirstGateTest, StatsDataTypeDemoSnapshotTest |
-| ACTIVE MSG | `CompositeActiveDataType` | `field_active_4x2.xml` | `qext2-active` | ActiveMessageManagerTest, ClimbAnnouncementProducerTest, SensorMessageProducerTest, BeepCooldownTrackerTest, ActiveClimbResolverTest, NoSdkClimbLogGateTest |
+| ACTIVE MSG | `CompositeActiveDataType` | `field_active_4x2.xml` | `qext2-active` | ActiveMessageManagerTest, ClimbAnnouncementProducerTest, SensorMessageProducerTest, BeepCooldownTrackerTest, ActiveClimbResolverTest, NoSdkClimbLogGateTest, ClimbPacingProducerTest |
 | BP ActiveStatic | `BpActiveStaticDataType` | `field_active_4x2.xml` | `qext2-active-static` | None |
 
 ## Core Engine
@@ -48,6 +48,7 @@ Generated from actual code, not from docs. 41 Kotlin source files, 5 layouts, 20
 | ActiveMessageManager | `active/ActiveMessageManager.kt` | ActiveMessageManagerTest |
 | ActiveMessageRenderer | `active/ActiveMessageRenderer.kt` | None standalone |
 | ClimbAnnouncementProducer | `active/ClimbAnnouncementProducer.kt` | ClimbAnnouncementProducerTest |
+| ClimbPacingProducer | `active/ClimbPacingProducer.kt` | ClimbPacingProducerTest |
 | SensorMessageProducer | `active/SensorMessageProducer.kt` | SensorMessageProducerTest |
 | WeatherMessageProducer | `active/WeatherMessageProducer.kt` | WeatherClientTest |
 | ActiveClimbResolver | `active/ActiveClimbResolver.kt` | ActiveClimbResolverTest |
