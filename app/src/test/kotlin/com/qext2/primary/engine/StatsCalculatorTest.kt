@@ -209,20 +209,6 @@ class StatsCalculatorTest {
     }
 
     @Test
-    fun `tssValue returns zero with no data`() {
-        val calc = StatsCalculator()
-        assertEquals(0f, calc.tssValue(3600L), 0.001f)
-    }
-
-    @Test
-    fun `tssValue equals 100 for 1h at FTP`() {
-        val calc = StatsCalculator(ftpWatts = 250)
-        repeat(3600) { sec -> calc.update(250, 150, sec.toLong(), sec.toLong()) }
-        val tss = calc.tssValue(3600L)
-        assertTrue("1h at FTP should give TSS ~100, got $tss", tss in 90f..110f)
-    }
-
-    @Test
     fun `viValue equals 1 for constant power`() {
         val calc = StatsCalculator(ftpWatts = 200)
         repeat(300) { calc.update(200, 150, it.toLong(), it.toLong()) }
@@ -231,14 +217,12 @@ class StatsCalculatorTest {
     }
 
     @Test
-    fun `reserve decreases with TSS accumulation`() {
+    fun `reserve decreases with load accumulation`() {
         val calc = StatsCalculator()
         calc.todayFactor = 1.0f
         calc.captureStartReserve()
-        repeat(100) { calc.update(200, 150, it.toLong(), it.toLong()) }
-        val tss = calc.tssValue(100L)
-        val reserve = calc.rideReservePercent(tss, 0.8f, 0f, 100L)
-        assertTrue("Reserve should decrease with TSS (TSS=$tss, reserve=$reserve)", reserve < 100)
+        val reserve = calc.rideReservePercent(30f, 0.8f, 0f, 100L)
+        assertTrue("Reserve should decrease with load (reserve=$reserve)", reserve < 100)
     }
 
     @Test

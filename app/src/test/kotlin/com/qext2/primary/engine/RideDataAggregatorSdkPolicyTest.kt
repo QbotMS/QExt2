@@ -56,13 +56,6 @@ class RideDataAggregatorSdkPolicyTest {
     }
 
     @Test
-    fun `tss missing uses semantic chosen placeholder`() {
-        val d = RideDataAggregator.tssLogDecision(0f)
-        assertEquals("MISSING", d.source)
-        assertEquals("--", d.chosen)
-    }
-
-    @Test
     fun `start plan recreates scope when inactive`() {
         val plan = RideDataAggregator.planStart(
             hasConsumers = false,

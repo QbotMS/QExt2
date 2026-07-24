@@ -4,7 +4,6 @@ data class StatsRideSnapshot(
     val npWholeWatts: Int = 0,
     val ifWholeRide: Float = 0f,
     val viValue: Float = 0f,
-    val tssValue: Float = 0f,
     val caloriesKcal: Int = 0,
     val carbsGPerH: Int = 0,
     val carbBalanceG: Int = 0,

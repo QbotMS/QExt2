@@ -109,7 +109,7 @@ class StatsDataType : DataTypeImpl("qext2", "qext2-stats") {
         Log.d(TAG, "QEXT_STATS_ADV field=if value=${"%.2f".format(snap.ifWholeRide)} status=OK reason=sdk_or_local")
         Log.d(TAG, "QEXT_STATS_ADV field=vi value=${"%.2f".format(snap.viValue)} status=OK reason=sdk_or_local")
 
-        bindAdvanced(v, R.id.tv_tss, StatsAdvancedFieldPolicy.sdkTss(snap.tssValue), "tss")
+        bindAdvanced(v, R.id.tv_xss, StatsAdvancedFieldPolicy.localXss(snap.xssValue), "xss")
         bindAdvanced(v, R.id.tv_rsrv, StatsAdvancedFieldPolicy.localRsrv(snap.rsrvModelReady, snap.rideReservePercent), "rsrv")
         v.setTextColor(R.id.tv_rsrv, rsrvColor(snap.rideReservePercent, snap.rsrvModelReady))
         bindAdvanced(v, R.id.tv_eta, StatsAdvancedFieldPolicy.localEta(snap.hasRoute, snap.etaModelReady, snap.etaTimestamp), "eta")

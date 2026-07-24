@@ -81,14 +81,19 @@ object StatsAdvancedFieldPolicy {
         return AdvancedFieldDecision(value = ascentLeftM.toString(), status = FieldStatus.OK, reason = "route_loaded_with_climb_data", source = "route_snapshot")
     }
 
-    fun sdkTss(tssValue: Float): AdvancedFieldDecision {
-        if (!tssValue.isFinite() || tssValue < 0f) return waitNoData("sdk_field_invalid")
-        if (tssValue <= 0f) return waitNoData("sdk_field_not_available")
+    /**
+     * XSS -- waluta obciazenia ModelQ (1 h @ CP = 100). Zastapila TSS 2026-07-24:
+     * TSS nie napedzal juz niczego (RSRV jedzie na XSS), a bral sie ze strumienia SDK,
+     * czyli z FTP ustawionego w Karoo -- innej bazy niz reszta modelu.
+     */
+    fun localXss(xssValue: Float): AdvancedFieldDecision {
+        if (!xssValue.isFinite() || xssValue < 0f) return waitNoData("xss_invalid")
+        if (xssValue <= 0f) return waitNoData("xss_not_accumulated")
         return AdvancedFieldDecision(
-            value = tssValue.toInt().coerceIn(0, 9999).toString(),
+            value = xssValue.toInt().coerceIn(0, 9999).toString(),
             status = FieldStatus.OK,
-            reason = "sdk_training_stress_score",
-            source = "sdk_training_stress_score",
+            reason = "local_xss_model",
+            source = "local_model",
         )
     }
 

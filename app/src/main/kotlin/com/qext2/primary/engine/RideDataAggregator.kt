@@ -112,7 +112,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val modeFactorRef = AtomicReference(1.0f)
     private val baseLtpWattsRef = AtomicReference(0f)
     private val baseWPrimeKjRef = AtomicReference(0f)
-    private val tssRef = AtomicReference(0f)
     private val kcalRef = AtomicReference(0)
     private val npRef = AtomicReference(0)
     private val ifRef = AtomicReference(0f)
@@ -158,11 +157,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val navClimbsRef = AtomicReference<List<KarooClimb>>(emptyList())
     private val movingElapsedSecRef = AtomicReference(0L)
     private val navLastUpdateMsRef = AtomicReference(0L)
-    private val dailyTssBaseRef = AtomicReference(0f)
     private val sleepRefreshPendingRef = AtomicReference(false)
     private val stopStartedMsRef = AtomicReference(0L)
     private val wasActiveUntilMsRef = AtomicReference(0L)
-    private val sessionTssRef = AtomicReference(0f)
     private val reservePersistLastMsRef = AtomicReference(0L)
     private val dailyXssBaseRef = AtomicReference(0f)
     private val sessionXssRef = AtomicReference(0f)
@@ -178,11 +175,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         val asIsSec: Long,
         val asMsSec: Long,
         val unit: String,
-    )
-
-    internal data class TssLogDecision(
-        val chosen: String,
-        val source: String,
     )
 
     internal data class StartPlan(
@@ -214,14 +206,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
             return karooElapsedSec > 0L &&
                 karooElapsedSec - lastSdkElapsedSec in 0L..(localElapsedSec - lastChosenElapsedSec + 30L).coerceAtLeast(30L) &&
                 karooElapsedSec <= localElapsedSec + 30L
-        }
-
-        fun tssLogDecision(sdkTss: Float): TssLogDecision {
-            return if (sdkTss > 0f) {
-                TssLogDecision(chosen = "%.1f".format(sdkTss), source = "SDK")
-            } else {
-                TssLogDecision(chosen = "--", source = "MISSING")
-            }
         }
 
         fun resolveHasRoute(effectiveRoute: Boolean, distanceToDestinationMeters: Double): Boolean {
@@ -323,20 +307,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         carbBalanceGRef.set(0)
         carbLastElapsedSecRef.set(sanitizeCarbElapsed(AthleteDataStore.loadCarbLastElapsedSec()))
         carbSessionInitializedRef.set(false)
-        dailyTssBaseRef.set(AthleteDataStore.loadReserveDailyTssBase())
         val today = java.time.LocalDate.now().toString()
-        val baseDate = AthleteDataStore.loadReserveDailyTssBaseDate()
-        if (baseDate != today) {
-            dailyTssBaseRef.set(0f)
-            AthleteDataStore.saveReserveDailyTssBase(0f)
-            AthleteDataStore.saveReserveDailyTssBaseDate(today)
-            Log.i(TAG, "QEXT_RSRV_DAILY_RESET new_day stored=$baseDate today=$today")
-        }
-        if (dailyTssBaseRef.get() > 500f) {
-            dailyTssBaseRef.set(0f)
-            AthleteDataStore.saveReserveDailyTssBase(0f)
-            Log.w(TAG, "QEXT_RSRV_CLEANUP corrupted dailyTssBase reset to 0")
-        }
         dailyXssBaseRef.set(AthleteDataStore.loadReserveDailyXssBase())
         val baseXssDate = AthleteDataStore.loadReserveDailyXssBaseDate()
         if (baseXssDate != today) {
@@ -352,7 +323,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         }
         sleepRefreshPendingRef.set(AthleteDataStore.loadSleepRefreshPending())
         stopStartedMsRef.set(0L)
-        sessionTssRef.set(0f)
         reservePersistLastMsRef.set(0L)
         consumerIds.add(
             karooSystem.addConsumer<OnStreamState>(
@@ -595,19 +565,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                             }
                             if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "GRADE raw=$v")
                         }
-                    }
-                }
-            )
-        )
-
-        consumerIds.add(
-            karooSystem.addConsumer<OnStreamState>(
-                params = OnStreamState.StartStreaming(DataType.Type.TRAINING_STRESS_SCORE),
-                onEvent = { event ->
-                    val s = event.state
-                    if (s is StreamState.Streaming) {
-                        val v = s.dataPoint.values[DataType.Field.TRAINING_STRESS_SCORE] as? Double
-                        if (v != null) tssRef.set(v.toFloat())
                     }
                 }
             )
@@ -947,9 +904,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val adjFtp = (statsCalc.ftpWatts * todayFactorRef.get()).toInt().coerceAtLeast(50)
                 val adjIf = if (adjFtp > 0 && npWhole > 0) (npWhole.toFloat() / adjFtp).coerceAtMost(2.0f) else 0f
                 val vi = statsCalc.viValue()
-                val sessionTss = tssRef.get().takeIf { it > 0f } ?: statsCalc.tssValue(movingElapsedSec)
-                var sessionTssForReserve = sessionTss
-                sessionTssRef.set(sessionTssForReserve)
                 var sessionXssForReserve = statsCalc.xssValue()
                 sessionXssRef.set(sessionXssForReserve)
                 val decoupling = statsCalc.decouplingPercent()
@@ -983,10 +937,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                         minStopForRefreshSec = SLEEP_REFRESH_MIN_STOP_SEC,
                     )
                 ) {
-                    dailyTssBaseRef.set(0f)
-                    AthleteDataStore.saveReserveDailyTssBase(0f)
-                    sessionTssRef.set(0f)
-                    sessionTssForReserve = 0f
                     dailyXssBaseRef.set(0f)
                     AthleteDataStore.saveReserveDailyXssBase(0f)
                     sessionXssRef.set(0f)
@@ -1056,15 +1006,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val routeClimbSourceReady = navRouteActiveRef.get()
 
                 logFieldDiagnostics(now, elapsedSec, carbs, carbIntakeTotal, carbNeededTotal, carbBalance,
-                    wBalance, tssRef.get(), reserve, speedKmhNow, hasRoute,
+                    wBalance, statsCalc.xssValue(), reserve, speedKmhNow, hasRoute,
                     ascentDoneMRef.get(), ascentLeftMRef.get(), remainingMeters)
-                if (QExt2DebugConfig.DEBUG_ACTIVE_PRODUCER_DIAG) {
-                    val localTss = sessionTss
-                    val sdkTss = tssRef.get()
-                    val tssDecision = tssLogDecision(sdkTss)
-                    Log.i(TAG, "QEXT_TSS_SOURCE sdk=${"%.1f".format(sdkTss)} local=${"%.1f".format(localTss)} " +
-                            "chosen=${tssDecision.chosen} source=${tssDecision.source}")
-                }
 
                 val remainingKm = (remainingMeters / 1000.0).toFloat()
                 val distanceKm = (distanceMetersRef.get() / 1000.0).toFloat()
@@ -1104,7 +1047,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     npWholeWatts = npRef.get(),
                     ifWholeRide = ifRef.get(),
                     viValue = viRef.get(),
-                    tssValue = tssRef.get(),
                     caloriesKcal = kcalRef.get(),
                     carbsGPerH = carbs,
                     carbBalanceG = carbBalance,
@@ -1172,10 +1114,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         AthleteDataStore.saveElapsedSnapshot(0L, 0.0)
         Log.d(TAG, "QEXT_NAV_CONSUMER_STOP")
         Log.d(TAG, "stopStreaming: removing ${consumerIds.size} consumers")
-        val committedDailyTss = ReservePolicy.effectiveTss(dailyTssBaseRef.get(), sessionTssRef.get())
-        AthleteDataStore.saveReserveDailyTssBase(committedDailyTss)
-        AthleteDataStore.saveReserveDailyTssBaseDate(java.time.LocalDate.now().toString())
-        dailyTssBaseRef.set(committedDailyTss)
         val committedDailyXss = ReservePolicy.effectiveTss(dailyXssBaseRef.get(), sessionXssRef.get())
         AthleteDataStore.saveReserveDailyXssBase(committedDailyXss)
         AthleteDataStore.saveReserveDailyXssBaseDate(java.time.LocalDate.now().toString())
@@ -1187,7 +1125,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         carbLastElapsedSecRef.set(0L)
         carbSessionInitializedRef.set(false)
         AthleteDataStore.resetCarbSessionState()
-        sessionTssRef.set(0f)
         reservePersistLastMsRef.set(0L)
         statsCalc.reset()
         fuelProducer.reset()
@@ -1470,14 +1407,14 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     }
 
     private fun logFieldDiagnostics(nowMs: Long, elapsed: Long, carbsGph: Int, intake: Int, needed: Int, balance: Int,
-                                     wPrime: Int, tss: Float, reserve: Int, speed: Double, route: Boolean,
+                                     wPrime: Int, xss: Float, reserve: Int, speed: Double, route: Boolean,
                                      ascentDone: Int, ascentLeft: Int, remainingM: Double) {
         if (fieldDiagLastLogMs == 0L) { fieldDiagLastLogMs = nowMs; return }
         if (nowMs - fieldDiagLastLogMs < 15_000L) return
         fieldDiagLastLogMs = nowMs
         Log.i(TAG, "QEXT_FIELD_DIAG elapsed=${elapsed}s speed=${"%.1f".format(speed)}kmh route=$route " +
                 "carbs=${carbsGph}g/h intake=${intake}g needed=${needed}g balance=${balance}g " +
-                "wPrime=${wPrime}% tss=${"%.0f".format(tss)} reserve=${reserve}% " +
+                "wPrime=${wPrime}% xss=${"%.0f".format(xss)} reserve=${reserve}% " +
                 "upDone=${ascentDone}m upLeft=${ascentLeft}m remain=${"%.0f".format(remainingM)}m")
     }
 

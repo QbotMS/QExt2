@@ -43,11 +43,6 @@ object StatsValueFormatter {
         return StatsFormattedValue("${kcal.coerceAtMost(99999)}")
     }
 
-    fun tss(value: Float): StatsFormattedValue {
-        if (value <= 0f) return StatsFormattedValue("--")
-        return StatsFormattedValue("${value.toInt().coerceIn(0, 9999)}")
-    }
-
     fun reserveNumber(percent: Int): StatsFormattedValue {
         return StatsFormattedValue("${percent.coerceIn(0, 100)}", "%")
     }

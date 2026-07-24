@@ -11,11 +11,11 @@ class StatsSdkFirstGateTest {
     fun statsSdkFirstGate() {
         val problems = mutableListOf<String>()
 
-        val tssMissing = StatsAdvancedFieldPolicy.sdkTss(0f)
-        checkDecision(tssMissing, expectedValue = "WAIT", expectedStatus = FieldStatus.NO_DATA, expectedReason = "sdk_field_not_available", name = "TSS_missing", problems = problems)
+        val xssMissing = StatsAdvancedFieldPolicy.localXss(0f)
+        checkDecision(xssMissing, expectedValue = "WAIT", expectedStatus = FieldStatus.NO_DATA, expectedReason = "xss_not_accumulated", name = "XSS_missing", problems = problems)
 
-        val tssReady = StatsAdvancedFieldPolicy.sdkTss(156.4f)
-        checkDecision(tssReady, expectedValue = "156", expectedStatus = FieldStatus.OK, expectedReason = "sdk_training_stress_score", name = "TSS_ready", problems = problems)
+        val xssReady = StatsAdvancedFieldPolicy.localXss(156.4f)
+        checkDecision(xssReady, expectedValue = "156", expectedStatus = FieldStatus.OK, expectedReason = "local_xss_model", name = "XSS_ready", problems = problems)
 
         val kcalMissing = StatsAdvancedFieldPolicy.sdkCalories(0)
         checkDecision(kcalMissing, expectedValue = "WAIT", expectedStatus = FieldStatus.NO_DATA, expectedReason = "sdk_field_not_available", name = "KCAL_missing", problems = problems)
@@ -38,10 +38,10 @@ class StatsSdkFirstGateTest {
         val batLeftReady = StatsAdvancedFieldPolicy.batteryLeft(true, true, 3 * 3600L + 5 * 60L, "headunit_polling")
         checkDecision(batLeftReady, expectedValue = "3:05", expectedStatus = FieldStatus.OK, expectedReason = "battery_runtime_from_headunit", name = "BAT_LEFT_ready", problems = problems)
 
-        val nanTss = StatsAdvancedFieldPolicy.sdkTss(Float.NaN)
-        if (nanTss.value != "WAIT") problems += "TSS_nan_should_not_render"
-        val infTss = StatsAdvancedFieldPolicy.sdkTss(Float.POSITIVE_INFINITY)
-        if (infTss.value != "WAIT") problems += "TSS_inf_should_not_render"
+        val nanXss = StatsAdvancedFieldPolicy.localXss(Float.NaN)
+        if (nanXss.value != "WAIT") problems += "XSS_nan_should_not_render"
+        val infXss = StatsAdvancedFieldPolicy.localXss(Float.POSITIVE_INFINITY)
+        if (infXss.value != "WAIT") problems += "XSS_inf_should_not_render"
         val negKcal = StatsAdvancedFieldPolicy.sdkCalories(-1)
         if (negKcal.value != "WAIT") problems += "KCAL_negative_should_not_render"
 
@@ -59,7 +59,7 @@ class StatsSdkFirstGateTest {
         }
 
         val pass = problems.isEmpty()
-        writeAudit(pass, problems, blocked, tssReady, kcalReady, batDrainReady, batLeftReady, leftFlat)
+        writeAudit(pass, problems, blocked, xssReady, kcalReady, batDrainReady, batLeftReady, leftFlat)
         assertTrue("StatsSdkFirstGateTest FAIL. Szczegoly: reports/stats_sdk_first_audit.txt", pass)
     }
 
@@ -83,7 +83,7 @@ class StatsSdkFirstGateTest {
         pass: Boolean,
         problems: List<String>,
         blocked: List<Pair<String, AdvancedFieldDecision>>,
-        tss: AdvancedFieldDecision,
+        xss: AdvancedFieldDecision,
         kcal: AdvancedFieldDecision,
         batDrain: AdvancedFieldDecision,
         batLeft: AdvancedFieldDecision,
@@ -94,7 +94,7 @@ class StatsSdkFirstGateTest {
         val out = File(reports, "stats_sdk_first_audit.txt")
         val content = buildString {
             appendLine("Stats SDK-first audit")
-            appendLine("TSS=${tss.value}/${tss.status}/${tss.reason}/${tss.source}")
+            appendLine("XSS=${xss.value}/${xss.status}/${xss.reason}/${xss.source}")
             appendLine("KCAL=${kcal.value}/${kcal.status}/${kcal.reason}/${kcal.source}")
             appendLine("UP_LEFT_FLAT=${leftFlat.value}/${leftFlat.status}/${leftFlat.reason}/${leftFlat.source}")
             appendLine("BAT_DRAIN=${batDrain.value}/${batDrain.status}/${batDrain.reason}/${batDrain.source}")

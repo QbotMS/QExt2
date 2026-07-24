@@ -192,16 +192,6 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         return if (avg > 0f) (npWatts() / avg).coerceAtMost(2.0f) else 0f
     }
 
-    fun tssValue(movingSec: Long): Float {
-        val ftp = ftpWatts.toFloat()
-        if (ftp <= 0f || movingSec <= 0L) return 0f
-        val np = safetyFloat(npWatts().toFloat())
-        if (np <= 0f) return 0f
-        val ifVal = (np / ftp).coerceIn(0f, 2f)
-        val result = ((movingSec * np * ifVal) / (ftp * 3600f) * 100f)
-        return result.coerceIn(0f, 9999f)
-    }
-
     fun hasDecouplingData(): Boolean = decoupleHr.size >= 120
 
     fun decouplingPercent(): Float {

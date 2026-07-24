@@ -129,7 +129,6 @@ private const val KEY_PARTIAL = "partial"
 private const val KEY_WARNINGS = "warnings"
 private const val KEY_SLEEP_DATA_DATE_MARKER = "sleep_data_date_marker"
 private const val KEY_SLEEP_REFRESH_PENDING = "sleep_refresh_pending"
-private const val KEY_RESERVE_DAILY_TSS_BASE = "reserve_daily_tss_base"
 private const val KEY_RESERVE_DAILY_XSS_BASE = "reserve_daily_xss_base"
 
 object AthleteDataStore {
@@ -295,28 +294,8 @@ object AthleteDataStore {
         prefs?.edit()?.putBoolean(KEY_SLEEP_REFRESH_PENDING, false)?.apply()
     }
 
-    fun saveReserveDailyTssBase(value: Float) {
-        val safe = if (value.isNaN() || value.isInfinite()) 0f else value.coerceIn(0f, 9999f)
-        prefs?.edit()?.putFloat(KEY_RESERVE_DAILY_TSS_BASE, safe)?.apply()
-    }
-
-    fun loadReserveDailyTssBase(): Float {
-        val v = prefs?.getFloat(KEY_RESERVE_DAILY_TSS_BASE, 0f) ?: 0f
-        return if (v.isNaN() || v.isInfinite()) 0f else v.coerceIn(0f, 9999f)
-    }
-
-    private const val KEY_RESERVE_BASE_DATE = "reserve_base_date"
-
-    fun saveReserveDailyTssBaseDate(date: String) {
-        prefs?.edit()?.putString(KEY_RESERVE_BASE_DATE, date)?.apply()
-    }
-
-    fun loadReserveDailyTssBaseDate(): String {
-        return prefs?.getString(KEY_RESERVE_BASE_DATE, "") ?: ""
-    }
-
-    // RSRV 2026-07-07: przepiecie zasilania na XSS (ModelQ). TSS wyzej zostaje WYLACZNIE dla
-    // wlasnego pola statystyk "TSS" -- nie jest juz wejsciem do rideReservePercent.
+    // RSRV: jedyna waluta obciazenia to XSS (ModelQ). Ksiega TSS usunieta 2026-07-24 --
+    // nie byla przez nikogo czytana, a jej istnienie grozilo rozjechaniem sie z ksiega XSS.
     fun saveReserveDailyXssBase(value: Float) {
         val safe = if (value.isNaN() || value.isInfinite()) 0f else value.coerceIn(0f, 9999f)
         prefs?.edit()?.putFloat(KEY_RESERVE_DAILY_XSS_BASE, safe)?.apply()

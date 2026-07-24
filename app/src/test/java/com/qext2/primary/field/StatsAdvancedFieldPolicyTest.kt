@@ -17,19 +17,19 @@ class StatsAdvancedFieldPolicyTest {
     }
 
     @Test
-    fun tssWithoutModelIsWaitWithReason() {
-        val decision = StatsAdvancedFieldPolicy.sdkTss(0f)
+    fun xssWithoutDataIsWaitWithReason() {
+        val decision = StatsAdvancedFieldPolicy.localXss(0f)
         assertEquals("WAIT", decision.value)
         assertEquals(FieldStatus.NO_DATA, decision.status)
-        assertEquals("sdk_field_not_available", decision.reason)
+        assertEquals("xss_not_accumulated", decision.reason)
     }
 
     @Test
-    fun tssFromSdkIsShownWhenAvailable() {
-        val decision = StatsAdvancedFieldPolicy.sdkTss(137.8f)
+    fun xssFromLocalModelIsShownWhenAvailable() {
+        val decision = StatsAdvancedFieldPolicy.localXss(137.8f)
         assertEquals("137", decision.value)
         assertEquals(FieldStatus.OK, decision.status)
-        assertEquals("sdk_training_stress_score", decision.reason)
+        assertEquals("local_xss_model", decision.reason)
     }
 
     @Test

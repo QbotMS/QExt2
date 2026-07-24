@@ -80,9 +80,6 @@ class ArchitectureContractsTest {
 
     @Test
     fun sdkOnlyFieldsDoNotFallbackToLocalModel() {
-        val tssMissing = StatsAdvancedFieldPolicy.sdkTss(0f)
-        assertEquals("TSS without SDK must be NO_DATA", FieldStatus.NO_DATA, tssMissing.status)
-
         val kcalMissing = StatsAdvancedFieldPolicy.sdkCalories(0)
         assertEquals("KCAL without SDK must be NO_DATA", FieldStatus.NO_DATA, kcalMissing.status)
     }
