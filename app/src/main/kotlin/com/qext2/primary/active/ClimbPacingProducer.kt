@@ -52,7 +52,8 @@ class ClimbPacingProducer(private val logger: (String) -> Unit = {}) {
     }
 
     private data class Plan(
-        val line2: String,
+        /** Stan W' pokazywany w line1 -- line2 bywa obcinana na malym polu. */
+        val state: String,
         val severity: ActiveMessageSeverity,
         val priority: ActiveMessagePriority,
         val cooldownMs: Long,
@@ -139,7 +140,7 @@ class ClimbPacingProducer(private val logger: (String) -> Unit = {}) {
         val plan = when {
             // Bak pusty, a dalej nad CP -> model mowi "koniec", nogi jada. Sygnal breakthrough.
             wBalancePct == 0 && diff > DEAD_ZONE_W -> Plan(
-                line2 = "PRZEPA\u0141",
+                state = "PRZEPA\u0141",
                 severity = ActiveMessageSeverity.CRITICAL,
                 priority = ActiveMessagePriority.CRITICAL,
                 cooldownMs = DIVE_NEAR_COOLDOWN_MS,
@@ -149,25 +150,25 @@ class ClimbPacingProducer(private val logger: (String) -> Unit = {}) {
             // Nurkowanie: im blizej bomby, tym czesciej
             diff > DEAD_ZONE_W -> {
                 val t = bombSeconds(wBalJ, diff)
-                val line2 = "bomba ${formatMmSs(t)}"
+                val state = "BOMBA ${formatMmSs(t)}"
                 when {
                     t < BOMB_CRIT_S -> Plan(
-                        line2, ActiveMessageSeverity.CRITICAL, ActiveMessagePriority.CRITICAL,
+                        state, ActiveMessageSeverity.CRITICAL, ActiveMessagePriority.CRITICAL,
                         DIVE_CRIT_COOLDOWN_MS, DIVE_CRIT_TTL_MS, "bomb_crit",
                     )
                     t < BOMB_NEAR_S -> Plan(
-                        line2, ActiveMessageSeverity.WARNING, ActiveMessagePriority.WARNING,
+                        state, ActiveMessageSeverity.WARNING, ActiveMessagePriority.WARNING,
                         DIVE_NEAR_COOLDOWN_MS, DIVE_NEAR_TTL_MS, "bomb_near",
                     )
                     else -> Plan(
-                        line2, ActiveMessageSeverity.WARNING, ActiveMessagePriority.WARNING,
+                        state, ActiveMessageSeverity.WARNING, ActiveMessagePriority.WARNING,
                         DIVE_FAR_COOLDOWN_MS, DIVE_FAR_TTL_MS, "bomb_far",
                     )
                 }
             }
             // Odbudowa
             diff < -DEAD_ZONE_W -> Plan(
-                line2 = "odbudowa ${formatMmSs(recoverySeconds(balFraction, cpEffW, power.toFloat()))}",
+                state = "ODBUDOWA ${formatMmSs(recoverySeconds(balFraction, cpEffW, power.toFloat()))}",
                 severity = ActiveMessageSeverity.WARNING,
                 priority = ActiveMessagePriority.WARNING,
                 cooldownMs = CALM_COOLDOWN_MS,
@@ -176,7 +177,7 @@ class ClimbPacingProducer(private val logger: (String) -> Unit = {}) {
             )
             // Ani nie nurkuje, ani nie odbudowuje
             else -> Plan(
-                line2 = "TRZYMASZ!",
+                state = "TRZYMASZ!",
                 severity = ActiveMessageSeverity.WARNING,
                 priority = ActiveMessagePriority.WARNING,
                 cooldownMs = CALM_COOLDOWN_MS,
@@ -187,12 +188,16 @@ class ClimbPacingProducer(private val logger: (String) -> Unit = {}) {
 
         if (lastWPrimeMsgMs > 0L && nowMs - lastWPrimeMsgMs < plan.cooldownMs) return null
         lastWPrimeMsgMs = nowMs
-        logger("WPRIME_MSG kind=${plan.kind} pct=$wBalancePct power=$power cp=${cpEffW.toInt()} wp=${wPrimeEffKj} line2=${plan.line2}")
+        logger("WPRIME_MSG kind=${plan.kind} pct=$wBalancePct power=$power cp=${cpEffW.toInt()} wp=${wPrimeEffKj} state=${plan.state}")
+        // Tytul + line1 to jedyne linie, co do ktorych mamy pewnosc, ze sa widoczne
+        // na polu ACTIVE. Wczesniej stan i czas szly w line2 i nie docieraly do
+        // zawodnika (zgloszone z trasy 2026-07-25). Pilnosc niesie kolor tla,
+        // wiec tytul "UWAGA!" byl zbedny -- lepiej pokazac procent.
         return ActiveMessage(
             id = "wprime_${plan.kind}_$nowMs",
-            title = "UWAGA!",
-            line1 = "$wBalancePct% W'",
-            line2 = plan.line2,
+            title = "W' $wBalancePct%",
+            line1 = plan.state,
+            line2 = null,
             severity = plan.severity,
             priority = plan.priority,
             resumePolicy = ActiveMessageResumePolicy.DROP_ON_INTERRUPT,

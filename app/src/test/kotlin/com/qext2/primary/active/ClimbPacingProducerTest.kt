@@ -41,9 +41,9 @@ class ClimbPacingProducerTest {
         val p = ClimbPacingProducer()
         val msg = produce(p, power = 253, pct = 40, nowMs = 1_000L)
         assertNotNull(msg)
-        assertEquals("UWAGA!", msg!!.title)
-        assertEquals("40% W'", msg.line1)
-        assertEquals("TRZYMASZ!", msg.line2)
+        assertEquals("W' 40%", msg!!.title)
+        assertEquals("TRZYMASZ!", msg.line1)
+        assertNull(msg.line2)
     }
 
     @Test
@@ -51,7 +51,7 @@ class ClimbPacingProducerTest {
         val p = ClimbPacingProducer()
         val msg = produce(p, power = 150, pct = 50, nowMs = 1_000L)
         assertNotNull(msg)
-        assertTrue(msg!!.line2!!.startsWith("odbudowa "))
+        assertTrue(msg!!.line1.startsWith("ODBUDOWA "))
     }
 
     @Test
@@ -60,7 +60,7 @@ class ClimbPacingProducerTest {
         // 50% z 20 kJ = 10000 J; nadwyzka 100 W -> 100 s -> 1:40
         val msg = produce(p, power = 350, pct = 50, nowMs = 1_000L)
         assertNotNull(msg)
-        assertEquals("bomba 1:40", msg!!.line2)
+        assertEquals("BOMBA 1:40", msg!!.line1)
         assertEquals(ActiveMessageSeverity.WARNING, msg.severity)
     }
 
@@ -70,7 +70,7 @@ class ClimbPacingProducerTest {
         // 10% z 20 kJ = 2000 J; nadwyzka 200 W -> 10 s
         val first = produce(p, power = 450, pct = 10, nowMs = 1_000L)
         assertNotNull(first)
-        assertEquals("bomba 0:10", first!!.line2)
+        assertEquals("BOMBA 0:10", first!!.line1)
         assertEquals(ActiveMessageSeverity.CRITICAL, first.severity)
         // po 1 s kolejny komunikat przechodzi (cooldown 1 s)
         assertNotNull(produce(p, power = 450, pct = 10, nowMs = 2_000L))
@@ -81,7 +81,7 @@ class ClimbPacingProducerTest {
         val p = ClimbPacingProducer()
         val msg = produce(p, power = 320, pct = 0, nowMs = 1_000L)
         assertNotNull(msg)
-        assertEquals("PRZEPA\u0141", msg!!.line2)
+        assertEquals("PRZEPA\u0141", msg!!.line1)
         assertEquals(ActiveMessageSeverity.CRITICAL, msg.severity)
     }
 

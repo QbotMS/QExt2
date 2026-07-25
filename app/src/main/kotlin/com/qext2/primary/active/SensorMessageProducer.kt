@@ -47,8 +47,8 @@ class SensorMessageProducer(private val logger: (String) -> Unit = {}) {
         return ActiveMessage(
             id = "sensor_stale_athlete_${s.nowMs}",
             title = "DANE STARE",
-            line1 = ageTxt,
-            line2 = "dyspozycja %.2f".format(s.effectiveTodayFactor),
+            line1 = "%s · %.2f".format(ageTxt, s.effectiveTodayFactor),
+            line2 = null,
             severity = ActiveMessageSeverity.WARNING,
             priority = ActiveMessagePriority.WARNING,
             resumePolicy = ActiveMessageResumePolicy.DROP_ON_INTERRUPT,
