@@ -79,6 +79,24 @@ data class AthleteData(
 
         fun isTodayFactorDegraded(fetchTimestampMs: Long, nowMs: Long): Boolean =
             dataAgeHours(fetchTimestampMs, nowMs) > TODAY_FACTOR_FRESH_H
+
+        // --- Swiezosc gotowosci NA DZIS (audyt RSRV 2026-07-26) ---
+        // todayFactor to sygnal PORANNY (nocny sen/HRV, odswiezany rano). Wartosc
+        // pobrana WCZORAJ -- nawet <24 h temu -- dotyczy WCZORAJSZEJ gotowosci i uzyta
+        // dzis po cichu zaniza RSRV (baseReserve = todayFactor*100). Bramka wieku
+        // 24-48 h tego nie lapala: 18 h to wciaz "swieze". Tu twardo: gotowosc jest
+        // wazna tylko, gdy pobrano ja TEGO SAMEGO dnia lokalnego co start jazdy;
+        // inaczej -> nieswieza (wolajacy uzywa neutralnego 1.0, bez kary ze starych danych).
+        fun readinessFreshForRide(
+            fetchTsMs: Long,
+            rideStartMs: Long,
+            zone: java.time.ZoneId = java.time.ZoneId.systemDefault(),
+        ): Boolean {
+            if (fetchTsMs <= 0L || rideStartMs <= 0L) return false
+            val fetchDay = java.time.Instant.ofEpochMilli(fetchTsMs).atZone(zone).toLocalDate()
+            val rideDay = java.time.Instant.ofEpochMilli(rideStartMs).atZone(zone).toLocalDate()
+            return fetchDay == rideDay
+        }
     }
 
     fun applyBaroAdjustment(baroSensitive: Boolean): AthleteData {

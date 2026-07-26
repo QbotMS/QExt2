@@ -42,27 +42,32 @@ object WeatherClient {
         val url = "${BuildConfig.OPENWEATHER_BASE_URL}?lat=$lat&lon=$lon&appid=$apiKey&units=metric"
         Log.i(TAG, "QEXT_WEATHER_FETCH_START lat=$lat lon=$lon")
 
-        return withTimeoutOrNull(15_000L) {
+        // Audyt baterii 2026-07-26: limit skrocony 15s -> 8s (krocej trzyma radio przy
+        // slabym zasiegu). Usuwanie konsumenta odporne na wyscig: jesli callback strzeli
+        // SYNCHRONICZNIE zanim addConsumer zwroci id, stary kod nie usuwal listenera
+        // (consumerId=null) -> narastajacy wyciek/CPU na dlugiej jezdzie. Teraz id trzymany
+        // w AtomicReference, a po zapisaniu sprawdzamy czy juz sie rozstrzygnelo.
+        return withTimeoutOrNull(8_000L) {
             suspendCancellableCoroutine { cont ->
-                var consumerId: String? = null
-                consumerId = system.addConsumer<OnHttpResponse>(
+                val idRef = java.util.concurrent.atomic.AtomicReference<String?>(null)
+                val settled = java.util.concurrent.atomic.AtomicBoolean(false)
+                fun cleanup() { idRef.getAndSet(null)?.let { system.removeConsumer(it) } }
+                val id = system.addConsumer<OnHttpResponse>(
                     params = OnHttpResponse.MakeHttpRequest(method = "GET", url = url, waitForConnection = true),
                     onError = { msg ->
                         Log.w(TAG, "QEXT_WEATHER_FETCH_FAILED reason=onError msg=$msg")
-                        consumerId?.let { system.removeConsumer(it) }
-                        cont.resume(null)
+                        if (settled.compareAndSet(false, true)) { cleanup(); cont.resume(null) }
                     },
                     onEvent = { resp ->
                         val s = resp.state
                         if (s is HttpResponseState.Complete) {
-                            consumerId?.let { system.removeConsumer(it) }
-                            cont.resume(parseResponse(s))
+                            if (settled.compareAndSet(false, true)) { cleanup(); cont.resume(parseResponse(s)) }
                         }
                     }
                 )
-                cont.invokeOnCancellation {
-                    consumerId?.let { system.removeConsumer(it) }
-                }
+                idRef.set(id)
+                if (settled.get()) cleanup()  // callback strzelil zanim id sie zapisalo
+                cont.invokeOnCancellation { cleanup() }
             }
         }
     }

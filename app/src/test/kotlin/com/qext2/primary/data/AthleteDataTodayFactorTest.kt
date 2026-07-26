@@ -79,4 +79,31 @@ class AthleteDataTodayFactorTest {
         assertEquals(true, AthleteData.isTodayFactorDegraded(now - 30 * h, now))
         assertEquals(true, AthleteData.isTodayFactorDegraded(0L, now))
     }
+
+    // --- swiezosc gotowosci NA DZIS (audyt RSRV 2026-07-26) ---
+
+    private val zone = java.time.ZoneId.of("Europe/Warsaw")
+    private fun ms(y: Int, mo: Int, d: Int, hh: Int, mm: Int): Long =
+        java.time.LocalDateTime.of(y, mo, d, hh, mm).atZone(zone).toInstant().toEpochMilli()
+
+    @Test
+    fun `gotowosc pobrana tego samego dnia jest swieza`() {
+        val rideStart = ms(2026, 7, 26, 10, 50)
+        val fetch = ms(2026, 7, 26, 8, 45)
+        assertEquals(true, AthleteData.readinessFreshForRide(fetch, rideStart, zone))
+    }
+
+    @Test
+    fun `gotowosc z wczoraj NIE jest swieza mimo ponizej 24h`() {
+        // to jest dokladnie przypadek przecieku: 18 h temu, ale WCZORAJ
+        val rideStart = ms(2026, 7, 26, 9, 0)
+        val fetch = ms(2026, 7, 25, 15, 0)
+        assertEquals(false, AthleteData.readinessFreshForRide(fetch, rideStart, zone))
+    }
+
+    @Test
+    fun `brak pobrania lub brak startu - nieswieze`() {
+        assertEquals(false, AthleteData.readinessFreshForRide(0L, ms(2026, 7, 26, 9, 0), zone))
+        assertEquals(false, AthleteData.readinessFreshForRide(ms(2026, 7, 26, 8, 0), 0L, zone))
+    }
 }

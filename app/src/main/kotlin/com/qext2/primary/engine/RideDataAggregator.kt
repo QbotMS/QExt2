@@ -108,6 +108,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     // (bramka wieku, audyt pkt B1), wiec rampa dziala tez w trakcie dlugiej jazdy.
     private val todayFactorRawRef = AtomicReference(1.0f)
     private val athleteFetchTsRef = AtomicReference(0L)
+    // true = todayFactor nie z dzisiejszego pobrania -> RSRV bez kary (audyt RSRV 2026-07-26)
+    private val readinessStaleRef = AtomicReference(false)
     private val cfRef = AtomicReference(1.0f)  // WATEK 2: cf uzyte w tym ticku (do FIT)
     private val modeFactorRef = AtomicReference(1.0f)
     private val baseLtpWattsRef = AtomicReference(0f)
@@ -860,11 +862,18 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val movingElapsedSec = movingElapsedSecRef.get()
                 val powerFresh = now - powerFreshnessRef.get() < 8_000L
                 // Bramka wieku danych zawodnika (audyt pkt B1) -- przeliczane co sekunde.
-                todayFactorRef.set(
-                    AthleteData.ageAdjustedTodayFactor(
-                        todayFactorRawRef.get(), athleteFetchTsRef.get(), now,
-                    )
+                // Dodatkowo: gotowosc wazna tylko z DZISIEJSZEGO pobrania (audyt RSRV
+                // 2026-07-26). Gdy dzis fetch nie doszedl (slaby zasieg) apka trzymala
+                // wczorajszy todayFactor <24 h i po cichu zanizala RSRV -- nieswieza
+                // wartosc daje neutralne 1.0 (bez kary), a flaga zapala sie dla UI.
+                val tfRamped = AthleteData.ageAdjustedTodayFactor(
+                    todayFactorRawRef.get(), athleteFetchTsRef.get(), now,
                 )
+                val readinessFresh = AthleteData.readinessFreshForRide(
+                    athleteFetchTsRef.get(), rideStartWallMsRef.get(),
+                )
+                todayFactorRef.set(if (readinessFresh) tfRamped else 1.0f)
+                readinessStaleRef.set(!readinessFresh)
                 // W' physics: CP anchored on FTP, modulated each tick by readiness
                 // (todayFactor), heat (tempFactor) and in-ride cardiac drift (decoupling).
                 run {
@@ -1162,7 +1171,10 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         val lon = AthleteDataStore.loadLocationLon() ?: return
         // Krotki retry: fetch OWM bywa wolny/kruchy (~12s przy limicie 15s).
         // Bez tego jeden nieudany fetch = pelne 10 min ciszy do nastepnego pollingu.
-        val backoffsMs = longArrayOf(0L, 8_000L, 20_000L)
+        // Retry przyciety (audyt baterii 2026-07-26): 2 proby zamiast 3, limit 8s/proba
+        // (WeatherClient). Wczesniej 3x15s waitForConnection trzymalo radio ~45s/cykl przy
+        // slabym zasiegu; teraz max ~16s/cykl, bez utraty pogody na marginalnym sygnale.
+        val backoffsMs = longArrayOf(0L, 12_000L)
         for (i in backoffsMs.indices) {
             if (backoffsMs[i] > 0L) kotlinx.coroutines.delay(backoffsMs[i])
             val data = WeatherClient.fetch(karooSystem, lat, lon)
@@ -1229,6 +1241,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     }
 
     fun getRideStartMs(): Long = rideStartMsRef.get()
+
+    /** true = todayFactor nie pochodzi z dzisiejszego pobrania; RSRV liczone bez kary. */
+    fun isReadinessStale(): Boolean = readinessStaleRef.get()
 
     fun getCarbBalanceG(): Int = carbBalanceGRef.get()
 
