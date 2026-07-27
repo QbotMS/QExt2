@@ -1045,7 +1045,10 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val hasActivity = isMoving
                 val wPrimeModelReady = wBalance >= 0
                 val etaModelReady = hasRoute && etaMs > 0L
-                val rsrvModelReady = hasActivity && reserve >= 0 && reserve <= 100
+                // RSRV pokazuje liczbe TYLKO na swiezej (dzisiejszej) gotowosci.
+                // Nieswieza -> WAIT ("czekam"), nigdy zmyslona wartosc (audyt RSRV 2026-07-26).
+                val rsrvModelReady = hasActivity && reserve >= 0 && reserve <= 100 &&
+                    !readinessStaleRef.get()
                 val carbModelReady = npRef.get() > 0 && elapsedSec > 60L
                 val fluidModelReady = elapsedSec > 60L && hasActivity
                 _statsSnapshot.value = StatsRideSnapshot(
