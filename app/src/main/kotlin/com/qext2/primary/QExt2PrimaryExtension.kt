@@ -102,10 +102,10 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                     batteryPollJob = null
                     weatherPollJob?.cancel()
                     weatherPollJob = null
-                    _aggregator?.stopStreaming()
+                    // Mrugniecie polaczenia Karoo (czeste przy wgraniu trasy) NIE moze
+                    // niszczyc sesji: miekki stop, agregator zostaje (reconnect wznowi ze snapshotu).
+                    _aggregator?.stopStreamingSoft()
                     aggregatorStreaming = false
-                    _aggregator = null
-                    _aggregatorFlow.value = null
                 }
             }
         }
@@ -323,6 +323,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                                 humidityPercent = json.optDouble("humidityPercent", 50.0).toFloat(),
                                 sunsetTimestampMs = json.optLong("sunsetTimestampMs", json.optLong("twilightMs", json.optLong("sunsetMs", 0L))),
                                 maxHr = json.optInt("maxHrBpm", json.optInt("MaxHRBPM", json.optInt("maxHr", json.optInt("maxHeartRate", 180)))),
+                                lthrBpm = json.optInt("lthrBpm", 132),
                                 // Serwer wysyla klucz "weightKg" -- alias konieczny, inaczej
                                 // waga leciala na domyslne 75 kg i zanizala model zywienia.
                                 bodyWeightKg = json.optDouble("bodyWeightKg", json.optDouble("weightKg", 75.0)).toFloat(),

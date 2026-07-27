@@ -13,6 +13,7 @@ data class AthleteData(
     val humidityPercent: Float = 50f,
     val sunsetTimestampMs: Long = 0L,
     val maxHr: Int = 180,
+    val lthrBpm: Int = 132,
     val bodyWeightKg: Float = 75f,
     val xertStatus: String = "--",
     val hrvToday: Int = 0,
@@ -129,6 +130,7 @@ private const val KEY_ATL = "atl"
 private const val KEY_HUMIDITY = "humidity"
 private const val KEY_SUNSET_TS = "sunset_ts"
 private const val KEY_MAX_HR = "max_hr"
+private const val KEY_LTHR = "lthr_bpm"
 private const val KEY_WEIGHT = "weight"
 private const val KEY_FETCH_TS = "fetch_ts"
 private const val KEY_XERT_STATUS = "xert_status"
@@ -170,6 +172,7 @@ object AthleteDataStore {
             humidityPercent = p.getFloat(KEY_HUMIDITY, 50f),
             sunsetTimestampMs = p.getLong(KEY_SUNSET_TS, 0L),
             maxHr = p.getInt(KEY_MAX_HR, 180),
+            lthrBpm = p.getInt(KEY_LTHR, 132),
             bodyWeightKg = p.getFloat(KEY_WEIGHT, 75f),
             xertStatus = p.getString(KEY_XERT_STATUS, "--") ?: "--",
             hrvToday = p.getInt(KEY_HRV_TODAY, 0),
@@ -200,6 +203,7 @@ object AthleteDataStore {
             putFloat(KEY_HUMIDITY, data.humidityPercent)
             putLong(KEY_SUNSET_TS, data.sunsetTimestampMs)
             putInt(KEY_MAX_HR, data.maxHr)
+            putInt(KEY_LTHR, data.lthrBpm)
             putFloat(KEY_WEIGHT, data.bodyWeightKg)
             putString(KEY_XERT_STATUS, data.xertStatus)
             putInt(KEY_HRV_TODAY, data.hrvToday)
@@ -256,6 +260,10 @@ object AthleteDataStore {
 
     fun loadHrZoneMode(): Boolean {
         return prefs?.getBoolean("hr_zone_mode", false) ?: false
+    }
+
+    fun loadLthrBpm(): Int {
+        return prefs?.getInt("lthr_bpm", 132) ?: 132
     }
 
     fun saveCapTwilight(enabled: Boolean) {

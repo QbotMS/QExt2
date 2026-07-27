@@ -239,7 +239,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
             scopeActive = scope.coroutineContext[Job]?.isActive == true,
         )
         if (startPlan.stopBeforeStart) {
-            stopStreamingInternal("restart_before_start")
+            // Miekki restart: odlacz strumienie/tick, ale NIE kasuj snapshotu ani statystyk
+            // (inaczej wznowienie ponizej czyta juz wyzerowany stan -> reset XSS przy wgraniu trasy).
+            stopStreamingSoft()
         }
         if (startPlan.recreateScope) {
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
