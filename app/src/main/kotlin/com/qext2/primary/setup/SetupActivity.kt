@@ -185,6 +185,12 @@ class SetupActivity : Activity() {
         cbBaro?.isChecked = AthleteDataStore.loadBaroSensitive()
         cbHrZone?.isChecked = AthleteDataStore.loadHrZoneMode()
         cbCapTwilight?.isChecked = AthleteDataStore.loadCapTwilight()
+        // TodayFactor: przelacznik SESYJNY (bez preferencji) -- reset na ON po restarcie Karoo.
+        val cbTf = findViewById<CheckBox>(R.id.cb_tf)
+        cbTf?.isChecked = com.qext2.primary.data.TodayFactorSession.enabled
+        cbTf?.setOnCheckedChangeListener { _, checked ->
+            com.qext2.primary.data.TodayFactorSession.enabled = checked
+        }
         cbBaro?.setOnCheckedChangeListener { _, checked ->
             AthleteDataStore.saveBaroSensitive(checked)
             showStoredData()

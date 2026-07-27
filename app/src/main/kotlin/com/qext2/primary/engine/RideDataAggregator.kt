@@ -872,8 +872,14 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val readinessFresh = AthleteData.readinessFreshForRide(
                     athleteFetchTsRef.get(), rideStartWallMsRef.get(),
                 )
-                todayFactorRef.set(if (readinessFresh) tfRamped else 1.0f)
-                readinessStaleRef.set(!readinessFresh)
+                if (!com.qext2.primary.data.TodayFactorSession.enabled) {
+                    // Override na brak sieci (SETUP): licz na neutralnym, bez alarmu.
+                    todayFactorRef.set(1.0f)
+                    readinessStaleRef.set(false)
+                } else {
+                    todayFactorRef.set(if (readinessFresh) tfRamped else 1.0f)
+                    readinessStaleRef.set(!readinessFresh)
+                }
                 // W' physics: CP anchored on FTP, modulated each tick by readiness
                 // (todayFactor), heat (tempFactor) and in-ride cardiac drift (decoupling).
                 run {
@@ -973,6 +979,15 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     fuelProducer.checkAndProduce(physioTempC(), AthleteDataStore.loadCarbPacketSize(), now)
                         ?.let { pendingFuelMsgRef.set(it) }
                 }
+
+                // Alarm "gotowosc nieswieza": od razu po starcie, gdy dane starsze niz dzis
+                // (readinessStale). Milknie sam, gdy dociagnie sie swieza gotowosc albo
+                // uzytkownik wylaczy TF w SETUP (audyt RSRV 2026-07-26).
+                readinessStaleProducer.checkAndProduce(
+                    readinessStale = readinessStaleRef.get(),
+                    recording = rideStartWallMsRef.get() > 0L,
+                    nowMs = now,
+                )?.let { pendingReadinessMsgRef.set(it) }
 
                 // AUTO adaptacyjne: aktualizuj modeFactor z rolling window 20 min
                 val athleteData = AthleteDataStore.load()
@@ -1137,6 +1152,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         statsCalc.reset()
         fuelProducer.reset()
         pendingFuelMsgRef.set(null)
+        readinessStaleProducer.reset()
+        pendingReadinessMsgRef.set(null)
         adaptiveTracker.reset()
         hrBuffer.clear()
         hrAdvisor.reset()
@@ -1473,6 +1490,13 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
 
     fun consumePendingFuelMessage(): com.qext2.primary.active.ActiveMessage? =
         pendingFuelMsgRef.getAndSet(null)
+
+    private val readinessStaleProducer = com.qext2.primary.active.ReadinessStaleProducer(
+        logger = { msg -> Log.d(TAG, "QEXT_READINESS $msg") })
+    private val pendingReadinessMsgRef = AtomicReference<com.qext2.primary.active.ActiveMessage?>(null)
+
+    fun consumePendingReadinessMessage(): com.qext2.primary.active.ActiveMessage? =
+        pendingReadinessMsgRef.getAndSet(null)
 
     /** Physiological ambient temperature: weather API when fresh (sensor reads low
      *  in airflow while moving); falls back to device sensor when weather stale. */

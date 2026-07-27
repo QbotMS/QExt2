@@ -585,6 +585,9 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
                 nowMs = now,
             )
             if (climbPacingMsg != null && messageManager.show(climbPacingMsg)) beepForMessage(climbPacingMsg, "pacing")
+            agg.consumePendingReadinessMessage()?.let { readyMsg ->
+                if (messageManager.show(readyMsg)) beepForMessage(readyMsg, "readiness")
+            }
             agg.consumePendingFuelMessage()?.let { fuelMsg ->
                 if (messageManager.show(fuelMsg)) beepForMessage(fuelMsg, "fuel")
             }

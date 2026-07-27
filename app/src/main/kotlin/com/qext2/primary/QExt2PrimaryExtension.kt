@@ -57,8 +57,6 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
     val karooSystemFlow: StateFlow<KarooSystemService?> = _karooSystemFlow.asStateFlow()
     private var fetchConsumerId: String? = null
     private var fetchAttempts = 0
-    // true = dzis udalo sie pobrac swieza gotowosc -> retry sie zatrzymuje (audyt RSRV 2026-07-26)
-    private var readinessOkToday = false
     private var batteryPollJob: Job? = null
     private var weatherPollJob: Job? = null
     private var visibleFieldCount = 0
@@ -279,21 +277,8 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
     fun remainingSurface(kmAlongRoute: Float) =
         _surfaceCache?.remainingByType(kmAlongRoute) ?: emptyMap()
 
-    // Uporczywy retry: gotowosc MUSI byc swieza (dzisiejsza). Backoff rosnie do 5 min
-    // i probuje dalej, az dociagnie dzisiejsza gotowosc -- na trasie z martwym zasiegiem
-    // na starcie stara wartosc juz NIE zostaje na cala jazde (audyt RSRV 2026-07-26).
-    private fun scheduleReadinessRetry(system: KarooSystemService, reason: String) {
-        if (readinessOkToday) return
-        fetchAttempts++
-        val delays = longArrayOf(15_000L, 30_000L, 60_000L, 120_000L, 300_000L)
-        val delayMs = delays[(fetchAttempts - 1).coerceIn(0, delays.size - 1)]
-        Log.w(TAG, "QEXT_READINESS_RETRY reason=$reason attempt=$fetchAttempts inMs=$delayMs")
-        android.os.Handler(android.os.Looper.getMainLooper())
-            .postDelayed({ fetchAthleteData(system, isRetry = true) }, delayMs)
-    }
-
     private fun fetchAthleteData(system: KarooSystemService, isRetry: Boolean = false) {
-        if (!isRetry) { fetchAttempts = 0; readinessOkToday = false }
+        if (!isRetry) fetchAttempts = 0
         fetchConsumerId?.let { system.removeConsumer(it) }
         val url = BuildConfig.QEXT_READINESS_URL.trim()
             .ifEmpty { "https://qbot.cytr.us/ride-readiness" }
@@ -302,7 +287,6 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
             params = OnHttpResponse.MakeHttpRequest(method = "GET", url = url, waitForConnection = false),
             onError = { msg ->
                 Log.w(TAG, "QEXT_READINESS_FETCH_FAILED reason=onError msg=$msg")
-                scheduleReadinessRetry(system, "onError")
             },
             onEvent = { resp ->
                 val s = resp.state
@@ -365,16 +349,12 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                             val adjusted = data.applyBaroAdjustment(AthleteDataStore.loadBaroSensitive())
                             _aggregator?.updateAthleteData(adjusted)
                             AthleteDataStore.saveLastRefresh()
-                            readinessOkToday = true
-                            fetchAttempts = 0
                             Log.i(TAG, "QEXT_READINESS_FETCH_SAVED source=$url wPrimeKj=${data.wPrimeKj} ltpWatts=${data.ltpWatts} ftpWatts=${data.ftp} factor=${adjusted.todayFactor}")
                         } catch (e: Exception) {
                             Log.w(TAG, "QEXT_READINESS_FETCH_FAILED reason=parse_error msg=${e.message}")
-                            scheduleReadinessRetry(system, "parse_error")
                         }
                     } else {
                         Log.w(TAG, "QEXT_READINESS_FETCH_FAILED reason=http_status status=${s.statusCode} error=${s.error ?: "no body"}")
-                        scheduleReadinessRetry(system, "http_${s.statusCode}")
                     }
                 }
             }
