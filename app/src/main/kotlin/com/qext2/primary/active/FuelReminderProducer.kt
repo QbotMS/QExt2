@@ -75,7 +75,7 @@ class FuelReminderProducer(private val logger: (String) -> Unit = {}) {
             logger("FUEL_TRIGGER type=eat accum=${carbAccumG.toInt()}g packet=$packet")
             return ActiveMessage(
                 id = "fuel_eat_$nowMs",
-                title = "ZJEDZ ~${packet}g",
+                title = "ZJEDZ",
                 line1 = "zalecane \u0142\u0105cznie: ${carbAccumG.toInt()}g",
                 line2 = null,
                 severity = ActiveMessageSeverity.INFO,
