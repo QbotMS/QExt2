@@ -25,4 +25,7 @@ object SurfaceBridge {
 
     fun remainingByType(kmAlongRoute: Float): Map<SurfaceType, Float> =
         cache?.remainingByType(kmAlongRoute) ?: emptyMap()
+
+    fun initialByType(): Map<SurfaceType, Float> =
+        cache?.initialByType() ?: emptyMap()
 }

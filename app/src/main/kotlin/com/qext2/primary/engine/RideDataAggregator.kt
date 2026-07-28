@@ -1086,6 +1086,12 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val surfOffLeft = if (surfaceLeft.isEmpty()) -1f else
                     ((surfaceLeft[com.qext2.primary.model.SurfaceType.GRAVEL] ?: 0f) +
                         (surfaceLeft[com.qext2.primary.model.SurfaceType.LOOSE] ?: 0f))
+                val surfaceInit = com.qext2.primary.surface.SurfaceBridge.initialByType()
+                val surfPavedInit = if (surfaceInit.isEmpty()) -1f else
+                    (surfaceInit[com.qext2.primary.model.SurfaceType.PAVED] ?: 0f)
+                val surfOffInit = if (surfaceInit.isEmpty()) -1f else
+                    ((surfaceInit[com.qext2.primary.model.SurfaceType.GRAVEL] ?: 0f) +
+                        (surfaceInit[com.qext2.primary.model.SurfaceType.LOOSE] ?: 0f))
                 val cadSamples = cadenceSamplesRef.get()
                 _statsSnapshot.value = StatsRideSnapshot(
                     npWholeWatts = npRef.get(),
@@ -1099,6 +1105,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     movingElapsedSec = movingElapsedSecRef.get(),
                     surfacePavedKmLeft = surfPavedLeft,
                     surfaceOffroadKmLeft = surfOffLeft,
+                    surfacePavedKmInit = surfPavedInit,
+                    surfaceOffroadKmInit = surfOffInit,
                     fluidLPerH = fluid,
                     rideReservePercent = reserve,
                     wBalancePercent = wBalance,

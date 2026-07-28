@@ -109,10 +109,10 @@ class StatsDataType : DataTypeImpl("qext2", "qext2-stats") {
         setValue(v, R.id.tv_stops, if (snap.grossElapsedSec > 0L) String.format("%d:%02d", stoppedSec / 3600, (stoppedSec % 3600) / 60) else "--")
         val pavedLeft = snap.surfacePavedKmLeft
         val offLeft = snap.surfaceOffroadKmLeft
-        if (pavedLeft >= 0f && offLeft >= 0f && (pavedLeft + offLeft) > 0.05f) {
-            val total = pavedLeft + offLeft
-            v.setProgressBar(R.id.pb_surface_paved, 100, ((pavedLeft / total) * 100f).toInt(), false)
-            v.setProgressBar(R.id.pb_surface_offroad, 100, ((offLeft / total) * 100f).toInt(), false)
+        val skala = maxOf(snap.surfacePavedKmInit, snap.surfaceOffroadKmInit)
+        if (pavedLeft >= 0f && offLeft >= 0f && skala > 0.05f) {
+            v.setProgressBar(R.id.pb_surface_paved, 100, ((pavedLeft / skala) * 100f).toInt().coerceIn(0, 100), false)
+            v.setProgressBar(R.id.pb_surface_offroad, 100, ((offLeft / skala) * 100f).toInt().coerceIn(0, 100), false)
             setValue(v, R.id.tv_surface_paved_km, String.format("%.0fkm", pavedLeft))
             setValue(v, R.id.tv_surface_offroad_km, String.format("%.0fkm", offLeft))
         } else {

@@ -47,4 +47,6 @@ data class StatsRideSnapshot(
     val movingElapsedSec: Long = 0L,
     val surfacePavedKmLeft: Float = -1f,
     val surfaceOffroadKmLeft: Float = -1f,
+    val surfacePavedKmInit: Float = -1f,
+    val surfaceOffroadKmInit: Float = -1f,
 )

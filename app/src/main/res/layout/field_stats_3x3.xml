@@ -22,12 +22,12 @@
             <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="NAWIERZCHNIA" android:textColor="#CBD5E1" android:textSize="9sp" android:includeFontPadding="false" />
             <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal" android:gravity="center_vertical">
                 <TextView android:layout_width="42dp" android:layout_height="wrap_content" android:text="ASFALT" android:textColor="#CBD5E1" android:textSize="9sp" android:includeFontPadding="false" />
-                <ProgressBar android:id="@+id/pb_surface_paved" style="?android:attr/progressBarStyleHorizontal" android:layout_width="0dp" android:layout_height="7dp" android:layout_weight="1" android:max="100" android:progress="0" android:progressTint="#60A5FA" android:progressBackgroundTint="#243040" />
+                <ProgressBar android:id="@+id/pb_surface_paved" style="?android:attr/progressBarStyleHorizontal" android:layout_width="0dp" android:layout_height="9dp" android:layout_weight="1" android:max="100" android:progress="0" android:progressTint="#60A5FA" android:progressBackgroundTint="#243040" />
                 <TextView android:id="@+id/tv_surface_paved_km" android:layout_width="46dp" android:layout_height="wrap_content" android:gravity="end" android:text="--" android:textColor="#FFFFFF" android:textSize="10sp" android:fontFamily="monospace" android:includeFontPadding="false" />
             </LinearLayout>
             <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal" android:gravity="center_vertical">
                 <TextView android:layout_width="42dp" android:layout_height="wrap_content" android:text="TEREN" android:textColor="#CBD5E1" android:textSize="9sp" android:includeFontPadding="false" />
-                <ProgressBar android:id="@+id/pb_surface_offroad" style="?android:attr/progressBarStyleHorizontal" android:layout_width="0dp" android:layout_height="7dp" android:layout_weight="1" android:max="100" android:progress="0" android:progressTint="#FACC15" android:progressBackgroundTint="#243040" />
+                <ProgressBar android:id="@+id/pb_surface_offroad" style="?android:attr/progressBarStyleHorizontal" android:layout_width="0dp" android:layout_height="9dp" android:layout_weight="1" android:max="100" android:progress="0" android:progressTint="#FACC15" android:progressBackgroundTint="#243040" />
                 <TextView android:id="@+id/tv_surface_offroad_km" android:layout_width="46dp" android:layout_height="wrap_content" android:gravity="end" android:text="--" android:textColor="#FFFFFF" android:textSize="10sp" android:fontFamily="monospace" android:includeFontPadding="false" />
             </LinearLayout>
         </LinearLayout>

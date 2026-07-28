@@ -114,6 +114,8 @@ class SurfaceProfileCache(
     /**
      * Ile km każdego typu nawierzchni pozostało od bieżącej pozycji do końca.
      */
+    fun initialByType(): Map<SurfaceType, Float> = remainingByType(0f)
+
     fun remainingByType(kmAlongRoute: Float): Map<SurfaceType, Float> {
         val remaining = segments.filter { it.kmEnd > kmAlongRoute }
         return SurfaceType.values().associateWith { type ->
