@@ -22,4 +22,7 @@ object SurfaceBridge {
 
     fun currentSurface(kmAlongRoute: Float): SurfaceType =
         cache?.surfaceAt(kmAlongRoute) ?: SurfaceType.PAVED
+
+    fun remainingByType(kmAlongRoute: Float): Map<SurfaceType, Float> =
+        cache?.remainingByType(kmAlongRoute) ?: emptyMap()
 }

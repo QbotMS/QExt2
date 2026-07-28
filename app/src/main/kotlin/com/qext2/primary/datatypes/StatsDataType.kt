@@ -28,6 +28,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -51,10 +52,12 @@ class StatsDataType : DataTypeImpl("qext2", "qext2-stats") {
 
         scope.launch {
             val ext = QExt2PrimaryExtension.instance ?: return@launch
-            ext.aggregatorFlow
-                .flatMapLatest { agg ->
+            combine(
+                ext.aggregatorFlow.flatMapLatest { agg ->
                     agg?.statsSnapshot ?: flowOf(StatsRideSnapshot())
-                }
+                },
+                AthleteDataStore.gateUiTick,
+            ) { snap, _ -> snap }
                 .collect { snap ->
                     val next = RemoteViews(context.packageName, R.layout.field_stats_3x3)
                     bind(next, snap, context)
@@ -70,39 +73,18 @@ class StatsDataType : DataTypeImpl("qext2", "qext2-stats") {
 
     private fun bind(v: RemoteViews, snap: StatsRideSnapshot, context: Context) {
         AthleteDataStore.init(context)
-        val carbClickId = System.currentTimeMillis()
-        val carbIntent = PendingIntent.getBroadcast(
-            context,
-            REQ_CARB,
-            Intent(context, StatsActionReceiver::class.java)
-                .setAction(StatsActionReceiver.ACTION_CARB_ADD)
-                .putExtra(StatsActionReceiver.EXTRA_CARB_CLICK_ID, carbClickId),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
         val gateIntent = PendingIntent.getBroadcast(
             context,
             REQ_GATE,
             Intent(context, StatsActionReceiver::class.java).setAction(StatsActionReceiver.ACTION_GATE_TAP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        v.setOnClickPendingIntent(R.id.stats_btn_carb, carbIntent)
         v.setOnClickPendingIntent(R.id.stats_btn_gate, gateIntent)
 
-        val carbPacket = AthleteDataStore.loadCarbPacketSize()
-        val carbAdded = AthleteDataStore.loadCarbIntakeTotal()
-        val lastTapMs = AthleteDataStore.loadCarbLastTapMs()
-        val tapRecent = (System.currentTimeMillis() - lastTapMs) <= 1200L
-        val carbBtnText = if (tapRecent) {
-            "CARB +${carbPacket}g\nOK ${carbAdded}g"
-        } else {
-            "CARB +${carbPacket}g\nSUM ${carbAdded}g"
-        }
-        v.setTextViewText(R.id.tv_btn_carb, carbBtnText)
-        v.setInt(R.id.stats_btn_carb, "setBackgroundColor", if (tapRecent) Color.parseColor("#16A34A") else Color.parseColor("#1F2937"))
         v.setTextViewText(R.id.tv_btn_gate, AthleteDataStore.loadGateUiState())
 
         setValue(v, R.id.tv_np, StatsValueFormatter.npW(snap.npWholeWatts).main)
-        setValue(v, R.id.tv_if, StatsValueFormatter.ifValue(snap.ifWholeRide).main)
+        setValue(v, R.id.tv_if, StatsValueFormatter.ifEff(snap.ifEffWholeRide).main)
         setValue(v, R.id.tv_vi, StatsValueFormatter.vi(snap.viValue).main)
         v.setTextColor(R.id.tv_vi, viColor(snap.viValue))
         Log.d(TAG, "QEXT_STATS_ADV field=np value=${snap.npWholeWatts} status=OK reason=sdk_or_local")
@@ -112,21 +94,37 @@ class StatsDataType : DataTypeImpl("qext2", "qext2-stats") {
         bindAdvanced(v, R.id.tv_xss, StatsAdvancedFieldPolicy.localXss(snap.xssValue), "xss")
         bindAdvanced(v, R.id.tv_rsrv, StatsAdvancedFieldPolicy.localRsrv(snap.rsrvModelReady, snap.rideReservePercent), "rsrv")
         v.setTextColor(R.id.tv_rsrv, rsrvColor(snap.rideReservePercent, snap.rsrvModelReady))
-        bindAdvanced(v, R.id.tv_eta, StatsAdvancedFieldPolicy.localEta(snap.hasRoute, snap.etaModelReady, snap.etaTimestamp), "eta")
+        bindAdvanced(v, R.id.tv_eta, StatsAdvancedFieldPolicy.sdkCalories(snap.caloriesKcal), "kcal")
 
         bindAdvanced(v, R.id.tv_carb, StatsAdvancedFieldPolicy.localCarb(snap.carbModelReady, snap.carbsGPerH), "carb")
-        bindAdvanced(v, R.id.tv_carb_balance, StatsAdvancedFieldPolicy.localCarbBalance(snap.carbModelReady, snap.carbBalanceG), "carb_balance")
+        setValue(v, R.id.tv_carb_balance, if (snap.carbModelReady) "${snap.carbNeededG}g" else "--")
         bindAdvanced(v, R.id.tv_fluid, StatsAdvancedFieldPolicy.localFluid(snap.fluidModelReady, snap.fluidLPerH), "fluid")
-        bindAdvanced(v, R.id.tv_cal, StatsAdvancedFieldPolicy.sdkCalories(snap.caloriesKcal), "kcal")
+        setValue(v, R.id.tv_cal, if (snap.cadenceAvg > 0) snap.cadenceAvg.toString() else "--")
 
         bindAdvanced(v, R.id.tv_asc_done, StatsAdvancedFieldPolicy.ascentDone(snap.hasRoute, snap.routeClimbSourceReady, snap.ascentDoneM, snap.ascentLeftM), "up")
         bindAdvanced(v, R.id.tv_asc_left, StatsAdvancedFieldPolicy.ascentLeft(snap.hasRoute, snap.routeClimbSourceReady, snap.ascentDoneM, snap.ascentLeftM), "left")
-        bindAdvanced(v, R.id.tv_avg_gross, StatsAdvancedFieldPolicy.localAvgGross(snap.distanceKm, snap.grossElapsedSec), "avg_gross")
-        setValue(v, R.id.tv_wprime, StatsValueFormatter.ifEff(snap.ifEffWholeRide).main)
+        bindAdvanced(v, R.id.tv_bat_drain, StatsAdvancedFieldPolicy.localAvgGross(snap.distanceKm, snap.grossElapsedSec), "avg_gross")
+        bindAdvanced(v, R.id.tv_wprime, StatsAdvancedFieldPolicy.localEta(snap.hasRoute, snap.etaModelReady, snap.etaTimestamp), "eta")
+        val stoppedSec = (snap.grossElapsedSec - snap.movingElapsedSec).coerceAtLeast(0L)
+        setValue(v, R.id.tv_bat_left, if (snap.grossElapsedSec > 0L) String.format("%d:%02d", stoppedSec / 3600, (stoppedSec % 3600) / 60) else "--")
+        val pavedLeft = snap.surfacePavedKmLeft
+        val offLeft = snap.surfaceOffroadKmLeft
+        if (pavedLeft >= 0f && offLeft >= 0f && (pavedLeft + offLeft) > 0.05f) {
+            val total = pavedLeft + offLeft
+            v.setProgressBar(R.id.pb_surface_paved, 100, ((pavedLeft / total) * 100f).toInt(), false)
+            v.setProgressBar(R.id.pb_surface_offroad, 100, ((offLeft / total) * 100f).toInt(), false)
+            setValue(v, R.id.tv_surface_paved_km, String.format("%.0fkm", pavedLeft))
+            setValue(v, R.id.tv_surface_offroad_km, String.format("%.0fkm", offLeft))
+        } else {
+            v.setProgressBar(R.id.pb_surface_paved, 100, 0, false)
+            v.setProgressBar(R.id.pb_surface_offroad, 100, 0, false)
+            setValue(v, R.id.tv_surface_paved_km, "--")
+            setValue(v, R.id.tv_surface_offroad_km, "--")
+        }
 
         bindAdvanced(
             v,
-            R.id.tv_bat_drain,
+            R.id.tv_avg_gross,
             StatsAdvancedFieldPolicy.batteryDrain(
                 batterySourceReady = snap.batterySourceReady,
                 batteryDrainReady = snap.batteryDrainReady,
@@ -135,17 +133,7 @@ class StatsDataType : DataTypeImpl("qext2", "qext2-stats") {
             ),
             "battery_drain"
         )
-        bindAdvanced(
-            v,
-            R.id.tv_bat_left,
-            StatsAdvancedFieldPolicy.batteryLeft(
-                batterySourceReady = snap.batterySourceReady,
-                batteryEstimateReady = snap.batteryEstimateReady,
-                leftSec = snap.batteryTimeLeftSec,
-                batterySource = snap.batterySource,
-            ),
-            "battery_left"
-        )
+
     }
 
     private fun setValue(v: RemoteViews, id: Int, text: String) {

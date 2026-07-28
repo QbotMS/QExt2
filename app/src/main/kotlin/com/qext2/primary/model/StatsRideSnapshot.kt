@@ -42,4 +42,9 @@ data class StatsRideSnapshot(
     val batteryTimeLeftSec: Long? = null,
     val grossElapsedSec: Long = 0L,
     val distanceKm: Float = 0f,
+    val carbNeededG: Int = 0,
+    val cadenceAvg: Int = 0,
+    val movingElapsedSec: Long = 0L,
+    val surfacePavedKmLeft: Float = -1f,
+    val surfaceOffroadKmLeft: Float = -1f,
 )

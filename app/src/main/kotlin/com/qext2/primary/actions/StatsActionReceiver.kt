@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 private const val TAG = "QExt2StatsAction"
 private const val CARB_DEBOUNCE_MS = 700L
 private const val GATE_RESET_DELAY_MS = 3000L
-private const val GATE_ASYNC_TIMEOUT_MS = 20_000L
+private const val GATE_ASYNC_TIMEOUT_MS = 8_000L
 
 class StatsActionReceiver : BroadcastReceiver() {
 
@@ -61,6 +61,9 @@ class StatsActionReceiver : BroadcastReceiver() {
                     if (finished.compareAndSet(false, true)) {
                         Log.w(TAG, "GATE async timeout after ${GATE_ASYNC_TIMEOUT_MS}ms")
                         AthleteDataStore.saveGateUiState("FURTKA FAIL")
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            AthleteDataStore.saveGateUiState("GATE")
+                        }, GATE_RESET_DELAY_MS)
                         pending.finish()
                     }
                 }, GATE_ASYNC_TIMEOUT_MS)

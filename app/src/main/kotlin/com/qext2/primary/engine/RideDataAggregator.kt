@@ -143,6 +143,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val lastDeadlineMsRef = AtomicReference(0L)
     private val carbNeededTotalGRef = AtomicReference(0.0)
     private val carbBalanceGRef = AtomicReference(0)
+    private val cadenceSumRef = AtomicReference(0L)
+    private val cadenceSamplesRef = AtomicReference(0L)
     private val carbLastElapsedSecRef = AtomicReference(0L)
     private val carbSessionInitializedRef = AtomicReference(false)
     private val wasMovingRef = AtomicReference(false)
@@ -308,6 +310,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
             AthleteDataStore.resetCarbSessionState()
         }
         carbBalanceGRef.set(0)
+        cadenceSumRef.set(0L)
+        cadenceSamplesRef.set(0L)
         carbLastElapsedSecRef.set(sanitizeCarbElapsed(AthleteDataStore.loadCarbLastElapsedSec()))
         carbSessionInitializedRef.set(false)
         val today = java.time.LocalDate.now().toString()
@@ -931,6 +935,13 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val isMoving = computeIsMoving(speedKmh)
                 wasMovingRef.set(isMoving)
                 if (isMoving) movingElapsedSecRef.set(movingElapsedSecRef.get() + 1L)
+                if (isMoving) {
+                    val cadNow = cadenceRef.get()
+                    if (cadNow > 0) {
+                        cadenceSumRef.set(cadenceSumRef.get() + cadNow.toLong())
+                        cadenceSamplesRef.set(cadenceSamplesRef.get() + 1L)
+                    }
+                }
 
                 if (isMoving) {
                     stopStartedMsRef.set(0L)
@@ -1068,6 +1079,14 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     !readinessStaleRef.get()
                 val carbModelReady = npRef.get() > 0 && elapsedSec > 60L
                 val fluidModelReady = elapsedSec > 60L && hasActivity
+                val kmAlongForSurface = (distanceMetersRef.get() / 1000.0).toFloat().coerceAtLeast(0f)
+                val surfaceLeft = com.qext2.primary.surface.SurfaceBridge.remainingByType(kmAlongForSurface)
+                val surfPavedLeft = if (surfaceLeft.isEmpty()) -1f else
+                    (surfaceLeft[com.qext2.primary.model.SurfaceType.PAVED] ?: 0f)
+                val surfOffLeft = if (surfaceLeft.isEmpty()) -1f else
+                    ((surfaceLeft[com.qext2.primary.model.SurfaceType.GRAVEL] ?: 0f) +
+                        (surfaceLeft[com.qext2.primary.model.SurfaceType.LOOSE] ?: 0f))
+                val cadSamples = cadenceSamplesRef.get()
                 _statsSnapshot.value = StatsRideSnapshot(
                     npWholeWatts = npRef.get(),
                     ifWholeRide = ifWhole,
@@ -1075,6 +1094,11 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     caloriesKcal = kcalRef.get(),
                     carbsGPerH = carbs,
                     carbBalanceG = carbBalance,
+                    carbNeededG = getCarbNeededG(),
+                    cadenceAvg = if (cadSamples > 0L) (cadenceSumRef.get() / cadSamples).toInt() else 0,
+                    movingElapsedSec = movingElapsedSecRef.get(),
+                    surfacePavedKmLeft = surfPavedLeft,
+                    surfaceOffroadKmLeft = surfOffLeft,
                     fluidLPerH = fluid,
                     rideReservePercent = reserve,
                     wBalancePercent = wBalance,

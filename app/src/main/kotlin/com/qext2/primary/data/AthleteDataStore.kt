@@ -2,6 +2,7 @@ package com.qext2.primary.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import kotlinx.coroutines.flow.MutableStateFlow
 
 data class AthleteData(
     val ftp: Int = 250,
@@ -424,11 +425,14 @@ object AthleteDataStore {
         return prefs?.getLong("gate_last_request_ms", 0L) ?: 0L
     }
 
+    val gateUiTick = MutableStateFlow(0L)
+
     fun saveGateUiState(state: String) {
         prefs?.edit()
             ?.putString("gate_ui_state", state)
             ?.putLong("gate_ui_state_ts", System.currentTimeMillis())
             ?.apply()
+        gateUiTick.value = System.currentTimeMillis()
     }
 
     fun loadGateUiState(): String {
