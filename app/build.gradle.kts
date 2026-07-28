@@ -14,11 +14,11 @@ val localProps = Properties().apply {
 
 val qbotBaseUrl = (localProps.getProperty("QBOT_BASE_URL")
     ?: "https://qbot.cytr.us")
-val qbotBearer = (localProps.getProperty("QBOT_BEARER") ?: "")
+val qbotBearer = (localProps.getProperty("QBOT_BEARER") ?: System.getenv("QBOT_BEARER") ?: "")
 val gateUrl = (localProps.getProperty("QEXT_GATE_URL")
     ?: "https://qbot.cytr.us/gate/open")
     .replace("\"", "\\\"")
-val gateToken = (localProps.getProperty("QEXT_GATE_TOKEN") ?: "").replace("\"", "\\\"")
+val gateToken = (localProps.getProperty("QEXT_GATE_TOKEN") ?: System.getenv("QEXT_GATE_TOKEN") ?: "").replace("\"", "\\\"")
 val readinessUrl = (localProps.getProperty("QEXT_READINESS_URL")
     ?: "https://qbot.cytr.us/ride-readiness")
     .replace("\"", "\\\"")
