@@ -584,42 +584,8 @@
             android:textColor="#6B7280"
             android:textSize="12sp" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="Carb porcja (g)"
-            android:textColor="#9CA3AF"
-            android:textSize="14sp" />
 
-        <TextView
-            android:id="@+id/tv_carb_packet"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:gravity="center"
-            android:text="20 g"
-            android:textColor="#FFFFFF"
-            android:textSize="28sp"
-            android:textStyle="bold"
-            android:clickable="true"
-            android:focusable="true"
-            android:background="#1F2937"
-            android:padding="8dp" />
 
-        <TextView
-            android:id="@+id/btn_reset_carb"
-            android:layout_width="200dp"
-            android:layout_height="48dp"
-            android:layout_marginTop="16dp"
-            android:gravity="center"
-            android:text="RESET CARB"
-            android:textColor="#FFFFFF"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:clickable="true"
-            android:focusable="true"
-            android:background="#FF5252" />
     </LinearLayout>
 
     <LinearLayout

@@ -84,7 +84,7 @@ class StatsDataType : DataTypeImpl("qext2", "qext2-stats") {
         v.setTextViewText(R.id.tv_btn_gate, AthleteDataStore.loadGateUiState())
 
         setValue(v, R.id.tv_np, StatsValueFormatter.npW(snap.npWholeWatts).main)
-        setValue(v, R.id.tv_if, StatsValueFormatter.ifEff(snap.ifEffWholeRide).main)
+        setValue(v, R.id.tv_ifeff, StatsValueFormatter.ifEff(snap.ifEffWholeRide).main)
         setValue(v, R.id.tv_vi, StatsValueFormatter.vi(snap.viValue).main)
         v.setTextColor(R.id.tv_vi, viColor(snap.viValue))
         Log.d(TAG, "QEXT_STATS_ADV field=np value=${snap.npWholeWatts} status=OK reason=sdk_or_local")
@@ -94,19 +94,19 @@ class StatsDataType : DataTypeImpl("qext2", "qext2-stats") {
         bindAdvanced(v, R.id.tv_xss, StatsAdvancedFieldPolicy.localXss(snap.xssValue), "xss")
         bindAdvanced(v, R.id.tv_rsrv, StatsAdvancedFieldPolicy.localRsrv(snap.rsrvModelReady, snap.rideReservePercent), "rsrv")
         v.setTextColor(R.id.tv_rsrv, rsrvColor(snap.rideReservePercent, snap.rsrvModelReady))
-        bindAdvanced(v, R.id.tv_eta, StatsAdvancedFieldPolicy.sdkCalories(snap.caloriesKcal), "kcal")
+        bindAdvanced(v, R.id.tv_kcal, StatsAdvancedFieldPolicy.sdkCalories(snap.caloriesKcal), "kcal")
 
         bindAdvanced(v, R.id.tv_carb, StatsAdvancedFieldPolicy.localCarb(snap.carbModelReady, snap.carbsGPerH), "carb")
         setValue(v, R.id.tv_carb_balance, if (snap.carbModelReady) "${snap.carbNeededG}g" else "--")
         bindAdvanced(v, R.id.tv_fluid, StatsAdvancedFieldPolicy.localFluid(snap.fluidModelReady, snap.fluidLPerH), "fluid")
-        setValue(v, R.id.tv_cal, if (snap.cadenceAvg > 0) snap.cadenceAvg.toString() else "--")
+        setValue(v, R.id.tv_cad, if (snap.cadenceAvg > 0) snap.cadenceAvg.toString() else "--")
 
         bindAdvanced(v, R.id.tv_asc_done, StatsAdvancedFieldPolicy.ascentDone(snap.hasRoute, snap.routeClimbSourceReady, snap.ascentDoneM, snap.ascentLeftM), "up")
         bindAdvanced(v, R.id.tv_asc_left, StatsAdvancedFieldPolicy.ascentLeft(snap.hasRoute, snap.routeClimbSourceReady, snap.ascentDoneM, snap.ascentLeftM), "left")
-        bindAdvanced(v, R.id.tv_bat_drain, StatsAdvancedFieldPolicy.localAvgGross(snap.distanceKm, snap.grossElapsedSec), "avg_gross")
-        bindAdvanced(v, R.id.tv_wprime, StatsAdvancedFieldPolicy.localEta(snap.hasRoute, snap.etaModelReady, snap.etaTimestamp), "eta")
+        bindAdvanced(v, R.id.tv_avggross, StatsAdvancedFieldPolicy.localAvgGross(snap.distanceKm, snap.grossElapsedSec), "avg_gross")
+        bindAdvanced(v, R.id.tv_eta, StatsAdvancedFieldPolicy.localEta(snap.hasRoute, snap.etaModelReady, snap.etaTimestamp), "eta")
         val stoppedSec = (snap.grossElapsedSec - snap.movingElapsedSec).coerceAtLeast(0L)
-        setValue(v, R.id.tv_bat_left, if (snap.grossElapsedSec > 0L) String.format("%d:%02d", stoppedSec / 3600, (stoppedSec % 3600) / 60) else "--")
+        setValue(v, R.id.tv_stops, if (snap.grossElapsedSec > 0L) String.format("%d:%02d", stoppedSec / 3600, (stoppedSec % 3600) / 60) else "--")
         val pavedLeft = snap.surfacePavedKmLeft
         val offLeft = snap.surfaceOffroadKmLeft
         if (pavedLeft >= 0f && offLeft >= 0f && (pavedLeft + offLeft) > 0.05f) {
@@ -124,7 +124,7 @@ class StatsDataType : DataTypeImpl("qext2", "qext2-stats") {
 
         bindAdvanced(
             v,
-            R.id.tv_avg_gross,
+            R.id.tv_batdrain,
             StatsAdvancedFieldPolicy.batteryDrain(
                 batterySourceReady = snap.batterySourceReady,
                 batteryDrainReady = snap.batteryDrainReady,
@@ -161,7 +161,6 @@ class StatsDataType : DataTypeImpl("qext2", "qext2-stats") {
     }
 
     companion object {
-        private const val REQ_CARB = 1001
         private const val REQ_GATE = 1002
     }
 }

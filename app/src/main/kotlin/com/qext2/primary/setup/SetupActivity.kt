@@ -27,7 +27,6 @@ class SetupActivity : Activity() {
         findViewById<TextView>(R.id.tv_version)?.text = "v${BuildConfig.VERSION_NAME}"
         showStoredData()
         bindDeadline()
-        bindCarbPacket()
         bindCheckboxes()
         setupTabs()
 
@@ -43,29 +42,6 @@ class SetupActivity : Activity() {
             }, h, m, true).show()
         }
 
-        findViewById<TextView>(R.id.tv_carb_packet)?.setOnClickListener {
-            val picker = NumberPicker(this).apply {
-                minValue = 5
-                maxValue = 100
-                value = AthleteDataStore.loadCarbPacketSize().coerceIn(5, 100)
-                wrapSelectorWheel = false
-            }
-            val container = LinearLayout(this).apply {
-                setPadding(32, 24, 32, 8)
-                addView(picker)
-            }
-            AlertDialog.Builder(this)
-                .setTitle("Carb porcja (g)")
-                .setView(container)
-                .setPositiveButton("OK") { _, _ ->
-                    val grams = picker.value
-                    AthleteDataStore.saveCarbPacketSize(grams)
-                    bindCarbPacket()
-                    setStatus("Carb porcja: ${grams}g")
-                }
-                .setNegativeButton("Anuluj", null)
-                .show()
-        }
 
         val btn = findViewById<TextView>(R.id.btn_refetch)
         btn?.setOnClickListener {
@@ -83,17 +59,6 @@ class SetupActivity : Activity() {
             }, 5000L)
         }
 
-        findViewById<TextView>(R.id.btn_reset_carb)?.setOnClickListener {
-            AlertDialog.Builder(this)
-                .setTitle("Reset CARB")
-                .setMessage("Wyzerowac sume przyjetych wegli (${AthleteDataStore.loadCarbIntakeTotal()}g)?")
-                .setPositiveButton("TAK") { _, _ ->
-                    AthleteDataStore.resetCarbIntakeTotal()
-                    setStatus("CARB: zresetowane do 0g")
-                }
-                .setNegativeButton("NIE", null)
-                .show()
-        }
     }
 
     override fun onResume() {
@@ -173,10 +138,6 @@ class SetupActivity : Activity() {
         findViewById<TextView>(R.id.tv_deadline)?.text = "%02d:%02d".format(hour, min)
     }
 
-    private fun bindCarbPacket() {
-        val grams = AthleteDataStore.loadCarbPacketSize()
-        findViewById<TextView>(R.id.tv_carb_packet)?.text = "${grams} g"
-    }
 
     private fun bindCheckboxes() {
         val cbBaro = findViewById<CheckBox>(R.id.cb_baro)
