@@ -41,6 +41,7 @@ data class SurfaceSegment(
 class SurfaceProfileCache(
     private val qbotBaseUrl: String,  // np. "https://qbot.cytr.us"
     private val qbotBearer: String,
+    private val httpGet: ((String, Map<String, String>, (Int, String?) -> Unit) -> Unit)? = null,
 ) {
     private var lastPolylineHash: Int? = null
     private var segments: List<SurfaceSegment> = emptyList()
@@ -80,9 +81,14 @@ class SurfaceProfileCache(
         lastPolylineHash = newHash
 
         if (routeName != null) {
-            fetchJob?.cancel()
-            fetchJob = CoroutineScope(Dispatchers.IO).launch {
-                fetchFromQBot(routeName)
+            val g = httpGet
+            if (g != null) {
+                fetchViaKaroo(routeName, g)
+            } else {
+                fetchJob?.cancel()
+                fetchJob = CoroutineScope(Dispatchers.IO).launch {
+                    fetchFromQBot(routeName)
+                }
             }
         }
     }
@@ -133,6 +139,29 @@ class SurfaceProfileCache(
         lastPolylineHash = null
         _currentSurface.update { SurfaceType.PAVED }
         Log.i(TAG, "SURFACE_CACHE cleared")
+    }
+
+    private fun fetchViaKaroo(
+        routeName: String,
+        httpGet: (String, Map<String, String>, (Int, String?) -> Unit) -> Unit,
+    ) {
+        val url = "$qbotBaseUrl/api/surface/by-name?name=" +
+            java.net.URLEncoder.encode(routeName, "UTF-8")
+        Log.i(TAG, "SURFACE_FETCH via_karoo start route='$routeName'")
+        httpGet(url, mapOf("Authorization" to "Bearer $qbotBearer")) { code, body ->
+            if (code != 200 || body == null) {
+                Log.w(TAG, "SURFACE_FETCH via_karoo failed status=$code")
+            } else {
+                val parsed = parseSurfaceJson(body)
+                if (parsed.isNotEmpty()) {
+                    segments = parsed.sortedBy { it.kmStart }
+                    hasQBotData = true
+                    Log.i(TAG, "SURFACE_FETCH OK segments=${segments.size} route='$routeName'")
+                } else {
+                    Log.w(TAG, "SURFACE_FETCH via_karoo empty_profile")
+                }
+            }
+        }
     }
 
     private suspend fun fetchFromQBot(routeName: String, retryCount: Int = 3) {

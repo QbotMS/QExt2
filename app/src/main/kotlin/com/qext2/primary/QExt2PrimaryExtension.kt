@@ -76,6 +76,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         val surfaceCache = SurfaceProfileCache(
             qbotBaseUrl = BuildConfig.QBOT_BASE_URL,
             qbotBearer = BuildConfig.QBOT_BEARER,
+            httpGet = ::karooHttpGet,
         )
         _surfaceCache = surfaceCache
         com.qext2.primary.surface.SurfaceBridge.init(surfaceCache)
@@ -253,6 +254,39 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
      * Wołane gdy OnNavigationState się zmienia (z aggregatora lub zewnętrznie).
      * Czyści cache i fetchuje profil nawierzchni dla nowej trasy.
      */
+    private fun karooHttpGet(
+        url: String,
+        headers: Map<String, String>,
+        onDone: (Int, String?) -> Unit,
+    ) {
+        val system = _karooSystem
+        if (system == null) {
+            onDone(-1, null)
+            return
+        }
+        var id: String? = null
+        id = system.addConsumer<OnHttpResponse>(
+            params = OnHttpResponse.MakeHttpRequest(
+                method = "GET",
+                url = url,
+                headers = headers,
+                body = null,
+                waitForConnection = true,
+            ),
+            onError = { _ ->
+                id?.let { system.removeConsumer(it) }
+                onDone(-1, null)
+            },
+            onEvent = { resp ->
+                val st = resp.state
+                if (st is io.hammerhead.karooext.models.HttpResponseState.Complete) {
+                    id?.let { system.removeConsumer(it) }
+                    onDone(st.statusCode, st.body?.let { String(it) })
+                }
+            },
+        )
+    }
+
     fun onNavigationStateForSurface(
         state: io.hammerhead.karooext.models.OnNavigationState,
         routeName: String?,
