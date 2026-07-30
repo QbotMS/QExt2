@@ -527,6 +527,14 @@ object AthleteDataStore {
 
     fun loadCassetteCogs(): IntArray = parseCogs(loadCassetteCogsRaw())
 
+    // --- Dzwiek skrajnych koronek (bez komunikatu ACTIVE) ---
+    fun saveGearEdgeBeepEnabled(enabled: Boolean) {
+        prefs?.edit()?.putBoolean("gear_edge_beep", enabled)?.apply()
+    }
+
+    fun loadGearEdgeBeepEnabled(): Boolean =
+        prefs?.getBoolean("gear_edge_beep", true) ?: true
+
     /**
      * Parsuje liste koronek "10,12,...,52" -> IntArray.
      * Tolerancyjny: spacje, srednik, ukosnik, biale znaki jako separatory;

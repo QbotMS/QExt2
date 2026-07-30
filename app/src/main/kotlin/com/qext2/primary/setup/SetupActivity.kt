@@ -215,6 +215,13 @@ class SetupActivity : Activity() {
             setStatus(if (checked) "Override kasety: ON" else "Override kasety: OFF")
         }
 
+        val cbEdge = findViewById<CheckBox>(R.id.cb_gear_edge_beep)
+        cbEdge?.isChecked = AthleteDataStore.loadGearEdgeBeepEnabled()
+        cbEdge?.setOnCheckedChangeListener { _, checked ->
+            AthleteDataStore.saveGearEdgeBeepEnabled(checked)
+            setStatus(if (checked) "Dzwiek skrajnych koronek: ON" else "Dzwiek skrajnych koronek: OFF")
+        }
+
         tvCogs?.setOnClickListener {
             val input = EditText(this).apply {
                 setText(AthleteDataStore.loadCassetteCogsRaw())
@@ -227,7 +234,7 @@ class SetupActivity : Activity() {
             }
             AlertDialog.Builder(this)
                 .setTitle("Kaseta custom (od najmniejszej koronki)")
-                .setMessage("Wpisz koronki po przecinku, od 10T do największej. Bieg 1 = najmniejsza koronka.")
+                .setMessage("Wpisz koronki po przecinku, od najmniejszej (10T) do największej. Bieg 1 (AXS) = największa koronka.")
                 .setView(container)
                 .setPositiveButton("Zapisz") { _, _ ->
                     val raw = input.text.toString()

@@ -16,6 +16,7 @@ import com.qext2.primary.model.StatsRideSnapshot
 import com.qext2.primary.util.QExt2DebugConfig
 import com.qext2.primary.weather.WeatherClient
 import io.hammerhead.karooext.KarooSystemService
+import io.hammerhead.karooext.models.PlayBeepPattern
 import io.hammerhead.karooext.models.DataType
 import io.hammerhead.karooext.models.OnNavigationState
 import io.hammerhead.karooext.models.OnLocationChanged
@@ -92,6 +93,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val capTwilightRef = AtomicReference(false)
     private val cassetteOverrideRef = AtomicReference(false)
     private val cassetteCogsRef = AtomicReference(IntArray(0))
+    private val gearEdgePrevPosRef = AtomicReference(0)
+    private val gearEdgeLastBeepMsRef = AtomicReference(0L)
     // Nawierzchnia bieżącego segmentu — aktualizowana z cache QBot/RouteGraph fallback
     private val currentSurfaceRef = AtomicReference(SurfaceType.PAVED)
     // Adaptacyjny tryb AUTO i kontekst pacingu
@@ -544,6 +547,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                         gearRearRef.set(rear)
                         if (rearBattery != null) rearDerailleurBatteryRef.set(rearBattery.coerceIn(0, 100))
                         gearFreshnessRef.set(System.currentTimeMillis())
+                        maybeBeepGearEdge(rearPos)
                         if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "GEAR=${front}x${rear} (pos=$rearPos axsTeeth=$rearTeethReported ovr=${cassetteOverrideRef.get()})")
                     }
                 }
@@ -1269,6 +1273,32 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
      * w liscie custom kasety -> zwraca koronke z listy (indeks odwrocony: pozycja 1 = ostatnia z listy). W przeciwnym razie zachowuje
      * dotychczasowe zachowanie: zeby z AXS, a gdy ich brak -> sam indeks pozycji.
      */
+    /**
+     * Krotki dzwiek przy WEJSCIU na skrajna koronke kasety (bez komunikatu ACTIVE).
+     * Pozycja 1 (AXS) = najwieksza koronka; ostatnia pozycja = najmniejsza (znana
+     * tylko przy wlaczonym override kasety). Gra wylacznie na zmianie biegu na
+     * skrajny, z 5 s przerwa, wylaczalny w SETUP.
+     */
+    private fun maybeBeepGearEdge(pos: Int) {
+        val prev = gearEdgePrevPosRef.getAndSet(pos)
+        if (pos <= 0 || pos == prev) return
+        if (!AthleteDataStore.loadGearEdgeBeepEnabled()) return
+        val cogs = cassetteCogsRef.get()
+        val count = if (cassetteOverrideRef.get() && cogs.isNotEmpty()) cogs.size else 0
+        val isLargest = pos == 1
+        val isSmallest = count > 0 && pos == count
+        if (!isLargest && !isSmallest) return
+        val now = System.currentTimeMillis()
+        if (now - gearEdgeLastBeepMsRef.get() < 5_000L) return
+        gearEdgeLastBeepMsRef.set(now)
+        val tones = if (isLargest)
+            listOf(PlayBeepPattern.Tone(3600, 110), PlayBeepPattern.Tone(null, 50), PlayBeepPattern.Tone(2800, 160))
+        else
+            listOf(PlayBeepPattern.Tone(2800, 110), PlayBeepPattern.Tone(null, 50), PlayBeepPattern.Tone(3600, 160))
+        karooSystem.dispatch(PlayBeepPattern(tones))
+        if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "GEAR_EDGE beep pos=$pos largest=$isLargest count=$count")
+    }
+
     private fun resolveRearTeeth(pos: Int, reportedTeeth: Int): Int {
         val cogs = cassetteCogsRef.get()
         if (cassetteOverrideRef.get() && cogs.isNotEmpty() && pos in 1..cogs.size) {
