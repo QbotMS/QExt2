@@ -1266,13 +1266,15 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     /**
      * Rozwiazuje liczbe zebow tylnej koronki.
      * Gdy override wlaczony i pozycja biegu (SHIFTING_REAR_GEAR, 1..N) miesci sie
-     * w liscie custom kasety -> zwraca koronke z listy. W przeciwnym razie zachowuje
+     * w liscie custom kasety -> zwraca koronke z listy (indeks odwrocony: pozycja 1 = ostatnia z listy). W przeciwnym razie zachowuje
      * dotychczasowe zachowanie: zeby z AXS, a gdy ich brak -> sam indeks pozycji.
      */
     private fun resolveRearTeeth(pos: Int, reportedTeeth: Int): Int {
         val cogs = cassetteCogsRef.get()
         if (cassetteOverrideRef.get() && cogs.isNotEmpty() && pos in 1..cogs.size) {
-            return cogs[pos - 1]
+            // AXS: pozycja 1 = najwieksza koronka (najlzejszy bieg),
+            // lista w SETUP wpisywana od najmniejszej -> odwracamy indeks.
+            return cogs[cogs.size - pos]
         }
         return if (reportedTeeth > 0) reportedTeeth else pos
     }
