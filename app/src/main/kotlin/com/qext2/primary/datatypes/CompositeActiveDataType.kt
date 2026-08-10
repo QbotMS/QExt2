@@ -1,6 +1,8 @@
 package com.qext2.primary.datatypes
 
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.text.SpannableString
 import android.text.Spanned
 import android.text.style.AbsoluteSizeSpan
@@ -12,7 +14,9 @@ import com.qext2.primary.QExt2PrimaryExtension
 import com.qext2.primary.R
 import com.qext2.primary.active.ActiveMessage
 import com.qext2.primary.active.ActiveClimbResolver
+import com.qext2.primary.active.ActiveMessageBus
 import com.qext2.primary.active.ActiveMessageManager
+import com.qext2.primary.actions.ActiveMsgActionReceiver
 import com.qext2.primary.active.ClimbAnnouncementProducer
 import com.qext2.primary.active.ClimbPacingProducer
 import com.qext2.primary.active.WeatherMessageProducer
@@ -108,7 +112,17 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
     private val if10Calc = IF10Calculator(ftp = athleteData.ftp)
     private val messageManager = ActiveMessageManager(logger = { msg ->
         Log.i("QEXT_ACTIVE_ENGINE", msg)
-    })
+    }).also { ActiveMessageBus.manager = it }
+
+    private fun attachMsgDismissIntent(views: RemoteViews, context: Context) {
+        val intent = Intent(context, ActiveMsgActionReceiver::class.java)
+            .setAction(ActiveMsgActionReceiver.ACTION_MSG_DISMISS)
+        val pi = PendingIntent.getBroadcast(
+            context, 42, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        views.setOnClickPendingIntent(R.id.message_overlay, pi)
+    }
     private val sensorProducer = SensorMessageProducer(logger = { msg ->
         Log.i("QEXT_SENSOR_MSG", msg)
     })
@@ -139,13 +153,13 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
         largeCell = config.gridSize.first >= 60 || config.viewSize.first >= 400
 
         if (config.preview) {
-            val views = RemoteViews(context.packageName, R.layout.field_active_4x2)
+            val views = RemoteViews(context.packageName, R.layout.field_active_4x2).also { attachMsgDismissIntent(it, context) }
             setInitialValues(views)
         ActiveMessageRenderer.bind(views, messageManager.getCurrent(System.currentTimeMillis()))
         emitter.updateView(views)
         }
 
-        val views = RemoteViews(context.packageName, R.layout.field_active_4x2)
+        val views = RemoteViews(context.packageName, R.layout.field_active_4x2).also { attachMsgDismissIntent(it, context) }
         hasDistanceToDestData = false
         distanceToDestMeters = 0.0
         setInitialValues(views)
@@ -162,7 +176,7 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
             createdAtMs = System.currentTimeMillis(),
             expiresAtMs = System.currentTimeMillis() + 120_000L,
         ))
-        val withMsg = RemoteViews(context.packageName, R.layout.field_active_4x2)
+        val withMsg = RemoteViews(context.packageName, R.layout.field_active_4x2).also { attachMsgDismissIntent(it, context) }
         setInitialValues(withMsg)
         ActiveMessageRenderer.bind(withMsg, messageManager.getCurrent(System.currentTimeMillis()))
         emitter.updateView(withMsg)
@@ -180,7 +194,7 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
                 if (system != null) {
                     subscribeAll(system, emitter, context)
                 } else {
-                    val initViews = RemoteViews(context.packageName, R.layout.field_active_4x2)
+                    val initViews = RemoteViews(context.packageName, R.layout.field_active_4x2).also { attachMsgDismissIntent(it, context) }
                     hasDistanceToDestData = false
                     distanceToDestMeters = 0.0
                     setInitialValues(initViews)
@@ -609,7 +623,7 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
             }
         }
 
-        val views = RemoteViews(context.packageName, R.layout.field_active_4x2)
+        val views = RemoteViews(context.packageName, R.layout.field_active_4x2).also { attachMsgDismissIntent(it, context) }
         applyTypography(views)
         views.setTextViewText(R.id.tv_active_dist, distText)
         views.setTextViewText(R.id.tv_active_dtd, dtdText)

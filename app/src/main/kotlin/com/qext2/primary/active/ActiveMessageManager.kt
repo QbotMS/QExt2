@@ -6,8 +6,22 @@ class ActiveMessageManager(private val logger: (String) -> Unit = {}) {
     private val suspendedQueue = ArrayDeque<ActiveMessage>()
     private val lock = Any()
 
+    // Tap-dismiss (2026-08-10): zwolniony komunikat wycisza swoj STABILNY klucz
+    // (id bez koncowego timestampu) na DISMISS_SNOOZE_MS. Stan trwa -> producent
+    // przywraca komunikat po 30 s; stan sie zmienil (inny klucz) -> pokazuje sie
+    // od razu.
+    private var snoozedKey: String? = null
+    private var snoozedUntilMs = 0L
+
+    private fun stableKey(id: String): String = id.replace(Regex("_\\d+$"), "")
+
     fun show(message: ActiveMessage): Boolean {
         synchronized(lock) {
+            val key = stableKey(message.id)
+            if (key == snoozedKey && System.currentTimeMillis() < snoozedUntilMs) {
+                logger("SHOW snoozed id=${message.id} key=$key")
+                return false
+            }
             val cur = current
 
             if (cur != null && cur.expiresAtMs > System.currentTimeMillis()) {
@@ -68,11 +82,30 @@ class ActiveMessageManager(private val logger: (String) -> Unit = {}) {
         return null
     }
 
+    /** Tap na nakladce: chowa biezacy komunikat i wycisza jego klucz na 30 s. */
+    fun dismissCurrent(nowMs: Long): ActiveMessage? {
+        synchronized(lock) {
+            val msg = current ?: return null
+            current = null
+            suspendedQueue.clear()
+            snoozedKey = stableKey(msg.id)
+            snoozedUntilMs = nowMs + DISMISS_SNOOZE_MS
+            logger("DISMISS id=${msg.id} key=$snoozedKey snoozeMs=$DISMISS_SNOOZE_MS")
+            return msg
+        }
+    }
+
     fun clear() {
         synchronized(lock) {
             current = null
             suspendedQueue.clear()
+            snoozedKey = null
+            snoozedUntilMs = 0L
         }
+    }
+
+    private companion object {
+        const val DISMISS_SNOOZE_MS = 30_000L
     }
 }
 

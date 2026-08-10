@@ -182,3 +182,40 @@ filtrowane).
 ### Powrot z samego commitu 4
 `git revert <hash-commitu-4>` — przywraca zegary 0/3/3 s i doradce biegu
 na zjezdzie.
+
+---
+
+## Commit 5: tap-dismiss komunikatow ACTIVE + snooze 30 s
+
+### Problem (zgloszenie z trasy)
+Komunikat PRZEPAL (W'bal 0% + moc nad CP) ma cooldown/TTL 10 s — przy
+utrzymujacym sie stanie odnawia sie praktycznie bez przerwy i zaslania pole.
+Brak sposobu na chwilowe zwolnienie.
+
+### Rozwiazanie
+Tap w NAKLADKE komunikatu (dowolnego, nie tylko PRZEPAL) = zwolnienie:
+- ActiveMessageManager.dismissCurrent(): chowa biezacy komunikat i wycisza
+  jego STABILNY KLUCZ (id bez koncowego timestampu, np. wprime_overdraft)
+  na DISMISS_SNOOZE_MS = 30 s
+- stan trwa -> producent emituje ponownie i po 30 s komunikat WRACA
+- stan sie zmienil (inny klucz, np. overdraft -> recover) -> nowy komunikat
+  pokazuje sie NATYCHMIAST, wyciszenie go nie dotyczy
+- clear() (schowanie pola) zeruje takze wyciszenie
+
+### Mechanika tap (wzorzec sprawdzony w StatsDataType/furtka)
+- PendingIntent.getBroadcast na message_overlay przy KAZDYM utworzeniu
+  RemoteViews (5 miejsc, .also {}); widok GONE nie odbiera tapow, wiec
+  intent jest bezpieczny gdy nakladki nie widac
+- nowy ActiveMsgActionReceiver (manifest, exported=false) -> ActiveMessageBus
+  (singleton) -> messageManager instancji CompositeActiveDataType
+- znikniecie z ekranu w <=1 s (petla renderu)
+
+### Zmienione/nowe pliki
+- ActiveMessageManager.kt: dismissCurrent(), wyciszanie w show(), reset w clear()
+- ActiveMessageBus.kt (NOWY): most receiver->manager
+- actions/ActiveMsgActionReceiver.kt (NOWY)
+- CompositeActiveDataType.kt: attachMsgDismissIntent + rejestracja w Bus
+- AndroidManifest.xml: rejestracja receivera
+
+### Powrot z samego commitu 5
+`git revert <hash>` — tap przestaje dzialac, komunikaty jak wczesniej.
