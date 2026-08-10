@@ -415,49 +415,65 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:visibility="gone"
-        android:background="#CC111827">
+        android:background="#FF0D1424">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:padding="8dp">
+            android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/msg_title"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:id="@+id/msg_title_bar"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text=""
-                android:textColor="#FFFFFF"
-                android:textSize="20sp"
-                android:textStyle="bold"
-                android:fontFamily="monospace"
-                android:includeFontPadding="false" />
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:background="#FBBF24"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp">
 
-            <TextView
-                android:id="@+id/msg_line1"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text=""
-                android:textColor="#FFFFFF"
-                android:textSize="22sp"
-                android:textStyle="bold"
-                android:fontFamily="monospace"
-                android:includeFontPadding="false"
-                android:layout_marginTop="4dp" />
+                <TextView
+                    android:id="@+id/msg_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textColor="#0B0F1A"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:fontFamily="monospace"
+                    android:includeFontPadding="false" />
+            </LinearLayout>
 
-            <TextView
-                android:id="@+id/msg_line2"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text=""
-                android:textColor="#D1D5DB"
-                android:textSize="14sp"
-                android:fontFamily="monospace"
-                android:includeFontPadding="false"
-                android:layout_marginTop="2dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:padding="8dp">
 
+                <TextView
+                    android:id="@+id/msg_line1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textColor="#FFFFFF"
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    android:fontFamily="monospace"
+                    android:includeFontPadding="false" />
+
+                <TextView
+                    android:id="@+id/msg_line2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp"
+                    android:fontFamily="monospace"
+                    android:includeFontPadding="false"
+                    android:layout_marginTop="2dp" />
+            </LinearLayout>
         </LinearLayout>
     </FrameLayout>
 

@@ -52,3 +52,42 @@ zmianami kontrastowymi, zeby dalsze prace bazowaly wylacznie na prawdzie.
 - grep `computeColors|resetLegacyState` po app/src/main + app/src/test: 0 trafien
 - bilans nawiosow klamrowych pliku: rowny
 - kompilacja: GitHub Actions (build.yml) po pushu galezi
+
+---
+
+## Commit 2: komunikaty ACTIVE — pasek waznosci + ciemny panel tresci
+
+### Problem
+Komunikaty (np. przypomnienia o jedzeniu/piciu z FuelReminderProducer) rysowaly
+CIEMNY tekst na kolorowym tle calego panelu:
+- INFO: tekst #111827 na niebieskim #3B82F6 — sila sygnalu ~23% (najgorszy element QExt2)
+- WARNING: tekst #111827 na bursztynie #FBBF24 — ~57%
+- CRITICAL: bialy tekst na ciemnej czerwieni #DC2626 — ~83%
+Wielowyrazowy ciemny tekst na jasnym tle rozjezdza sie przy drganiach (rozproszenie
+swiatla w oku zalewa cienkie ciemne kreski liter) — obserwacja potwierdzona w terenie.
+
+### Rozwiazanie
+Rozdzial rol: WAZNOSC niesie jasny pasek naglowka (widoczny katem oka),
+TRESC zawsze bialym tekstem na nieprzezroczystym ciemnym panelu (czytelnosc).
+- pasek naglowka (nowy element msg_title_bar), tytul ciemny #0B0F1A na pasku:
+  - INFO:     #60A5FA (jasny blekit, ~60% luminancji; stary #3B82F6 mial ~48%)
+  - WARNING:  #FBBF24 (bursztyn, bez zmian, ~75%)
+  - CRITICAL: #FF5252 (jasna czerwien, ~52%; spojna z paleta pol)
+- panel tresci: #0D1424 pelne krycie (bylo #CC111827 = 80% przezroczystosci,
+  dane pola przebijaly pod komunikatem); linie tresci biale (line2 bylo #D1D5DB)
+
+### Zmienione pliki
+- app/src/main/res/layout/field_active_4x2.xml — nowa struktura nakladki:
+  pionowy LinearLayout = pasek naglowka (msg_title_bar) + kontener tresci (weight=1);
+  tlo nakladki #CC111827 -> #FF0D1424
+- app/src/main/kotlin/com/qext2/primary/active/ActiveMessageRenderer.kt —
+  severityColors() -> severityBarColor() (kolor tylko dla paska); panel i kolory
+  tekstu stale; reszta logiki bind() (widocznosc, line2, logi) bez zmian
+
+### Co NIE zmienione
+- logika kolejki/priorytetow/wygasania komunikatow (ActiveMessageManager)
+- BpActiveStaticDataType: dzieli layout, ale nie dotyka nakladki (visibility=gone)
+- tresci i severity komunikatow u producentow
+
+### Powrot z samego commitu 2
+`git revert <hash-commitu-2>` — przywraca stary wyglad (kolorowy caly panel).
