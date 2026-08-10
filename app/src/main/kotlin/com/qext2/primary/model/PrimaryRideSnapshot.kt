@@ -33,110 +33,16 @@ data class PrimaryRideSnapshot(
     val maxHr: Int = 180,
 ) {
     companion object {
-        // legacy_live_snapshot_mapping
-        // TODO remove after full migration to FieldOutput-derived values end-to-end.
+        // Stale *_STALE_MS: fallback getterow *Display gdy FieldOutput value jest pusty.
+        // Kolory pol licza zywe silniki: FieldComputers / HrStrainAdvisor / pacingPowerColor.
         private const val HR_STALE_MS = 12000L
         private const val CADENCE_STALE_MS = 8000L
         private const val POWER_STALE_MS = 8000L
         private const val SPEED_STALE_MS = 12000L
         private const val GEAR_STALE_MS = 15000L
         private const val GRADE_STALE_MS = 45000L
-        private const val SPEED_ZERO_THRESHOLD = 0.01
-        private const val GEAR_HYSTERESIS_MS = 30_000L
 
-        private var lastGearColor = Color.WHITE
-        private var gearColorSinceMs = 0L
-        private var gearInitialized = false
 
-        private var lastPowerColor = Color.WHITE
-        private var powerColorSinceMs = 0L
-        private var powerInitialized = false
-
-        @JvmStatic
-        fun computeColors(
-            power: Int, hr: Int, cadence: Int, speedKmh: Double,
-            gearFront: Int, gearRear: Int, grade: Double,
-            distanceMeters: Double, elapsedSec: Long, ascentLeftM: Int,
-            ftp: Int, todayFactor: Float, maxHr: Int, nowMs: Long = 0L,
-        ): IntArray {
-            val adjFtp = (ftp * todayFactor).toInt().coerceAtLeast(50)
-            val rawPower = powerColor(power, grade, ascentLeftM, adjFtp)
-            val pc = powerColorHysteresis(rawPower, nowMs)
-            val hc = Color.WHITE
-            val cc = cadenceColor(cadence, grade, adjFtp.toFloat(), power,
-                SurfaceType.PAVED, todayFactor, 0f)
-            val sc = speedColor(speedKmh, distanceMeters, elapsedSec)
-            val gc = gradeColor(grade)
-            val rawGear = gearColor(power, cadence, gearFront, gearRear, grade, adjFtp,
-                SurfaceType.PAVED, todayFactor, 0f)
-            val gearC = gearColorHysteresis(rawGear, nowMs)
-            return intArrayOf(pc, hc, cc, sc, gc, gearC)
-        }
-
-        private fun powerColor(watts: Int, grade: Double, ascentLeftM: Int, adjFtp: Int): Int {
-            if (watts <= 0 || adjFtp <= 0) return Color.WHITE
-            val targetLow: Int
-            val targetHigh: Int
-            if (grade > 3.0) {
-                if (ascentLeftM > 0 && ascentLeftM <= 500) {
-                    targetLow = (adjFtp * 0.80).toInt()
-                    targetHigh = (adjFtp * 1.05).toInt()
-                } else {
-                    targetLow = (adjFtp * 0.55).toInt()
-                    targetHigh = (adjFtp * 0.75).toInt()
-                }
-            } else {
-                targetLow = (adjFtp * 0.75).toInt()
-                targetHigh = (adjFtp * 0.87).toInt()
-            }
-            return when {
-                watts < targetLow -> Color.WHITE
-                watts <= targetHigh -> Color.parseColor("#4ADE80")
-                watts <= (targetHigh * 1.20).toInt() -> Color.parseColor("#FB923C")
-                else -> Color.parseColor("#FF5252")
-            }
-        }
-
-        private fun cadenceColor(
-            rpm: Int,
-            grade: Double,
-            effectiveFtp: Float,
-            power: Int,
-            surface: com.qext2.primary.model.SurfaceType,
-            todayFactor: Float,
-            decouplingPct: Float,
-        ): Int {
-            if (rpm <= 0) return Color.WHITE
-            if (grade < -2.0) return Color.WHITE  // zjazd — nie oceniamy
-            val range = com.qext2.primary.active.OptimalCadenceModel.compute(
-                powerW = power.coerceAtLeast(0),
-                effectiveFtp = effectiveFtp,
-                gradePercent = grade,
-                surface = surface,
-                todayFactor = todayFactor,
-                decouplingPct = decouplingPct,
-            )
-            return when (com.qext2.primary.active.OptimalCadenceModel.assess(rpm, range)) {
-                com.qext2.primary.active.OptimalCadenceModel.CadenceStatus.CRITICAL_LOW -> Color.parseColor("#FF5252")
-                com.qext2.primary.active.OptimalCadenceModel.CadenceStatus.LOW         -> Color.parseColor("#FB923C")
-                com.qext2.primary.active.OptimalCadenceModel.CadenceStatus.OPTIMAL     -> Color.parseColor("#4ADE80")
-                com.qext2.primary.active.OptimalCadenceModel.CadenceStatus.HIGH        -> Color.WHITE  // nie sygnalizujemy
-                com.qext2.primary.active.OptimalCadenceModel.CadenceStatus.NO_DATA     -> Color.WHITE
-            }
-        }
-
-        private fun speedColor(speedKmh: Double, distanceMeters: Double, elapsedSec: Long): Int {
-            if (speedKmh < 1.0) return Color.WHITE
-            val netAvg = if (elapsedSec > 0L && distanceMeters > 0.0) {
-                (distanceMeters / 1000.0) / (elapsedSec / 3600.0)
-            } else 0.0
-            if (netAvg < 1.0) return Color.WHITE
-            return when {
-                speedKmh > netAvg * 1.15 -> Color.parseColor("#4ADE80")
-                speedKmh < netAvg * 0.85 -> Color.parseColor("#FF5252")
-                else -> Color.WHITE
-            }
-        }
 
         fun gradeBackground(grade: Double): Int = when {
             grade < -8.0 -> Color.parseColor("#2D58AF")
@@ -160,94 +66,7 @@ data class PrimaryRideSnapshot(
             return if (lum >= 150.0) Color.parseColor("#0B0F1A") else Color.WHITE
         }
 
-        private fun gradeColor(grade: Double): Int = when {
-            grade <= -3.0 -> Color.parseColor("#38BDF8")
-            grade < 3.0 -> Color.parseColor("#4ADE80")
-            grade < 6.0 -> Color.parseColor("#FACC15")
-            grade < 9.0 -> Color.parseColor("#FB923C")
-            else -> Color.parseColor("#FF5252")
-        }
 
-        private fun gearColor(
-            power: Int, cadence: Int, gearFront: Int, gearRear: Int,
-            grade: Double, adjFtp: Int,
-            surface: com.qext2.primary.model.SurfaceType,
-            todayFactor: Float,
-            decouplingPct: Float,
-        ): Int {
-            if (cadence <= 0 || power <= 0 || gearFront <= 0 || gearRear <= 0) return Color.WHITE
-            if (adjFtp <= 0) return Color.WHITE
-            val effectiveFtp = adjFtp.toFloat()
-            val range = com.qext2.primary.active.OptimalCadenceModel.compute(
-                powerW = power,
-                effectiveFtp = effectiveFtp,
-                gradePercent = grade,
-                surface = surface,
-                todayFactor = todayFactor,
-                decouplingPct = decouplingPct,
-            )
-            // Kolorowanie czcionki pola GEAR na podstawie odchylenia kadencji od optimum:
-            // Czerwony = za ciężki bieg (kadencja poniżej zakresu — zrzuć)
-            // Pomarańczowy = lekko za ciężki (zrzuć 1 zębatkę)
-            // Biały = optimum
-            // Zielony = za lekki (wrzuć 1 zębatkę)
-            // Jasno-zielony = znacząco za lekki (wrzuć ≥2 zębatki)
-            return when {
-                cadence < range.low - 10 -> Color.parseColor("#FF5252")   // za ciężko ≥2 zębatki
-                cadence < range.low - 5  -> Color.parseColor("#FB923C")   // za ciężko 1 zębatka
-                cadence > range.high + 10 -> Color.parseColor("#86EFAC")  // za lekko ≥2 zębatki
-                cadence > range.high + 5  -> Color.parseColor("#4ADE80")  // za lekko 1 zębatka
-                else -> Color.WHITE                                         // optimum
-            }
-        }
-
-        private fun gearColorHysteresis(rawColor: Int, nowMs: Long): Int {
-            if (nowMs <= 0L) return rawColor
-            if (!gearInitialized) {
-                lastGearColor = rawColor
-                gearColorSinceMs = nowMs
-                gearInitialized = true
-                return rawColor
-            }
-            if (rawColor == lastGearColor) {
-                gearColorSinceMs = nowMs
-                return rawColor
-            }
-            if (nowMs - gearColorSinceMs < GEAR_HYSTERESIS_MS) return lastGearColor
-            lastGearColor = rawColor
-            gearColorSinceMs = nowMs
-            return rawColor
-        }
-
-        private const val POWER_HYSTERESIS_MS = 8_000L
-
-        fun resetLegacyState() {
-            lastGearColor = Color.WHITE
-            gearColorSinceMs = 0L
-            gearInitialized = false
-            lastPowerColor = Color.WHITE
-            powerColorSinceMs = 0L
-            powerInitialized = false
-        }
-
-        private fun powerColorHysteresis(rawColor: Int, nowMs: Long): Int {
-            if (nowMs <= 0L) return rawColor
-            if (!powerInitialized) {
-                lastPowerColor = rawColor
-                powerColorSinceMs = nowMs
-                powerInitialized = true
-                return rawColor
-            }
-            if (rawColor == lastPowerColor) {
-                powerColorSinceMs = nowMs
-                return rawColor
-            }
-            val isDowngrade = rawColor != Color.WHITE && lastPowerColor == Color.WHITE
-            if (!isDowngrade && nowMs - powerColorSinceMs < POWER_HYSTERESIS_MS) return lastPowerColor
-            lastPowerColor = rawColor
-            powerColorSinceMs = nowMs
-            return rawColor
-        }
     }
 
     val hrDisplay: String

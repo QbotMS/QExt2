@@ -259,7 +259,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         elevationRemainingReceivedRef.set(false)
         elevationGainReceivedRef.set(false)
         movingElapsedSecRef.set(0L)
-        PrimaryRideSnapshot.resetLegacyState()
         val (savedElapsed, savedDistance) = AthleteDataStore.loadElapsedSnapshot()
         val resume = savedElapsed > 0L &&
             AthleteDataStore.elapsedSnapshotAgeMs() < 6L * 60 * 60 * 1000
