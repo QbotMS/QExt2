@@ -150,3 +150,35 @@ maksymalnie cztery, kazdy o INNEJ przyczynie.
 
 ### Powrot z samego commitu 3
 `git revert <hash-commitu-3>` — przywraca stare reguly wszystkich czterech pol.
+
+---
+
+## Commit 4: strojenie tolerancji — PWR 10/30/5 s + straznik biegu na zjezdzie
+
+### PWR: tolerancja czasowa (decyzja uzytkownika 2026-08-10)
+Problem: po commicie 3 czerwona cyfra wskakiwala od PIERWSZEJ sekundy nad
+sufitem — kazde szarpniecie (hopka, ruszenie spod swiatel, wyprzedzanie)
+bylo karcone. Szum, nie informacja.
+
+Nowe zegary (unifiedPowerColors, RideDataAggregator):
+- 0-10 s nad sufitem: ZIELONA cyfra (krotki zryw — tolerowany, zero sygnalu)
+- >= POWER_DIGIT_HOLD_MS = 10 s: czerwona cyfra (utrwalone przekroczenie)
+- >= POWER_ALARM_HOLD_MS = 30 s: ALARM — pelne czerwone tlo + contrastText
+  (przy przekroczeniu sufitu o 10-15% przez 30 s spalasz ~2-3 kJ z W',
+  ~10% zapasu — sygnal przestaje byc pedantyczny, zaczyna byc zasadny)
+- zejscie pod sufit na POWER_RELEASE_MS = 5 s kasuje cyfre i alarm
+Komunikaty pacingu (ClimbPacingProducer) niezmienione — maja wlasna,
+fizjologiczna tolerancje (start ponizej 55% W'bal, eskalacja wg czasu
+do wyczerpania).
+
+### GEAR: straznik zjazdu
+Ponizej -3% nachylenia doradca biegu milczy (NEUTRAL, reason
+descent_advisory_suspended) — kadencja na zjezdzie jest wyborem
+(odpoczynek/dokrecanie), nie bledem przelozenia. Wypelnia szczeline po
+martwym kodzie, ktory mial taki straznik (-2%), a zywy kod tylko przesuwal
+optimum o +4/+7 rpm. Straznik omija histereze (warunek stabilny — nachylenie
+filtrowane).
+
+### Powrot z samego commitu 4
+`git revert <hash-commitu-4>` — przywraca zegary 0/3/3 s i doradce biegu
+na zjezdzie.

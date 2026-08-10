@@ -225,6 +225,13 @@ class FieldComputers(
         if (age != null && age > config.sensorStaleSec) {
             return FieldOutput("GEAR", "${front}×${rear}", FieldColor.GRAY, FieldStatus.STALE, "gear_stale", mapOf("age_s" to age))
         }
+        // Straznik zjazdu: ponizej -3% doradca biegu milczy — kadencja na
+        // zjezdzie jest wyborem (odpoczynek/dokrecanie), nie bledem przelozenia.
+        val gradeForGear = state.gradeDisplayPct
+        if (gradeForGear != null && gradeForGear < -3.0) {
+            return FieldOutput("GEAR", "${front}\u00d7${rear}", FieldColor.NEUTRAL, FieldStatus.OK,
+                "descent_advisory_suspended", mapOf("grade_pct" to gradeForGear))
+        }
         val cadRpm = state.cadenceRpm?.toInt() ?: 0
         val powerW = state.powerW?.toInt() ?: 0
         if (cadRpm > 0 && powerW > 0 && context.effectiveLtp > 0f) {

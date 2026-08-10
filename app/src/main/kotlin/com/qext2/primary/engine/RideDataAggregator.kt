@@ -1659,10 +1659,14 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     // cyfra i tlo komorki z TEGO SAMEGO sufitu pacingowego. Wczesniej tlo liczyl
     // osobno PacingEngine.assessPower (inny wzor => cyfra i tlo potrafily sie
     // nie zgadzac) z kryciem 25% (~2% sily sygnalu — niewidoczne przy 16% jasnosci).
-    // Alarm (moc >= sufitu przez POWER_ALARM_HOLD_MS) = pelne czerwone tlo
-    // + cyfra z contrastText (wzorzec pola nachylenia). Wyjscie z alarmu tez
-    // wymaga POWER_ALARM_HOLD_MS ponizej sufitu — zero migotania na progu.
-    private val POWER_ALARM_HOLD_MS = 3_000L
+    // Tolerancja czasowa (decyzja 2026-08-10): krotkie zrywy nad sufitem
+    // (hopka, ruszenie, wyprzedzanie) NIE sa sygnalizowane. Czerwona cyfra
+    // dopiero po POWER_DIGIT_HOLD_MS ciaglego przekroczenia; pelne czerwone
+    // tlo (alarm, wzorzec pola nachylenia: jasna plama + contrastText) po
+    // POWER_ALARM_HOLD_MS. Zejscie pod sufit na POWER_RELEASE_MS kasuje oba.
+    private val POWER_DIGIT_HOLD_MS = 10_000L
+    private val POWER_ALARM_HOLD_MS = 30_000L
+    private val POWER_RELEASE_MS = 5_000L
     private var powerAlarmActive = false
     private var powerAlarmOverSinceMs = 0L
     private var powerAlarmUnderSinceMs = 0L
@@ -1716,17 +1720,20 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         } else {
             powerAlarmOverSinceMs = 0L
             if (powerAlarmUnderSinceMs == 0L) powerAlarmUnderSinceMs = nowMs
-            if (powerAlarmActive && nowMs - powerAlarmUnderSinceMs >= POWER_ALARM_HOLD_MS) {
+            if (powerAlarmActive && nowMs - powerAlarmUnderSinceMs >= POWER_RELEASE_MS) {
                 powerAlarmActive = false
             }
         }
 
+        val overForMs = if (over) nowMs - powerAlarmOverSinceMs else 0L
         val result = when {
             powerAlarmActive -> {
                 val bg = 0xFFFF5252.toInt()
                 Pair(PrimaryRideSnapshot.contrastText(bg), bg)         // ALARM: jasne tlo
             }
-            over                               -> Pair(Color.parseColor("#FF5252"), 0) // swiezo nad sufitem
+            over && overForMs >= POWER_DIGIT_HOLD_MS
+                                               -> Pair(Color.parseColor("#FF5252"), 0) // utrwalone przekroczenie
+            over                               -> Pair(Color.parseColor("#4ADE80"), 0) // krotki zryw — tolerowany
             power >= (ceiling * 0.85f).toInt() -> Pair(Color.parseColor("#4ADE80"), 0) // cel
             else                               -> Pair(Color.WHITE, 0)                 // ponizej celu
         }
