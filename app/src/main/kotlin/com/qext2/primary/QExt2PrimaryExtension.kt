@@ -314,8 +314,16 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
     private fun fetchAthleteData(system: KarooSystemService, isRetry: Boolean = false) {
         if (!isRetry) fetchAttempts = 0
         fetchConsumerId?.let { system.removeConsumer(it) }
-        val url = BuildConfig.QEXT_READINESS_URL.trim()
+        val baseUrl = BuildConfig.QEXT_READINESS_URL.trim()
             .ifEmpty { "https://qbot.cytr.us/ride-readiness" }
+        // Raport kasety dla serwera: stan przelacznika override + lista koronek.
+        // Serwer zapisuje to per dzien (qbot_v2.qext2_cassette_report) - dzieki temu
+        // wiadomo, ktora kaseta byla fizycznie zamontowana (AXS config bywa nieaktualny).
+        val cassOvr = if (AthleteDataStore.loadCassetteOverrideEnabled()) "1" else "0"
+        val cassCogs = AthleteDataStore.loadCassetteCogsRaw().replace(" ", "")
+        val sep = if (baseUrl.contains("?")) "&" else "?"
+        val url = baseUrl + sep + "cassette_override=" + cassOvr +
+            (if (cassCogs.isNotEmpty()) "&cassette_cogs=" + cassCogs else "")
         Log.i(TAG, "QEXT_READINESS_FETCH_START url=$url retry=$isRetry")
         fetchConsumerId = system.addConsumer<OnHttpResponse>(
             params = OnHttpResponse.MakeHttpRequest(method = "GET", url = url, waitForConnection = false),
