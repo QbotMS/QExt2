@@ -39,6 +39,20 @@ class FieldComputers(
             )
         }
 
+        // Kontrast/choinka: na podjezdzie i zjezdzie (>3%) porownanie ze srednia
+        // moving nie niesie informacji (predkosc ZAWSZE odbiega) — sygnal wygaszony.
+        val gradeForSpeed = state.gradeDisplayPct
+        if (gradeForSpeed != null && (gradeForSpeed > 3.0 || gradeForSpeed < -3.0)) {
+            return FieldOutput(
+                name = "SPEED",
+                value = oneDecimal(speed),
+                color = FieldColor.NEUTRAL,
+                status = FieldStatus.OK,
+                reason = if (gradeForSpeed > 3.0) "climb_reference_suspended" else "descent_reference_suspended",
+                raw = mapOf("grade_pct" to gradeForSpeed, "age_s" to age)
+            )
+        }
+
         val ref = state.avgMovingKmh ?: config.targetAvgKmh
         val (color, reason) = when {
             speed >= ref + 1.5 -> FieldColor.GREEN to "above_reference"
@@ -173,6 +187,16 @@ class FieldComputers(
             return FieldOutput("CADENCE", "INV", FieldColor.RED, FieldStatus.INVALID, "cadence_out_of_range", mapOf("cadence_rpm" to cad))
         }
         if (cad == 0.0) return FieldOutput("CADENCE", "0", FieldColor.GRAY, FieldStatus.OK, "coasting_or_stopped", mapOf("age_s" to age))
+        // Choinka: gdy doradca biegu (pole GEAR) ma komplet danych, to ON niesie
+        // sygnal kolorem (tam jest akcja: zrzuc/wrzuc). Kadencja pokazuje wtedy
+        // sama wartosc, bez koloru — koniec podwojnego alarmu z jednego zdarzenia.
+        // Fallback: bez czujnika biegow kadencja sygnalizuje po staremu.
+        val gearAdvisoryActive = state.gearFront != null && state.gearRear != null &&
+            (state.powerW ?: 0.0) > 0.0 && context.effectiveLtp > 0f
+        if (gearAdvisoryActive) {
+            return FieldOutput("CADENCE", cad.toInt().toString(), FieldColor.NEUTRAL, FieldStatus.OK,
+                "signal_delegated_to_gear", mapOf("age_s" to age))
+        }
         val range = com.qext2.primary.active.OptimalCadenceModel.compute(
             powerW = state.powerW?.toInt() ?: 0,
             effectiveFtp = context.effectiveLtp.coerceAtLeast(50f),
@@ -212,14 +236,16 @@ class FieldComputers(
                 todayFactor = context.todayFactor,
                 decouplingPct = context.decouplingPct,
             )
-            val gearColor = when {
+            val rawGearColor = when {
                 cadRpm < range.low - 10 -> FieldColor.RED     // zrzuć ≥2
                 cadRpm < range.low - 5  -> FieldColor.AMBER   // zrzuć 1
                 cadRpm > range.high + 10 -> FieldColor.GREEN  // wrzuć ≥2
                 cadRpm > range.high + 5  -> FieldColor.GREEN  // wrzuć 1
                 else -> FieldColor.NEUTRAL                     // optimum
             }
-            return FieldOutput("GEAR", "${front}×${rear}", gearColor, FieldStatus.OK, "gear_cadence_advisory")
+            val gearColor = gearColorWithHysteresis(rawGearColor, state.tSec)
+            val gearReason = if (gearColor == rawGearColor) "gear_cadence_advisory" else "gear_cadence_advisory_held"
+            return FieldOutput("GEAR", "${front}×${rear}", gearColor, FieldStatus.OK, gearReason)
         }
         return FieldOutput("GEAR", "${front}×${rear}", FieldColor.NEUTRAL, FieldStatus.OK, "gear_present_no_advice_model")
     }
@@ -235,6 +261,8 @@ class FieldComputers(
 
     fun batterySensors(state: RideState): FieldOutput =
         battery("BAT_SENS", state.batterySensorsPct)
+
+    private val GEAR_COLOR_HOLD_SEC = 4.0
 
     fun mvp(state: RideState, context: RideContext = RideContext()): List<FieldOutput> =
         listOf(speed(state), power(state), hr(state), cadence(state, context), grade(state), gear(state, context))
@@ -254,6 +282,38 @@ class FieldComputers(
             batteryHead(state),
             batterySensors(state)
         )
+
+    // Histereza koloru GEAR: kandydat musi utrzymac sie GEAR_COLOR_HOLD_SEC
+    // zanim kolor sie zmieni — koniec migotania na progu +-5 rpm. Czas z probek
+    // (state.tSec), wiec zachowanie jest deterministyczne w testach replay.
+    private var gearHystShown: FieldColor = FieldColor.NEUTRAL
+    private var gearHystCandidate: FieldColor = FieldColor.NEUTRAL
+    private var gearHystCandidateSinceSec: Double = 0.0
+    private var gearHystLastSeenSec: Double = -1.0
+
+    private fun gearColorWithHysteresis(raw: FieldColor, tSec: Double): FieldColor {
+        if (tSec < gearHystLastSeenSec) {
+            // czas cofniety = nowy przejazd/replay — reset stanu
+            gearHystShown = raw
+            gearHystCandidate = raw
+            gearHystCandidateSinceSec = tSec
+        }
+        gearHystLastSeenSec = tSec
+        if (raw == gearHystShown) {
+            gearHystCandidate = raw
+            gearHystCandidateSinceSec = tSec
+            return gearHystShown
+        }
+        if (raw != gearHystCandidate) {
+            gearHystCandidate = raw
+            gearHystCandidateSinceSec = tSec
+            return gearHystShown
+        }
+        if (tSec - gearHystCandidateSinceSec >= GEAR_COLOR_HOLD_SEC) {
+            gearHystShown = raw
+        }
+        return gearHystShown
+    }
 
     private fun battery(name: String, value: Double?): FieldOutput {
         if (value == null) return FieldOutput(name, "WAIT", FieldColor.GRAY, FieldStatus.NO_DATA, "missing_battery_source")

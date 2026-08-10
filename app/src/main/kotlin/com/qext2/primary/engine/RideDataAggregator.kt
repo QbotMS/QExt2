@@ -259,6 +259,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         elevationRemainingReceivedRef.set(false)
         elevationGainReceivedRef.set(false)
         movingElapsedSecRef.set(0L)
+        resetUnifiedPowerState()
         val (savedElapsed, savedDistance) = AthleteDataStore.loadElapsedSnapshot()
         val resume = savedElapsed > 0L &&
             AthleteDataStore.elapsedSnapshotAgeMs() < 6L * 60 * 60 * 1000
@@ -833,7 +834,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     speedFreshnessMs = now - speedFreshnessRef.get(),
                     gearFreshnessMs = now - gearFreshnessRef.get(),
                     gradeFreshnessMs = now - gradeFreshnessRef.get(),
-                    powerColor = pacingPowerColor(
+                    powerColor = unifiedPowerColors(
                         power = powerRef.get(),
                         effectiveLtp = getEffectiveLtpWatts(),
                         wBalancePct = statsCalc.wBalancePercent(now),
@@ -843,19 +844,15 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                         decouplingPct = statsCalc.decouplingPercent(),
                         hasDecoupling = statsCalc.hasDecouplingData(),
                         powerAgeMs = now - powerFreshnessRef.get(),
-                    ),
+                        nowMs = now,
+                    ).first,
                     hrColor = hrResult.color.hex,
                     cadenceColor = cadOut?.color.toAndroidColor(),
                     speedColor = speedOut?.color.toAndroidColor(),
                     gradeColor = PrimaryRideSnapshot.contrastText(gradeBg),
                     gradeBgColor = gradeBg,
                     gearColor = gearOut?.color.toAndroidColor(),
-                    powerBgColor = when (com.qext2.primary.active.PacingEngine.assessPower(powerRef.get(), pacingContextRef.get())) {
-                        com.qext2.primary.active.PacingEngine.PowerStatus.DANGER  -> 0x40FF4444.toInt()
-                        com.qext2.primary.active.PacingEngine.PowerStatus.WARN    -> 0x40FF8C00.toInt()
-                        com.qext2.primary.active.PacingEngine.PowerStatus.OPTIMAL -> 0x4044AA44.toInt()
-                        else -> 0  // Color.TRANSPARENT
-                    },
+                    powerBgColor = lastUnifiedPowerBg,
                     speedValue = speedOut?.value ?: "WAIT",
                     powerValue = powerOut?.value ?: "WAIT",
                     hrValue = hrOut?.value ?: "WAIT",
@@ -1658,14 +1655,36 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         FieldColor.NEUTRAL, null -> 0xFFFFFFFF.toInt()
     }
 
-    private fun pacingPowerColor(
+    // Jeden silnik mocy (kontrast w sloncu, docs/KONTRAST_2026-08.md commit 3):
+    // cyfra i tlo komorki z TEGO SAMEGO sufitu pacingowego. Wczesniej tlo liczyl
+    // osobno PacingEngine.assessPower (inny wzor => cyfra i tlo potrafily sie
+    // nie zgadzac) z kryciem 25% (~2% sily sygnalu — niewidoczne przy 16% jasnosci).
+    // Alarm (moc >= sufitu przez POWER_ALARM_HOLD_MS) = pelne czerwone tlo
+    // + cyfra z contrastText (wzorzec pola nachylenia). Wyjscie z alarmu tez
+    // wymaga POWER_ALARM_HOLD_MS ponizej sufitu — zero migotania na progu.
+    private val POWER_ALARM_HOLD_MS = 3_000L
+    private var powerAlarmActive = false
+    private var powerAlarmOverSinceMs = 0L
+    private var powerAlarmUnderSinceMs = 0L
+    private var lastUnifiedPowerBg = 0
+
+    private fun resetUnifiedPowerState() {
+        powerAlarmActive = false
+        powerAlarmOverSinceMs = 0L
+        powerAlarmUnderSinceMs = 0L
+        lastUnifiedPowerBg = 0
+    }
+
+    private fun unifiedPowerColors(
         power: Int, effectiveLtp: Float, wBalancePct: Int,
         reserve: Int, elapsedHours: Float, remainingHours: Float,
         decouplingPct: Float, hasDecoupling: Boolean,
-        powerAgeMs: Long,
-    ): Int {
-        if (effectiveLtp < 50f || power < 20 || powerAgeMs > 5_000L)
-            return Color.parseColor("#CBD5E1")
+        powerAgeMs: Long, nowMs: Long,
+    ): Pair<Int, Int> {
+        if (effectiveLtp < 50f || power < 20 || powerAgeMs > 5_000L) {
+            lastUnifiedPowerBg = 0
+            return Pair(Color.parseColor("#CBD5E1"), 0)
+        }
 
         // W' factor: tightens as W' depletes (short-term)
         val wFrac = wBalancePct.coerceIn(0, 100) / 100f
@@ -1687,12 +1706,34 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         // Binding constraint × riding mode × decoupling
         val ceiling = effectiveLtp * minOf(wFac, rsvFac) * modeFactorRef.get() * decFac
 
-        return when {
-            power >= ceiling.toInt()             -> Color.parseColor("#FF5252") // za mocno
-            power >= (ceiling * 0.85f).toInt()   -> Color.parseColor("#4ADE80") // cel
-            else                                 -> Color.WHITE                 // ponizej celu
+        val over = power >= ceiling.toInt()
+        if (over) {
+            powerAlarmUnderSinceMs = 0L
+            if (powerAlarmOverSinceMs == 0L) powerAlarmOverSinceMs = nowMs
+            if (!powerAlarmActive && nowMs - powerAlarmOverSinceMs >= POWER_ALARM_HOLD_MS) {
+                powerAlarmActive = true
+            }
+        } else {
+            powerAlarmOverSinceMs = 0L
+            if (powerAlarmUnderSinceMs == 0L) powerAlarmUnderSinceMs = nowMs
+            if (powerAlarmActive && nowMs - powerAlarmUnderSinceMs >= POWER_ALARM_HOLD_MS) {
+                powerAlarmActive = false
+            }
         }
+
+        val result = when {
+            powerAlarmActive -> {
+                val bg = 0xFFFF5252.toInt()
+                Pair(PrimaryRideSnapshot.contrastText(bg), bg)         // ALARM: jasne tlo
+            }
+            over                               -> Pair(Color.parseColor("#FF5252"), 0) // swiezo nad sufitem
+            power >= (ceiling * 0.85f).toInt() -> Pair(Color.parseColor("#4ADE80"), 0) // cel
+            else                               -> Pair(Color.WHITE, 0)                 // ponizej celu
+        }
+        lastUnifiedPowerBg = result.second
+        return result
     }
+
 
     private fun initCarbSession(elapsedSec: Long) {
         if (carbSessionInitializedRef.get()) return
