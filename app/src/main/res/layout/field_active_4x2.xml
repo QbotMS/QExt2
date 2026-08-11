@@ -429,8 +429,8 @@
                 android:orientation="horizontal"
                 android:gravity="center"
                 android:background="#FBBF24"
-                android:paddingTop="3dp"
-                android:paddingBottom="3dp">
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp">
 
                 <TextView
                     android:id="@+id/msg_title"
@@ -438,9 +438,11 @@
                     android:layout_height="wrap_content"
                     android:text=""
                     android:textColor="#0B0F1A"
-                    android:textSize="20sp"
+                    android:textSize="15sp"
                     android:textStyle="bold"
                     android:fontFamily="monospace"
+                    android:maxLines="1"
+                    android:ellipsize="end"
                     android:includeFontPadding="false" />
             </LinearLayout>
 
@@ -450,7 +452,10 @@
                 android:layout_weight="1"
                 android:orientation="vertical"
                 android:gravity="center"
-                android:padding="8dp">
+                android:paddingLeft="4dp"
+                android:paddingRight="4dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp">
 
                 <TextView
                     android:id="@+id/msg_line1"
@@ -458,9 +463,11 @@
                     android:layout_height="wrap_content"
                     android:text=""
                     android:textColor="#FFFFFF"
-                    android:textSize="22sp"
+                    android:textSize="20sp"
                     android:textStyle="bold"
                     android:fontFamily="monospace"
+                    android:maxLines="1"
+                    android:ellipsize="end"
                     android:includeFontPadding="false" />
 
                 <TextView
@@ -469,10 +476,12 @@
                     android:layout_height="wrap_content"
                     android:text=""
                     android:textColor="#FFFFFF"
-                    android:textSize="14sp"
+                    android:textSize="12sp"
                     android:fontFamily="monospace"
+                    android:maxLines="1"
+                    android:ellipsize="end"
                     android:includeFontPadding="false"
-                    android:layout_marginTop="2dp" />
+                    android:layout_marginTop="1dp" />
             </LinearLayout>
         </LinearLayout>
     </FrameLayout>

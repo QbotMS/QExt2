@@ -219,3 +219,40 @@ Tap w NAKLADKE komunikatu (dowolnego, nie tylko PRZEPAL) = zwolnienie:
 
 ### Powrot z samego commitu 5
 `git revert <hash>` — tap przestaje dzialac, komunikaty jak wczesniej.
+
+---
+
+## Commit 6: fix przyciecia komunikatu + semantyka koloru PWR (zgloszenia z trasy)
+
+### A. Dolna linia komunikatu nie miescila sie w polu (BLAD z commitu 2)
+Stara nakladka: jeden wysrodkowany LinearLayout (gravity=center, padding 8dp) —
+przy przepelnieniu wylewala sie symetrycznie, tekst pozostawal widoczny.
+Nowa (commit 2): pasek naglowka + kontener 0dp/weight=1 — przy przepelnieniu
+kontener dostaje mniej miejsca niz potrzebuje i PRZYCINA od dolu. Suma wysokosci
+urosla (~91dp vs ~89dp) i dolna linia wypadla poza pole.
+
+Zbicie do ~65dp:
+- pasek: padding 3dp -> 2dp, tytul 20sp -> 15sp
+- kontener tresci: padding 8dp -> 4dp poziomo / 2dp pionowo
+- line1 22sp -> 20sp, line2 14sp -> 12sp, margines 2dp -> 1dp
+- maxLines=1 + ellipsize=end na wszystkich trzech (zamiast przyciecia w pionie
+  dlugi tekst skraca sie poziomo z wielokropkiem)
+Pasek waznosci i biala tresc na ciemnym panelu bez zmian.
+
+### B. Zielona cyfra podczas tolerowanego zrywu (BLAD z commitu 4)
+Przez pierwsze 10 s nad sufitem cyfra swiecila ZIELONO — czyli "jestes dokladnie
+tam, gdzie trzeba", podczas gdy bylo odwrotnie (nad sufitem). Zielen zarezerwowana
+wylacznie dla strefy celu; tolerowany zryw = BIEL (system nie ocenia).
+
+### Legenda koloru PWR po tej zmianie
+- BIALA cyfra  = brak oceny: ponizej celu ALBO krotki zryw nad sufitem (<10 s)
+- ZIELONA      = strefa celu (85-100% sufitu pacingowego)
+- CZERWONA     = nad sufitem nieprzerwanie >= 10 s (utrwalone przekroczenie)
+- CZERWONE TLO = nad sufitem nieprzerwanie >= 30 s (alarm)
+- SZARA        = brak danych (moc starsza niz 5 s lub brak LTP)
+Powrot: 5 s ponizej sufitu kasuje czerwien i alarm.
+Sufit = LTP skorygowane o W'bal, rezerwe jazdy, tryb i drift HR — NIE jest to
+staly prog, zmienia sie w trakcie jazdy.
+
+### Powrot z samego commitu 6
+`git revert <hash>` — wraca duzy layout (z przycieciem) i zielony zryw.

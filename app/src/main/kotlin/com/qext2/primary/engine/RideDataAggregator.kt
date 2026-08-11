@@ -1733,7 +1733,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
             }
             over && overForMs >= POWER_DIGIT_HOLD_MS
                                                -> Pair(Color.parseColor("#FF5252"), 0) // utrwalone przekroczenie
-            over                               -> Pair(Color.parseColor("#4ADE80"), 0) // krotki zryw — tolerowany
+            over                               -> Pair(Color.WHITE, 0)                 // krotki zryw — tolerowany, bez oceny
             power >= (ceiling * 0.85f).toInt() -> Pair(Color.parseColor("#4ADE80"), 0) // cel
             else                               -> Pair(Color.WHITE, 0)                 // ponizej celu
         }
