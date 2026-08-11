@@ -11,7 +11,9 @@ private const val TAG = "QExt2Render"
 class PrimaryRenderOptimizer {
 
     var enabled = true
-    var fileLoggingEnabled = true
+    // Bateria (NAPRAWA Etap 1): zapis metryk CSV na flash wylaczony w produkcji.
+    // Artefakt sledztwa wydajnosciowego z 2026-06; plik rosl bez limitu.
+    var fileLoggingEnabled = false
 
     private companion object {
         const val MIN_INTERVAL_MOVING_MS = 300L
@@ -39,7 +41,11 @@ class PrimaryRenderOptimizer {
     data class RenderDecision(val shouldRender: Boolean, val reason: String)
 
     fun initializeMetricsFile(baseDir: File) {
-        if (!fileLoggingEnabled) return
+        if (!fileLoggingEnabled) {
+            // sprzatanie po starych wersjach: skasuj zalegajacy plik metryk
+            runCatching { File(File(baseDir, "qext2"), "primary_render_metrics.csv").delete() }
+            return
+        }
         val dir = File(baseDir, "qext2")
         if (!dir.exists()) dir.mkdirs()
         val file = File(dir, "primary_render_metrics.csv")

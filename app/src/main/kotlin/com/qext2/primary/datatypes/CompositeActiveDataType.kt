@@ -291,29 +291,26 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
 
         scope.launch {
             Log.d(TAG, "QEXT_ACTIVE_EXPIRY_JOB_START")
-            var idleTicks = 0
+            // Bateria (NAPRAWA Etap 1): 1 s zamiast 250 ms = 4x mniej wybudzen
+            // najczestszej petli. Precyzja wygasniecia 1 s wystarcza (TTL 4-10 s),
+            // a show/dismiss wymuszaja render osobna sciezka (force).
             while (isActive) {
-                kotlinx.coroutines.delay(250L)
+                kotlinx.coroutines.delay(1_000L)
                 if (!isActive) break
                 val now = System.currentTimeMillis()
                 val result = messageManager.hideExpired(now)
                 when (result) {
                     is ExpiryResult.Expired -> {
-                        idleTicks = 0
                         Log.d(TAG, "QEXT_ACTIVE_MSG_HIDE id=${result.message.id} reason=expired")
                         emitUpdate(emitter, context, force = true)
                     }
                     is ExpiryResult.Resumed -> {
-                        idleTicks = 0
                         Log.d(TAG, "QEXT_ACTIVE_MSG_RESUME id=${result.message.id}")
                         if (QExt2DebugConfig.DEBUG_ACTIVE_PRODUCER_DIAG)
                             beepForMessage(result.message, "resume")
                         emitUpdate(emitter, context, force = true)
                     }
-                    is ExpiryResult.None -> {
-                        idleTicks++
-                        if (idleTicks > 3) kotlinx.coroutines.delay(750L)
-                    }
+                    is ExpiryResult.None -> Unit
                 }
             }
         }

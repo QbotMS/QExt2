@@ -5,6 +5,7 @@ import android.util.Log
 import android.view.View
 import android.widget.RemoteViews
 import com.qext2.primary.R
+import com.qext2.primary.util.QExt2DebugConfig
 
 private const val TAG = "QEXT_ACTIVE_MSG"
 
@@ -22,7 +23,7 @@ object ActiveMessageRenderer {
     fun bind(views: RemoteViews, message: ActiveMessage?) {
         if (message == null) {
             views.setViewVisibility(R.id.message_overlay, View.GONE)
-            Log.d(TAG, "BIND visible=false")
+            if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "BIND visible=false")
             return
         }
 
@@ -39,7 +40,7 @@ object ActiveMessageRenderer {
         views.setTextColor(R.id.msg_line2, BODY_TEXT)
         views.setViewVisibility(R.id.msg_line2, if (message.line2 != null) View.VISIBLE else View.GONE)
 
-        Log.d(TAG, "BIND visible=true severity=${message.severity} id=${message.id}")
+        if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "BIND visible=true severity=${message.severity} id=${message.id}")
     }
 
     fun resetTracker() {}

@@ -662,7 +662,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                             navClimbsRef.set(emptyList())
                             currentSurfaceRef.set(com.qext2.primary.model.SurfaceType.PAVED)
                             com.qext2.primary.surface.SurfaceBridge.onNavigationState(event, null)
-                            Log.i(TAG, "QEXT_NAV_STATE type=Idle name= routeDistance=-- climbs=0")
+                            if (QExt2DebugConfig.DEBUG_LOGGING) Log.i(TAG, "QEXT_NAV_STATE type=Idle name= routeDistance=-- climbs=0")
                         }
                         is OnNavigationState.NavigationState.NavigatingRoute -> {
                             navRouteActiveRef.set(true)
@@ -679,9 +679,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                                 )
                             }
                             navClimbsRef.set(parsed)
-                            Log.i(TAG, "QEXT_NAV_STATE type=NavigatingRoute name=${ns.name ?: ""} routeDistance=${"%.0f".format(ns.routeDistance)} climbs=${parsed.size}")
+                            if (QExt2DebugConfig.DEBUG_LOGGING) Log.i(TAG, "QEXT_NAV_STATE type=NavigatingRoute name=${ns.name ?: ""} routeDistance=${"%.0f".format(ns.routeDistance)} climbs=${parsed.size}")
                             for (c in parsed) {
-                                Log.i(TAG, "QEXT_ROUTE_CLIMB index=${c.index} start=${c.startDistance} len=${c.length} elev=${c.totalElevation} grade=${c.grade}%")
+                                if (QExt2DebugConfig.DEBUG_LOGGING) Log.i(TAG, "QEXT_ROUTE_CLIMB index=${c.index} start=${c.startDistance} len=${c.length} elev=${c.totalElevation} grade=${c.grade}%")
                             }
                             com.qext2.primary.surface.SurfaceBridge.onNavigationState(event, ns.name)
                         }
@@ -701,9 +701,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                                 )
                             }
                             navClimbsRef.set(parsed)
-                            Log.i(TAG, "QEXT_NAV_STATE type=NavigatingToDestination name=$destName routeDistance=-- climbs=${parsed.size}")
+                            if (QExt2DebugConfig.DEBUG_LOGGING) Log.i(TAG, "QEXT_NAV_STATE type=NavigatingToDestination name=$destName routeDistance=-- climbs=${parsed.size}")
                             for (c in parsed) {
-                                Log.i(TAG, "QEXT_ROUTE_CLIMB index=${c.index} start=${c.startDistance} len=${c.length} elev=${c.totalElevation} grade=${c.grade}%")
+                                if (QExt2DebugConfig.DEBUG_LOGGING) Log.i(TAG, "QEXT_ROUTE_CLIMB index=${c.index} start=${c.startDistance} len=${c.length} elev=${c.totalElevation} grade=${c.grade}%")
                             }
                             com.qext2.primary.surface.SurfaceBridge.onNavigationState(event, destName)
                         }

@@ -87,8 +87,20 @@ Porownanie %baterii Karoo na godzine jazdy przed/po Etapie 1 — z historii
 QBota (batteryPctRef idzie do STATS), bez dodatkowej roboty w terenie.
 
 ## Dziennik wykonania
-- [ ] Etap 0
-- [ ] Etap 1
-- [ ] Etap 2
-- [ ] Etap 3
-- [ ] Jazda kontrolna + porownanie baterii
+- [x] Etap 0 (2026-08-11, zielony run 182) — bramka od razu wykryla 3 zepsute
+      testy: ClimbAnnouncementProducerTest nie kompilowal sie od 2026-06
+      (brak isWithinClimbBounds + stara semantyka "active"), ActiveClimbResolverTest
+      i StatsCalculatorTest odstaly od swiadomych decyzji produkcyjnych
+      (preferencja ascentLeftM; bramka jakosci driftu den>=200). Produkcja
+      NIE wymagala zmian — naprawione testy. Bramka replay z nagrana jazda
+      przechodzi z calym pakietem zmian kontrastowych.
+      CI dodatkowo wrzuca pelny output gradle jako artefakt przy porazce
+      (diagnoza bez dostepu do logow Actions, przez nightly.link).
+- [x] Etap 1a (2026-08-11) — metryki CSV off + kasowanie zalegajacego pliku,
+      petla wygaszania 250ms->1000ms, hot-logi (BIND, QEXT_NAV_*) za DEBUG_LOGGING
+- [ ] Etap 1b — CI na assembleRelease (jezdzisz na DEBUG apk = narzut ART;
+      release z podpisem debug juz skonfigurowany w gradle; wymaga uspojnienia
+      UpdateCheckera z nazwa assetu)
+- [ ] Etap 2 — jedna wladza nad kolorem
+- [ ] Etap 3 — scalenie pakietow + rozbicie agregatora
+- [ ] Jazda kontrolna + porownanie baterii (z historii QBota)
