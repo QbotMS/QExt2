@@ -33,6 +33,12 @@ jobs:
           echo "Token starts with: ${GPR_TOKEN:0:4}..."
           echo "::endgroup::"
           echo "sdk.dir=$ANDROID_HOME" > local.properties
+      - run: ./gradlew testDebugUnitTest
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: QExt2-test-reports
+          path: app/build/reports/tests/
       - run: ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4
         if: success()
