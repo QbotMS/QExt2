@@ -281,3 +281,47 @@ pisany prawdopodobnie pod przyszle pola. Kasowanie wymaga decyzji uzytkownika.
 
 ### Powrot z samego commitu 7
 `git revert <hash>` — przywraca assessPower i usuwa komentarze.
+
+---
+
+## Commit 8: wyciecie martwego kodu z modulu core (decyzja: nie zostawiamy smietnika)
+
+### Zasada przyjeta 2026-08-11
+Kod bez konsumenta sie KASUJE, nie komentuje. Zamiar zapisujemy w docs, nie
+w skompilowanym pliku, ktory udaje dzialajacy. Powod praktyczny: martwy blok
+legacy w PrimaryRideSnapshot kosztowal w tej sesji dwie bledne analizy pol
+PRIMARY, zanim ktokolwiek zauwazyl, ze czyta nieuzywane reguly.
+
+### Kontekst historyczny modulu pl/qbot/karoo/core
+Powstal 2026-05-26 (commit e759f07) w jednym kawalku jako "Lab": silnik
+obliczeniowy BEZ zaleznosci od Androida, testowalny bez Karoo. Sygnatura
+projektu: FieldOutput niesie value + color + status + reason, a
+VirtualReplayGateTest przepuszcza nagrana jazde (data/qbot_replay_*.json)
+tick po ticku i pisze raporty do reports/ — bramka regresyjna.
+Zaprojektowano komplet 12 pol (all()), do wyswietlania trafilo 6 (mvp()).
+Reszte policzyl QExt2 gdzie indziej — migracji do rdzenia nie dokonczono.
+
+### USUNIETE (zero konsumentow w main i test)
+FieldComputers: all(), wPrimeNoModel(), tssNoModel(), batteryHead(),
+batterySensors(), private battery().
+Wraz z martwa instalacja doprowadzajaca dane baterii, ktora po usunieciu
+konsumenta byla tylko do zapisu:
+- RideSample: batteryHeadunitPct, batterySensorsPct
+- RideState: oba pola + dwie linie setSensor
+- RideDataAggregator: dwie linie karmiace RideSample
+batteryPctRef i rearDerailleurBatteryRef ZOSTAJA — zasilaja pole STATS.
+wPrimeNoModel/tssNoModel byly czystymi zaslepkami ("WAIT / brak modelu");
+prawdziwe W' i TSS licza StatsCalculator i StatsAdvancedFieldPolicy.
+
+### ZOSTAWIONE — bo maja realnego konsumenta (weryfikacja grepem)
+avgGross() i avgMoving() NIE sa martwe. Wola je harness regresyjny:
+- VirtualReplayGateTest:50-53 — kolumny CSV raportu z przejazdu
+- SyntheticVirtualRideScenariosTest:182-191 — asercje, ze przed uzbieraniem
+  danych pole zwraca "WAIT" zamiast smiecia
+Kasowanie ich oznacza okrojenie bramki regresyjnej, a nie sprzatanie.
+Kryterium "uzywane" obejmuje testy, nie tylko wyswietlane kafelki.
+Konsekwentnie zostaja: LabConfig.maxRealisticAvgKmh, FieldStatus.WAIT.
+Kazda z tych funkcji ma teraz w kodzie komentarz, KTO ja wola.
+
+### Powrot z samego commitu 8
+`git revert <hash>` — przywraca wszystkie usuniete funkcje i instalacje baterii.

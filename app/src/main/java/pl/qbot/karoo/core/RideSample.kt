@@ -11,8 +11,6 @@ data class RideSample(
     val gradePct: Double? = null,
     val gearFront: Int? = null,
     val gearRear: Int? = null,
-    val batteryHeadunitPct: Double? = null,
-    val batterySensorsPct: Double? = null,
     val event: RideEvent = RideEvent.NONE
 )
 

@@ -70,6 +70,10 @@ class FieldComputers(
         )
     }
 
+    // ZOSTAJE: konsumentem nie jest zaden wyswietlany kafelek, tylko harness
+    // regresyjny — VirtualReplayGateTest (kolumny CSV) i SyntheticVirtualRide-
+    // ScenariosTest (asercje "WAIT" zanim uzbiera sie dosc danych). Sredniej
+    // brutto/netto na ekranie dostarcza StatsCalculator w polu STATS.
     fun avgGross(state: RideState): FieldOutput {
         val avg = state.avgGrossKmh ?: return FieldOutput(
             name = "AVG_GROSS",
@@ -264,40 +268,10 @@ class FieldComputers(
         return FieldOutput("GEAR", "${front}×${rear}", FieldColor.NEUTRAL, FieldStatus.OK, "gear_present_no_advice_model")
     }
 
-    fun wPrimeNoModel(): FieldOutput =
-        FieldOutput("WPRIME", "WAIT", FieldColor.GRAY, FieldStatus.NO_MODEL, "missing_cp_or_wprime")
-
-    fun tssNoModel(): FieldOutput =
-        FieldOutput("TSS", "WAIT", FieldColor.GRAY, FieldStatus.NO_MODEL, "missing_ftp")
-
-    fun batteryHead(state: RideState): FieldOutput =
-        battery("BAT_HEAD", state.batteryHeadunitPct)
-
-    fun batterySensors(state: RideState): FieldOutput =
-        battery("BAT_SENS", state.batterySensorsPct)
-
     private val GEAR_COLOR_HOLD_SEC = 4.0
 
     fun mvp(state: RideState, context: RideContext = RideContext()): List<FieldOutput> =
         listOf(speed(state), power(state), hr(state), cadence(state, context), grade(state), gear(state, context))
-
-    // Nieuzywane przez zywa sciezke (LabRideStateRepository wola mvp()).
-    // Zostawione swiadomie jako komplet API modulu core — nie kasowac bez decyzji.
-    fun all(state: RideState): List<FieldOutput> =
-        listOf(
-            speed(state),
-            avgGross(state),
-            avgMoving(state),
-            grade(state),
-            power(state),
-            hr(state),
-            cadence(state),
-            gear(state),
-            wPrimeNoModel(),
-            tssNoModel(),
-            batteryHead(state),
-            batterySensors(state)
-        )
 
     // Histereza koloru GEAR: kandydat musi utrzymac sie GEAR_COLOR_HOLD_SEC
     // zanim kolor sie zmieni — koniec migotania na progu +-5 rpm. Czas z probek
@@ -331,15 +305,6 @@ class FieldComputers(
         return gearHystShown
     }
 
-    private fun battery(name: String, value: Double?): FieldOutput {
-        if (value == null) return FieldOutput(name, "WAIT", FieldColor.GRAY, FieldStatus.NO_DATA, "missing_battery_source")
-        val color = when {
-            value < 15.0 -> FieldColor.RED
-            value < 35.0 -> FieldColor.AMBER
-            else -> FieldColor.GREEN
-        }
-        return FieldOutput(name, "${value.toInt()}%", color, FieldStatus.OK, "battery_source_present")
-    }
 
     private fun oneDecimal(v: Double): String =
         String.format(Locale.US, "%.1f", v)

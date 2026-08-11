@@ -804,8 +804,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                         gradePct = gradeRef.get(),
                         gearFront = gearFrontRef.get().takeIf { it > 0 },
                         gearRear = gearRearRef.get().takeIf { it > 0 },
-                        batteryHeadunitPct = batteryPctRef.get()?.toDouble(),
-                        batterySensorsPct = rearDerailleurBatteryRef.get()?.toDouble(),
                     ),
                     rideCtx
                 )

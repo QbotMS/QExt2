@@ -44,10 +44,6 @@ class RideState(
         private set
     var gearRear: Int? = null
         private set
-    var batteryHeadunitPct: Double? = null
-        private set
-    var batterySensorsPct: Double? = null
-        private set
 
     private val lastSensorUpdateSec: MutableMap<String, Double> = mutableMapOf()
     var uiRecreateCount: Int = 0
@@ -101,8 +97,6 @@ class RideState(
             setSensor("cadenceRpm", sample.cadenceRpm) { cadenceRpm = it }
         }
 
-        setSensor("batteryHeadunitPct", sample.batteryHeadunitPct) { batteryHeadunitPct = it }
-        setSensor("batterySensorsPct", sample.batterySensorsPct) { batterySensorsPct = it }
 
         sample.gearFront?.let { gearFront = it }
         sample.gearRear?.let { gearRear = it }
