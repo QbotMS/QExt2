@@ -149,21 +149,4 @@ object PacingEngine {
      * Ocena mocy względem kontekstu pacingu.
      * Używana przez pole POWER do cieniowania.
      */
-    enum class PowerStatus {
-        DANGER,      // power > ceiling → blado-czerwone
-        WARN,        // power > targetHigh → blado-pomarańczowe
-        OPTIMAL,     // power w [targetLow, targetHigh] → blado-zielone
-        BELOW,       // power < targetLow → bez cieniowania
-        INACTIVE,    // brak danych
-    }
-
-    fun assessPower(powerW: Int, ctx: PacingContext): PowerStatus {
-        if (!ctx.isActive || powerW <= 0) return PowerStatus.INACTIVE
-        return when {
-            powerW > ctx.ceilingW    -> PowerStatus.DANGER
-            powerW > ctx.targetHighW -> PowerStatus.WARN
-            powerW >= ctx.targetLowW -> PowerStatus.OPTIMAL
-            else                     -> PowerStatus.BELOW
-        }
-    }
 }

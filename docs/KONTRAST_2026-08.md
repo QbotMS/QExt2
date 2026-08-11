@@ -256,3 +256,28 @@ staly prog, zmienia sie w trakcie jazdy.
 
 ### Powrot z samego commitu 6
 `git revert <hash>` — wraca duzy layout (z przycieciem) i zielony zryw.
+
+---
+
+## Commit 7: sprzatanie osieroconego kodu (bez zmian zachowania)
+
+### PacingEngine: usuniete assessPower() + enum PowerStatus
+Osierocone po commicie 3 (tlo mocy przejal unifiedPowerColors). Zero wywolan
+w main i w testach — zweryfikowano grepem. Reszta PacingEngine (komunikaty
+pacingu, PacingContext) bez zmian, dalej zywa.
+
+### FieldComputers: komentarze ostrzegawcze przy kolorach nadpisywanych
+power(), hr() i grade() licza FieldColor, ktory pole PRIMARY IGNORUJE
+(nadpisuja go odpowiednio unifiedPowerColors, HrStrainAdvisor, gradeBackground
++contrastText). To ta sama pulapka, ktora kosztowala dwie bledne analizy na
+poczatku sesji: kod wyglada na zywy, a nie dziala. Kolory zostaja (value/status
+z tych funkcji sa uzywane), ale kazda ma teraz jawne ostrzezenie.
+all() oznaczone jako swiadomie nieuzywane API modulu core.
+
+### Nie ruszone (czeka na decyzje)
+avgGross(), avgMoving(), wPrimeNoModel(), tssNoModel(), batteryHead(),
+batterySensors(), battery() — nieuzywane przez zywa sciezke, ale to modul core
+pisany prawdopodobnie pod przyszle pola. Kasowanie wymaga decyzji uzytkownika.
+
+### Powrot z samego commitu 7
+`git revert <hash>` — przywraca assessPower i usuwa komentarze.

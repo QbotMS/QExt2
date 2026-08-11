@@ -112,6 +112,8 @@ class FieldComputers(
         return FieldOutput("AVG_MOVING", oneDecimal(avg), FieldColor.NEUTRAL, FieldStatus.OK, "distance_over_moving_time")
     }
 
+    // UWAGA: pole PRIMARY IGNORUJE ten kolor — tlo daje gradeBackground(),
+    // a kolor cyfr contrastText() w PrimaryRideSnapshot. Wartosc uzywana.
     fun grade(state: RideState): FieldOutput {
         val g = state.gradeDisplayPct ?: return FieldOutput(
             name = "GRADE",
@@ -150,6 +152,9 @@ class FieldComputers(
         )
     }
 
+    // UWAGA: pole PRIMARY IGNORUJE ten kolor — nadpisuje go unifiedPowerColors()
+    // w RideDataAggregator (sufit pacingowy + zegary 10/30/5 s). Tutaj liczy sie
+    // realnie tylko value/status/freshness. Nie stroic koloru w tym miejscu.
     fun power(state: RideState): FieldOutput {
         val p = state.powerW ?: return FieldOutput("POWER", "WAIT", FieldColor.GRAY, FieldStatus.NO_DATA, "missing_power")
         val age = state.sensorAgeSec("powerW")
@@ -162,6 +167,8 @@ class FieldComputers(
         return FieldOutput("POWER", p.toInt().toString(), FieldColor.NEUTRAL, FieldStatus.OK, "power_present", mapOf("age_s" to age))
     }
 
+    // UWAGA: pole PRIMARY IGNORUJE ten kolor — nadpisuje go HrStrainAdvisor
+    // (strefa HR + drift, histereza 30 s). Tutaj liczy sie value/status/freshness.
     fun hr(state: RideState): FieldOutput {
         val hr = state.hrBpm ?: return FieldOutput("HR", "WAIT", FieldColor.GRAY, FieldStatus.NO_DATA, "missing_hr")
         val age = state.sensorAgeSec("hrBpm")
@@ -274,6 +281,8 @@ class FieldComputers(
     fun mvp(state: RideState, context: RideContext = RideContext()): List<FieldOutput> =
         listOf(speed(state), power(state), hr(state), cadence(state, context), grade(state), gear(state, context))
 
+    // Nieuzywane przez zywa sciezke (LabRideStateRepository wola mvp()).
+    // Zostawione swiadomie jako komplet API modulu core — nie kasowac bez decyzji.
     fun all(state: RideState): List<FieldOutput> =
         listOf(
             speed(state),
