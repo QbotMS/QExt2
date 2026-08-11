@@ -43,12 +43,12 @@ jobs:
           path: |
             gradle_test_output.log
             app/build/reports/tests/
-      - run: ./gradlew assembleDebug
+      - run: ./gradlew assembleRelease
       - uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: QExt2-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: QExt2-release
+          path: app/build/outputs/apk/release/app-release.apk
 
   release:
     needs: build
@@ -57,11 +57,11 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: QExt2-debug
+          name: QExt2-release
       - uses: softprops/action-gh-release@v2
         with:
           name: QExt2 Auto Build
           tag_name: build-${{ github.run_number }}
-          files: app-debug.apk
+          files: app-release.apk
           prerelease: false
           generate_release_notes: true
