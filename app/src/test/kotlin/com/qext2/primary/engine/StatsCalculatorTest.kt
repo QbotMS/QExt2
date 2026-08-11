@@ -202,8 +202,11 @@ class StatsCalculatorTest {
     @Test
     fun `decouplingPercent detects drift when HR rises at same power`() {
         val calc = StatsCalculator()
-        for (i in 1..60) calc.update(200, 150, i.toLong(), i.toLong())
-        for (i in 61..121) calc.update(200, 165, i.toLong(), i.toLong())
+        // Bramka jakosci driftu (DECISIONS 2026-07-18): potrzeba >=200 sparowanych
+        // probek w tych samych binach mocy (~7 min porownywalnej jazdy) - stary
+        // test karmil 60 i dostawal 0% z bramki, nie z braku dryfu.
+        for (i in 1..300) calc.update(200, 150, i.toLong(), i.toLong())
+        for (i in 301..600) calc.update(200, 165, i.toLong(), i.toLong())
         val drift = calc.decouplingPercent()
         assertTrue("Should detect positive drift (HR rose at same power), got $drift%", drift > 0f)
     }
