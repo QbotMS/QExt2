@@ -85,3 +85,22 @@
 
 55. **ZGLOS BLAD** — przycisk w SETUP, zbiera logi QExt2, pokazuje w scrollowalnym dialogu
 56. **UpdateChecker** — sprawdza GitHub Releases API, otwiera przeglądarkę do pobrania nowej wersji
+
+
+## Obsługa wielu rowerów + kalibracja · Sesja 2026-09-20
+
+Kontekst: Grizl (AXS 1×13), Monster/Grand Canyon (SX Eagle mechaniczny), w drodze Grail CF AXS.
+
+- **Rozpoznanie roweru na Karoo** (`BikeDetector`): na starcie jazdy, zatrzask na całą jazdę, odporne na chwilowy drop AXS. Reguła: moc z Quarqa→Grizl; AXS+moc≠Quarq→Grail; brak AXS + realny ruch (moc lub prędkość) po 45 s karencji→Monster (pozytywnie, nigdy jako pustka); brak dowodu ruchu→„czekam".
+- **Grizl vs Grail** wymaga `sourceId` Quarqa — zbierany z logu `QEXT_POWER_SOURCE` (dziś 2 rowery, więc sama obecność AXS wystarcza; `knownQuarqSourceId=null`→AXS=Grizl). Uwaga: `sourceId` brany ze strumienia wygładzonej mocy 3S — jeśli okaże się pusty, dołożyć surowy POWER tylko po to ID.
+- **Ręczny wybór roweru** = bezpiecznik sesyjny (Monster „głuchy": Assioma w reklamacji + padła bateria czujnika koła). Jednorazowy, reset po jeździe.
+- **Kasety per rower** — wartości 1:1 z `qbot_v2.gear_cassette`: Grizl/Grail 10-46 (górska 10-52 przez override „aktualna kaseta"), Monster 11-50. Przód AXS czytany na żywo (Grizl/Grail); Monster korona 36T.
+- **Estymacja biegu Monstera** — metoda 1:1 z `gear_estimate.py` (rozwinięcie na obrót korby, obwód 2.300 m); tylko wyświetlanie, źródłem prawdy do raportu zostaje serwer. Na zjeździe/bez pedałowania trzyma ostatnią koronkę.
+- **Natychmiastowe przeliczanie koronki** przy zmianie napędu/kasety (koniec „override nie działa w trakcie jazdy").
+- **Pole wiatru** — stała szerokość liczby (naprawa rozjazdu przy dwucyfrowym m/s).
+
+### Komunikat kalibracji miernika — ZAWIESZONY
+Flaga `CALIBRATION_MSG_ENABLED=false` w `CompositeActiveDataType`. Dziś odpalał się bezwarunkowo na starcie każdej jazdy (Quarq i Assioma tak samo). **Do wznowienia** po ustaleniu sytuacji z miernikami. Intencja docelowa: przypomnienie tylko dla miernika wymagającego ręcznego zera (Quarq), rozróżnianie **po `sourceId`**, nie po typie. Rozróżnić: Quarq-pająk-DM (Grizl), Quarq-ramię (reklamacja → prawdopodobnie Grail), Assioma (auto-zero → bez przypomnienia).
+
+### Do potwierdzenia na sprzęcie (bez tego nie ogłaszamy sukcesu)
+`sourceId` mocy niepusty i jego format; strumień AXS milczy na Monsterze a nadaje na Grizlu (1 Hz czy tylko przy przerzutce); estymacja Monstera vs serwer; pole wiatru równe przy 2 cyfrach; ręczny wybór działa i resetuje się po jeździe.

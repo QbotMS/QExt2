@@ -61,6 +61,13 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val speedRef = AtomicReference(0.0)
     private val gearFrontRef = AtomicReference(0)
     private val gearRearRef = AtomicReference(0)
+    private val lastRearPosRef = AtomicReference(0)
+    private val lastReportedTeethRef = AtomicReference(0)
+    private val axsEverSeenRef = AtomicReference(false)
+    private val powerSourceIdRef = AtomicReference<String?>(null)
+    private val lastLoggedPowerSrcRef = AtomicReference<String?>(null)
+    private val bikeDetector = BikeDetector()
+    private val lastMonsterCogRef = AtomicReference(0)
     private val gradeRef = AtomicReference(0.0)
     private val filteredGradeRef = AtomicReference(0.0)
     private val gradeFilterInitializedRef = AtomicReference(false)
@@ -189,6 +196,12 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     )
 
     internal companion object {
+        // Katalog koronek — wartosci 1:1 z qbot_v2.gear_cassette (spojnosc live<->serwer).
+        val AXS_DEFAULT_CASSETTE = listOf(10, 11, 12, 13, 15, 17, 19, 21, 24, 28, 32, 38, 46)  // 10-46 XPLR 13s
+        val MONSTER_CASSETTE = listOf(11, 13, 15, 17, 19, 22, 25, 28, 32, 36, 42, 50)           // 11-50 Eagle 12s
+        const val MONSTER_CHAINRING = 36
+        const val MONSTER_CIRC_M = 2.300            // 29x2.4 Wicked Will (1:1 z serwerem)
+        const val MONSTER_MIN_CADENCE = 20          // ponizej = zjazd/wybieg -> trzymaj ostatnia
         fun routeStateDecision(rawRoute: Boolean, lastRouteSeenMs: Long, nowMs: Long, graceMs: Long): RouteStateDecision {
             if (rawRoute) return RouteStateDecision(rawRoute = true, effectiveRoute = true, source = "NAV")
             val ago = if (lastRouteSeenMs <= 0L) Long.MAX_VALUE else nowMs - lastRouteSeenMs
@@ -260,6 +273,20 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         elevationGainReceivedRef.set(false)
         movingElapsedSecRef.set(0L)
         resetUnifiedPowerState()
+        axsEverSeenRef.set(false)
+        powerSourceIdRef.set(null)
+        lastLoggedPowerSrcRef.set(null)
+        bikeDetector.reset()
+        val mb = AthleteDataStore.loadManualBike()
+        if (mb != 0) {
+            bikeDetector.setManual(when (mb) {
+                1 -> BikeDetector.Bike.GRIZL
+                2 -> BikeDetector.Bike.MONSTER
+                3 -> BikeDetector.Bike.GRAIL
+                else -> null
+            })
+            AthleteDataStore.saveManualBike(0)   // jednorazowo: reset po jezdzie
+        }
         val (savedElapsed, savedDistance) = AthleteDataStore.loadElapsedSnapshot()
         val resume = savedElapsed > 0L &&
             AthleteDataStore.elapsedSnapshotAgeMs() < 6L * 60 * 60 * 1000
@@ -496,6 +523,13 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     val s = event.state
                     if (s is StreamState.Streaming) {
                         if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "PWR_3S values=${s.dataPoint.values}")
+                        val pSrc = s.dataPoint.sourceId
+                        if (pSrc != null) {
+                            powerSourceIdRef.set(pSrc)
+                            if (lastLoggedPowerSrcRef.getAndSet(pSrc) != pSrc) {
+                                Log.i(TAG, "QEXT_POWER_SOURCE sourceId=$pSrc")
+                            }
+                        }
                         val v = s.dataPoint.values[DataType.Field.SMOOTHED_3S_AVERAGE_POWER] as? Double
                             ?: s.dataPoint.singleValue
                         if (v != null) {
@@ -535,6 +569,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                         val rearTeethReported = (values[DataType.Field.SHIFTING_REAR_GEAR_TEETH] as? Double)?.toInt() ?: 0
                         val rearPos = (values[DataType.Field.SHIFTING_REAR_GEAR] as? Double)?.toInt() ?: 0
                         val rear = resolveRearTeeth(rearPos, rearTeethReported)
+                        lastRearPosRef.set(rearPos)
+                        lastReportedTeethRef.set(rearTeethReported)
+                        axsEverSeenRef.set(true)
                         val rearBattery = listOf(
                             "FIELD_REAR_DERAILLEUR_BATTERY_ID",
                             "FIELD_SHIFTING_REAR_BATTERY_ID",
@@ -746,6 +783,25 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 delay(1000)
                 try {
                 val now = System.currentTimeMillis()
+
+                bikeDetector.feed(
+                    axsEverSeen = axsEverSeenRef.get(),
+                    powerFreshMs = now - powerFreshnessRef.get(),
+                    speedFreshMs = now - speedFreshnessRef.get(),
+                    powerSourceId = powerSourceIdRef.get(),
+                    elapsedSec = computeElapsedSec(),
+                )
+
+                // Monster (mechanik): estymuj koronke; na zjezdzie/bez pedalowania trzymaj ostatnia.
+                if (bikeDetector.current() == BikeDetector.Bike.MONSTER) {
+                    val est = estimateMonsterCog(speedRef.get(), cadenceRef.get())
+                    val cog = if (est > 0) { lastMonsterCogRef.set(est); est } else lastMonsterCogRef.get()
+                    if (cog > 0) {
+                        gearFrontRef.set(MONSTER_CHAINRING)
+                        gearRearRef.set(cog)
+                        gearFreshnessRef.set(now)
+                    }
+                }
 
                 val speedKmh = speedRef.get()
                 val karooElapsedSec = elapsedSecRef.get()
@@ -1259,6 +1315,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     fun refreshCassetteOverride() {
         cassetteOverrideRef.set(AthleteDataStore.loadCassetteOverrideEnabled())
         cassetteCogsRef.set(AthleteDataStore.loadCassetteCogs())
+        // Przelicz biezaca koronke OD RAZU (nie czekaj na nastepna przerzutke).
+        val pos = lastRearPosRef.get()
+        if (pos > 0) gearRearRef.set(resolveRearTeeth(pos, lastReportedTeethRef.get()))
     }
 
     /**
@@ -1293,15 +1352,45 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "GEAR_EDGE beep pos=$pos largest=$isLargest count=$count")
     }
 
-    private fun resolveRearTeeth(pos: Int, reportedTeeth: Int): Int {
-        val cogs = cassetteCogsRef.get()
-        if (cassetteOverrideRef.get() && cogs.isNotEmpty() && pos in 1..cogs.size) {
-            // AXS: pozycja 1 = najwieksza koronka (najlzejszy bieg),
-            // lista w SETUP wpisywana od najmniejszej -> odwracamy indeks.
-            return cogs[cogs.size - pos]
+    /** Estymacja koronki Monstera: dopasowanie rozwiniecia na obrot korby do 11-50.
+     *  Zwraca 0 gdy brak pedalowania/ruchu -> wtedy trzymamy ostatnia. */
+    private fun estimateMonsterCog(speedKmh: Double, cadenceRpm: Int): Int {
+        if (cadenceRpm < MONSTER_MIN_CADENCE || speedKmh <= 0.0) return 0
+        val devObs = (speedKmh / 3.6) * 60.0 / cadenceRpm      // metry na obrot korby
+        var best = 0
+        var bestErr = Double.MAX_VALUE
+        for (cog in MONSTER_CASSETTE) {
+            val devCog = MONSTER_CIRC_M * MONSTER_CHAINRING / cog
+            val err = kotlin.math.abs(devObs - devCog)
+            if (err < bestErr) { bestErr = err; best = cog }
         }
-        return if (reportedTeeth > 0) reportedTeeth else pos
+        return best
     }
+
+    private fun resolveRearTeeth(pos: Int, reportedTeeth: Int): Int {
+        // 1) reczny override kasety (np. gorska 10-52 na AXS) wygrywa
+        val ov = cassetteCogsRef.get()
+        if (cassetteOverrideRef.get() && ov.isNotEmpty() && pos in 1..ov.size) {
+            // AXS: pozycja 1 = najwieksza koronka; lista od najmniejszej -> odwracamy.
+            return ov[ov.size - pos]
+        }
+        // 2) AXS realnie podaje zeby -> ufamy
+        if (reportedTeeth > 0) return reportedTeeth
+        // 3) domyslna kaseta rozpoznanego roweru (fallback gdy brak zebow z AXS)
+        val def = defaultCassetteForBike()
+        if (def.isNotEmpty() && pos in 1..def.size) return def[def.size - pos]
+        // 4) ostatecznosc
+        return pos
+    }
+
+    private fun defaultCassetteForBike(): List<Int> = when (bikeDetector.current()) {
+        BikeDetector.Bike.MONSTER -> MONSTER_CASSETTE
+        BikeDetector.Bike.GRIZL, BikeDetector.Bike.GRAIL -> AXS_DEFAULT_CASSETTE
+        BikeDetector.Bike.UNKNOWN -> emptyList()
+    }
+
+    fun detectedBike(): BikeDetector.Bike = bikeDetector.current()
+    fun setManualBike(b: BikeDetector.Bike?) { bikeDetector.setManual(b) }
 
     fun getCivilDuskMs(): Long = civilDuskMsRef.get()
 

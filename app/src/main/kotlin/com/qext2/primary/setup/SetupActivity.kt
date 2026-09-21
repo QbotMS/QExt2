@@ -14,6 +14,7 @@ import com.qext2.primary.BuildConfig
 import com.qext2.primary.QExt2PrimaryExtension
 import com.qext2.primary.R
 import com.qext2.primary.data.AthleteDataStore
+import com.qext2.primary.engine.BikeDetector
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -30,6 +31,7 @@ class SetupActivity : Activity() {
         bindCarbPacket()
         bindCheckboxes()
         setupTabs()
+        bindBikeSelect()
 
         findViewById<TextView>(R.id.tv_deadline)?.setOnClickListener {
             android.util.Log.e("QExt2Setup", "DEADLINE CLICKED!")
@@ -155,6 +157,7 @@ class SetupActivity : Activity() {
             setTextColor(if (data.profileComplete) Color.parseColor("#4ADE80") else Color.parseColor("#FACC15"))
         }
 
+        updateBikeStatus()
         findViewById<TextView>(R.id.tv_status)?.text = ""
     }
 
@@ -274,6 +277,62 @@ class SetupActivity : Activity() {
                 AthleteDataStore.saveRidingMode(idx)
                 QExt2PrimaryExtension.instance?.refreshModeFactor()
                 highlight(idx)
+            }
+        }
+    }
+
+    private fun bikeName(idx: Int): String = when (idx) {
+        1 -> "Grizl"
+        2 -> "Monster"
+        3 -> "Grail"
+        else -> "Auto"
+    }
+
+    private fun bikeName(b: BikeDetector.Bike): String = when (b) {
+        BikeDetector.Bike.GRIZL -> "Grizl"
+        BikeDetector.Bike.GRAIL -> "Grail"
+        BikeDetector.Bike.MONSTER -> "Monster"
+        BikeDetector.Bike.UNKNOWN -> "\u2014"
+    }
+
+    private fun updateBikeStatus() {
+        val detected = QExt2PrimaryExtension.instance?.aggregator?.detectedBike()
+        val manualIdx = AthleteDataStore.loadManualBike()
+        val label = when {
+            manualIdx != 0 -> bikeName(manualIdx) + " (reczny)"
+            detected != null && detected != BikeDetector.Bike.UNKNOWN -> bikeName(detected)
+            else -> "\u2014 (czekam na sensory)"
+        }
+        findViewById<TextView>(R.id.tv_bike)?.text = label
+    }
+
+    private fun bindBikeSelect() {
+        val btnAuto = findViewById<TextView>(R.id.btn_bike_auto)
+        val btnGrizl = findViewById<TextView>(R.id.btn_bike_grizl)
+        val btnMonster = findViewById<TextView>(R.id.btn_bike_monster)
+        val btnGrail = findViewById<TextView>(R.id.btn_bike_grail)
+        val buttons = listOf(btnAuto, btnGrizl, btnMonster, btnGrail)
+
+        fun highlight(selected: Int) {
+            buttons.forEachIndexed { idx, btn ->
+                btn?.setBackgroundColor(if (idx == selected) 0xFF1D4ED8.toInt() else 0xFF1E2A3A.toInt())
+                btn?.setTextColor(if (idx == selected) 0xFFFFFFFF.toInt() else 0xFF9CA3AF.toInt())
+            }
+        }
+        highlight(AthleteDataStore.loadManualBike())
+
+        buttons.forEachIndexed { idx, btn ->
+            btn?.setOnClickListener {
+                AthleteDataStore.saveManualBike(idx)
+                val bike = when (idx) {
+                    1 -> BikeDetector.Bike.GRIZL
+                    2 -> BikeDetector.Bike.MONSTER
+                    3 -> BikeDetector.Bike.GRAIL
+                    else -> null
+                }
+                QExt2PrimaryExtension.instance?.aggregator?.setManualBike(bike)
+                highlight(idx)
+                updateBikeStatus()
             }
         }
     }

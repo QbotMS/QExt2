@@ -282,6 +282,10 @@ object AthleteDataStore {
 
     fun loadRidingMode(): Int = prefs?.getInt("riding_mode", 3) ?: 3
 
+    // Reczny wybor roweru (bezpiecznik): 0=auto,1=grizl,2=monster,3=grail. Jednorazowy (konsumowany na starcie).
+    fun saveManualBike(idx: Int) { prefs?.edit()?.putInt("manual_bike", idx.coerceIn(0, 3))?.apply() }
+    fun loadManualBike(): Int = prefs?.getInt("manual_bike", 0) ?: 0
+
     fun loadRidingModeFactor(): Float = when (loadRidingMode()) {
         0 -> 0.88f
         2 -> 1.12f

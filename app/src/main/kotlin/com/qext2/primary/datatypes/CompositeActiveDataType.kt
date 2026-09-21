@@ -57,6 +57,9 @@ import kotlin.math.round
 
 private const val TAG = "QExt2Active"
 private const val MIN_RENDER_INTERVAL_MS = 1000L
+// ZAWIESZONE 2026-09-20 (DECISIONS): komunikat kalibracji miernika wylaczony
+// do czasu ustalenia sytuacji z miernikami (Quarq-pajak vs Quarq-ramie vs Assioma).
+private const val CALIBRATION_MSG_ENABLED = false
 
 private class IF10Calculator(var ftp: Int = 250) {
     private val raw = mutableListOf<Double>()
@@ -165,7 +168,7 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
         setInitialValues(views)
         emitter.updateView(views)
 
-        messageManager.show(ActiveMessage(
+        if (CALIBRATION_MSG_ENABLED) messageManager.show(ActiveMessage(
             id = "pre_ride_calibration",
             title = "SKALIBRUJ",
             line1 = "MIERNIK MOCY",
