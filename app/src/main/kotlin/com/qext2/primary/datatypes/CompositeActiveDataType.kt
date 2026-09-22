@@ -805,7 +805,7 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
 
     private fun applyTypography(views: RemoteViews) {
         val medium = 25f
-        val windDir = 18f   // strzalka: 25sp zjadala kolumne (foto 2026-09-22); 18sp = czytelna + miesci sie
+        val windDir = medium  // 25sp jak cyfry; miejsce odzyskane przez usuniecie jednostki "ms" (decyzja 2026-09-22)
         val unitSmall = 14f
 
         views.setTextViewTextSize(R.id.tv_active_dist, TypedValue.COMPLEX_UNIT_SP, medium)

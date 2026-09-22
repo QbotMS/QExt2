@@ -458,7 +458,7 @@ class BpActiveStaticDataType : DataTypeImpl("qext2", "qext2-active-static") {
         views.setTextViewTextSize(R.id.tv_active_wbal, TypedValue.COMPLEX_UNIT_SP, m)
         views.setTextViewTextSize(R.id.tv_active_wbal_unit, TypedValue.COMPLEX_UNIT_SP, u)
         views.setTextViewTextSize(R.id.tv_active_wind, TypedValue.COMPLEX_UNIT_SP, m)
-        views.setTextViewTextSize(R.id.tv_active_wind_dir, TypedValue.COMPLEX_UNIT_SP, 18f)  // czytelna, miesci sie
+        views.setTextViewTextSize(R.id.tv_active_wind_dir, TypedValue.COMPLEX_UNIT_SP, m)  // 25sp jak cyfry; "ms" usuniete
         views.setTextViewTextSize(R.id.tv_active_wind_unit, TypedValue.COMPLEX_UNIT_SP, u)
     }
 
