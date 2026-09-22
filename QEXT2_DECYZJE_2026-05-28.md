@@ -104,3 +104,12 @@ Flaga `CALIBRATION_MSG_ENABLED=false` w `CompositeActiveDataType`. Dziś odpala�
 
 ### Do potwierdzenia na sprzęcie (bez tego nie ogłaszamy sukcesu)
 `sourceId` mocy niepusty i jego format; strumień AXS milczy na Monsterze a nadaje na Grizlu (1 Hz czy tylko przy przerzutce); estymacja Monstera vs serwer; pole wiatru równe przy 2 cyfrach; ręczny wybór działa i resetuje się po jeździe.
+
+
+### Korekta rozpoznania roweru · 2026-09-22 (lekcja z jazdy Monsterem 2026-09-21)
+**Objaw:** stałe 36×17 widoczne *zanim* zacząłem pedałować, przez całą jazdę Monsterem.
+**Przyczyna (trop Michała):** Grizl stał obok. Jego sparowana przerzutka AXS była w zasięgu na starcie → strumień biegów ruszył (Grizl stał na 36×17) → detektor „AXS się odezwał" zatrzasnął **GRIZL**, estymator Monstera nigdy nie ruszył, a wartość AXS została w pamięci po odjechaniu i wyglądała na żywą.
+**Wada projektowa:** „jakikolwiek AXS = ten rower" nie odróżnia roweru, na którym jadę, od zaparkowanego obok.
+**Naprawa:** decyzja dopiero po **60 s jazdy**, a AXS liczy się tylko gdy **świeży w momencie decyzji** (okno 45 s). Zaparkowany AXS milknie w kilkanaście sekund po odjechaniu (zasięg ~10–30 m) → przy decyzji cichy → Monster. Na Grizlu AXS nadaje stale → Grizl. Przy wykryciu Monstera czyścimy resztki biegu AXS (`QEXT_MONSTER_INIT`).
+**Dodatkowo:** martwy strumień kadencji/prędkości → pole biegu szarzeje (STALE) zamiast zamarzać („trzymaj ostatnią" tylko przy żywych czujnikach). Log `QEXT_MONSTER_EST` co ~3 s.
+**Ryzyko do potwierdzenia:** jeśli AXS nadaje *tylko* przy przerzutce (nie 1 Hz), Grizl bez zmiany biegu przez 45 s mógłby chwilowo wyglądać jak „cichy AXS". Log rozstrzygnie; wtedy wydłużyć okno.

@@ -63,7 +63,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val gearRearRef = AtomicReference(0)
     private val lastRearPosRef = AtomicReference(0)
     private val lastReportedTeethRef = AtomicReference(0)
-    private val axsEverSeenRef = AtomicReference(false)
+    private val axsLastMsRef = AtomicReference(0L)
+    private val monsterInitRef = AtomicReference(false)
     private val powerSourceIdRef = AtomicReference<String?>(null)
     private val lastLoggedPowerSrcRef = AtomicReference<String?>(null)
     private val bikeDetector = BikeDetector()
@@ -274,7 +275,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         elevationGainReceivedRef.set(false)
         movingElapsedSecRef.set(0L)
         resetUnifiedPowerState()
-        axsEverSeenRef.set(false)
+        axsLastMsRef.set(0L)
+        monsterInitRef.set(false)
         powerSourceIdRef.set(null)
         lastLoggedPowerSrcRef.set(null)
         bikeDetector.reset()
@@ -572,7 +574,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                         val rear = resolveRearTeeth(rearPos, rearTeethReported)
                         lastRearPosRef.set(rearPos)
                         lastReportedTeethRef.set(rearTeethReported)
-                        axsEverSeenRef.set(true)
+                        axsLastMsRef.set(System.currentTimeMillis())
                         val rearBattery = listOf(
                             "FIELD_REAR_DERAILLEUR_BATTERY_ID",
                             "FIELD_SHIFTING_REAR_BATTERY_ID",
@@ -786,7 +788,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val now = System.currentTimeMillis()
 
                 bikeDetector.feed(
-                    axsEverSeen = axsEverSeenRef.get(),
+                    axsFreshMs = if (axsLastMsRef.get() > 0L) now - axsLastMsRef.get() else Long.MAX_VALUE,
                     powerFreshMs = now - powerFreshnessRef.get(),
                     speedFreshMs = now - speedFreshnessRef.get(),
                     powerSourceId = powerSourceIdRef.get(),
@@ -795,6 +797,11 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
 
                 // Monster (mechanik): estymuj koronke; na zjezdzie/bez pedalowania trzymaj ostatnia.
                 if (bikeDetector.current() == BikeDetector.Bike.MONSTER) {
+                    if (monsterInitRef.compareAndSet(false, true)) {
+                        // Pierwsze wejscie: wyczysc resztki biegu AXS z zaparkowanego obok roweru.
+                        gearFrontRef.set(0); gearRearRef.set(0); lastMonsterCogRef.set(0)
+                        Log.i(TAG, "QEXT_MONSTER_INIT cleared stale AXS gear")
+                    }
                     val est = estimateMonsterCog(speedRef.get(), cadenceRef.get())
                     val cog = if (est > 0) { lastMonsterCogRef.set(est); est } else lastMonsterCogRef.get()
                     val inputsAlive = (now - cadenceFreshnessRef.get()) <= 5000L && (now - speedFreshnessRef.get()) <= 5000L
