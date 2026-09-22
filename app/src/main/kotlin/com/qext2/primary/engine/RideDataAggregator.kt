@@ -68,6 +68,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val lastLoggedPowerSrcRef = AtomicReference<String?>(null)
     private val bikeDetector = BikeDetector()
     private val lastMonsterCogRef = AtomicReference(0)
+    private val lastMonsterLogMsRef = AtomicReference(0L)
     private val gradeRef = AtomicReference(0.0)
     private val filteredGradeRef = AtomicReference(0.0)
     private val gradeFilterInitializedRef = AtomicReference(false)
@@ -796,10 +797,17 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 if (bikeDetector.current() == BikeDetector.Bike.MONSTER) {
                     val est = estimateMonsterCog(speedRef.get(), cadenceRef.get())
                     val cog = if (est > 0) { lastMonsterCogRef.set(est); est } else lastMonsterCogRef.get()
+                    val inputsAlive = (now - cadenceFreshnessRef.get()) <= 5000L && (now - speedFreshnessRef.get()) <= 5000L
+                    if (now - lastMonsterLogMsRef.get() >= 3000L) {
+                        lastMonsterLogMsRef.set(now)
+                        Log.i(TAG, "QEXT_MONSTER_EST spdKmh=${speedRef.get()} spdAgeMs=${now - speedFreshnessRef.get()} cad=${cadenceRef.get()} cadAgeMs=${now - cadenceFreshnessRef.get()} est=$est cog=$cog")
+                    }
                     if (cog > 0) {
                         gearFrontRef.set(MONSTER_CHAINRING)
                         gearRearRef.set(cog)
-                        gearFreshnessRef.set(now)
+                        // Odswiez tylko gdy policzone (est>0) LUB zjazd z zywymi czujnikami.
+                        // Martwy strumien kadencji/predkosci -> nie odswiezaj -> STALE zamiast klamstwa.
+                        if (est > 0 || inputsAlive) gearFreshnessRef.set(now)
                     }
                 }
 
