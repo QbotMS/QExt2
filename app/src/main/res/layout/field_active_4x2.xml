@@ -364,7 +364,7 @@
                 android:layout_gravity="top|start"
                 android:layout_marginTop="1dp"
                 android:layout_marginStart="3dp"
-                android:text="W"
+                android:text="W m/s"
                 android:textColor="#CBD5E1"
                 android:textSize="8sp"
                 android:includeFontPadding="false" />

@@ -442,7 +442,7 @@ class BpActiveStaticDataType : DataTypeImpl("qext2", "qext2-active-static") {
         views.setViewVisibility(R.id.tv_active_wbal_unit, android.view.View.GONE)
         views.setTextViewText(R.id.tv_active_wind, "--")
         views.setTextViewText(R.id.tv_active_wind_unit, "ms")
-        views.setViewVisibility(R.id.tv_active_wind_unit, android.view.View.VISIBLE)
+        views.setViewVisibility(R.id.tv_active_wind_unit, android.view.View.GONE)  // jednostka w etykiecie "W m/s"
         views.setViewVisibility(R.id.tv_active_wind_dir, android.view.View.GONE)
     }
 
@@ -458,7 +458,7 @@ class BpActiveStaticDataType : DataTypeImpl("qext2", "qext2-active-static") {
         views.setTextViewTextSize(R.id.tv_active_wbal, TypedValue.COMPLEX_UNIT_SP, m)
         views.setTextViewTextSize(R.id.tv_active_wbal_unit, TypedValue.COMPLEX_UNIT_SP, u)
         views.setTextViewTextSize(R.id.tv_active_wind, TypedValue.COMPLEX_UNIT_SP, m)
-        views.setTextViewTextSize(R.id.tv_active_wind_dir, TypedValue.COMPLEX_UNIT_SP, m)
+        views.setTextViewTextSize(R.id.tv_active_wind_dir, TypedValue.COMPLEX_UNIT_SP, 18f)  // czytelna, miesci sie
         views.setTextViewTextSize(R.id.tv_active_wind_unit, TypedValue.COMPLEX_UNIT_SP, u)
     }
 

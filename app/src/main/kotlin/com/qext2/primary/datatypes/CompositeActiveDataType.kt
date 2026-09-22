@@ -799,13 +799,13 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
         views.setViewVisibility(R.id.tv_active_wbal_unit, android.view.View.GONE)
         views.setTextViewText(R.id.tv_active_wind, "--")
         views.setTextViewText(R.id.tv_active_wind_unit, "ms")
-        views.setViewVisibility(R.id.tv_active_wind_unit, android.view.View.VISIBLE)
+        views.setViewVisibility(R.id.tv_active_wind_unit, android.view.View.GONE)  // jednostka w etykiecie "W m/s"
         views.setViewVisibility(R.id.tv_active_wind_dir, android.view.View.GONE)
     }
 
     private fun applyTypography(views: RemoteViews) {
         val medium = 25f
-        val windDir = medium
+        val windDir = 18f   // strzalka: 25sp zjadala kolumne (foto 2026-09-22); 18sp = czytelna + miesci sie
         val unitSmall = 14f
 
         views.setTextViewTextSize(R.id.tv_active_dist, TypedValue.COMPLEX_UNIT_SP, medium)
