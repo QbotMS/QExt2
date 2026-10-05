@@ -237,6 +237,7 @@ object StatsV2Renderer {
         val tw = textW(t, size)
         val pad = F(6f)
         val need = tw + 2 * pad + F(12f)
+        if (align == Paint.Align.CENTER && segW < tw + F(8f)) return
         if (segW >= need && lum(bg) >= 0.05) {
             tp.textSize = size
             val fm = tp.fontMetrics
@@ -292,8 +293,10 @@ object StatsV2Renderer {
         fp.color = WHITE; c.drawRect(mx - F(2f), t - F(4f), mx + F(2f), b + F(4f), fp)
         val txt = fmt("%.2f", v).removePrefix("0")
         val cy = (t + b) / 2f
-        if (p >= 0.45f) barText(c, txt, l + F(4f), cy, F(42f), wTot, cols[0], Paint.Align.LEFT)
-        else barText(c, txt, rr - F(4f), cy, F(40f), wTot, cols[0], Paint.Align.RIGHT)
+        val pillW = textW(txt, F(42f)) + F(12f)
+        if (mx - l - F(10f) >= pillW + F(4f)) barText(c, txt, l + F(4f), cy, F(42f), wTot, cols[0], Paint.Align.LEFT)
+        else if (rr - mx - F(10f) >= pillW + F(4f)) barText(c, txt, rr - F(4f), cy, F(42f), wTot, cols[0], Paint.Align.RIGHT)
+        else barText(c, txt, rr - F(4f), cy, F(36f), wTot, cols[0], Paint.Align.RIGHT)
     }
 
     private fun drawRsrv(c: Canvas, r: RectF, v: Int?) {
