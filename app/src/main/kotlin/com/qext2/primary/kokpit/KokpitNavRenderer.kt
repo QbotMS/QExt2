@@ -174,25 +174,56 @@ object KokpitNavRenderer {
         val c = Canvas(bmp)
         c.drawColor(BG)
         val pad = 8f
-        val msgH = (H * 0.20f).coerceIn(26f, 42f)
-        val barH = (H * 0.065f).coerceIn(8f, 14f)
+        // komunikat | A: km + ETA (najwieksze) | pasek trasy | B: zostalo, zmrok/swit, nachylenie | C: przewyzszenie, temp+opad, wiatr
+        val msgH = (H * 0.17f).coerceIn(26f, 38f)
+        val barH = (H * 0.05f).coerceIn(6f, 12f)
         val rest = H - msgH - barH
-        val valH = rest * 0.52f
-        val infH = rest - valH
-        // 1. komunikat (gora)
+        val aH = rest * 0.38f
+        val bH = rest * 0.31f
+        val cH = rest - aH - bH
         drawMsg(c, d, W, msgH)
-        // 2. wartosci: baseline przy dole wiersza
-        val vSize = valH * 0.80f
-        val vBase = msgH + valH * 0.86f
-        drawValues(c, d, pad, W - pad, vBase, vSize)
-        // 3. pasek trasy
-        val bt = msgH + valH
+        val g = groups(d)
+        row(c, g.first, pad, W - pad, msgH + aH * 0.86f, aH * 0.86f)
+        val bt = msgH + aH
         drawRoute(c, d, pad, W - pad, bt, bt + barH)
-        // 4. wiersz z ikonami
-        val iSize = infH * 0.66f
-        val iBase = bt + barH + infH * 0.80f
-        drawInfo(c, d, pad, W - pad, iBase, iSize)
+        row(c, g.second, pad, W - pad, bt + barH + bH * 0.86f, bH * 0.84f)
+        row(c, g.third, pad, W - pad, bt + barH + bH + cH * 0.84f, cH * 0.84f)
         return bmp
+    }
+
+    private fun groups(d: KokpitNavData): Triple<List<List<Part>>, List<List<Part>>, List<List<Part>>> {
+        val a = ArrayList<List<Part>>()
+        a.add(listOf(Part(fmt("%.0f", d.doneKm), 1f, WHITE, true), Part(d.totalKm?.let { "/" + fmt("%.0f", it) } ?: "km", 0.55f, UNIT, false)))
+        val etaCol = if (d.twilightLabel == "zmrok" && d.etaMs != null && d.duskMs != null && d.etaMs > d.duskMs) RED else WHITE
+        a.add(if (d.etaMs != null) listOf(Part("ETA", 0.38f, LBL, false), Part(clock(d.etaMs), 1f, etaCol, true))
+              else listOf(Part("ETA brak", 0.5f, NONE, false)))
+        val b = ArrayList<List<Part>>()
+        b.add(d.leftKm?.let { listOf(Part("↓", 0.7f, LBL, false), Part(fmt("%.0f", it), 1f, WHITE, true), Part("km", 0.45f, UNIT, false)) }
+              ?: listOf(Part("↓ —", 0.7f, NONE, false)))
+        b.add(d.duskMs?.let { listOf(Part("", 0.7f, ORANGE, false, IC_SUN), Part(clock(it), 1f, ORANGE, true)) }
+              ?: listOf(Part("", 0.7f, NONE, false, IC_SUN), Part("—", 0.8f, NONE, true)))
+        val gr = d.gradePct
+        b.add(if (gr == null) listOf(Part("", 0.9f, NONE, false, IC_TRI, 3f), Part("—", 0.8f, NONE, true))
+              else listOf(Part("", 0.9f, gradeColor(gr), false, IC_TRI, gr), Part(fmt("%.0f", gr), 1f, WHITE, true), Part("%", 0.5f, UNIT, false)))
+        val cc = ArrayList<List<Part>>()
+        cc.add(if (d.ascDone != null && d.ascLeft != null)
+            listOf(Part("", 0.55f, Color.parseColor("#4ADE80"), false, IC_UP), Part(d.ascDone.toString(), 1f, WHITE, true),
+                Part("/", 0.6f, LBL, false), Part(d.ascLeft.toString(), 1f, WHITE, true))
+        else listOf(Part("", 0.55f, NONE, false, IC_UP), Part("—", 0.8f, NONE, true)))
+        val tg = ArrayList<Part>()
+        tg.add(Part("", 0.4f, LBL, false, IC_TEMP))
+        tg.add(if (d.tempC != null) Part(fmt("%.0f", d.tempC) + "°", 1f, WHITE, true) else Part("—", 0.8f, NONE, true))
+        val rn = d.rainNowMmH; val rs = d.rainSoon
+        if (rn != null && rn >= 0.1f) { tg.add(Part("", 0.5f, BLUE, false, IC_DROP)); tg.add(Part(fmt("%.1f", rn).replace('.', ','), 0.9f, BLUE, true)); tg.add(Part("mm", 0.45f, BLUE, false)) }
+        else if (rs != null && rs.probPct >= 30) { tg.add(Part("", 0.5f, BLUE, false, IC_DROP)); tg.add(Part("${rs.probPct}%", 0.9f, BLUE, true)); tg.add(Part("${rs.minutes}′", 0.45f, BLUE, false)) }
+        cc.add(tg)
+        val wm = d.windMps
+        cc.add(if (wm == null) listOf(Part("wiatr —", 0.5f, NONE, false)) else {
+            val rel = d.windRelDeg
+            if (rel != null) listOf(Part("", 0.8f, WHITE, false, IC_ARROW, rel.toFloat()), Part(fmt("%.0f", wm), 1f, WHITE, true), Part("m/s", 0.45f, UNIT, false))
+            else listOf(Part(fmt("%.0f", wm), 1f, WHITE, true), Part("m/s " + (d.windDirDeg?.takeIf { it >= 0 }?.let { compass(it) } ?: ""), 0.45f, UNIT, false))
+        })
+        return Triple(a, b, cc)
     }
 
     private fun drawMsg(c: Canvas, d: KokpitNavData, W: Float, h: Float) {
@@ -213,18 +244,6 @@ object KokpitNavRenderer {
             c.drawText(p.text, x, base, tp); x += w(p.text, s, p.bold) + s * 0.3f
         }
         if (d.demo) { tp.typeface = bold; tp.textSize = size * 0.6f; tp.color = ORANGE; tp.textAlign = Paint.Align.RIGHT; c.drawText("DEMO", W - 8f, base, tp) }
-    }
-
-    private fun drawValues(c: Canvas, d: KokpitNavData, l: Float, r: Float, base: Float, size: Float) {
-        val groups = ArrayList<List<Part>>()
-        groups.add(listOfNotNull(Part(fmt("%.0f", d.doneKm), 1f, WHITE, true),
-            Part(d.totalKm?.let { "/" + fmt("%.0f", it) } ?: "km", 0.5f, UNIT, false)))
-        d.leftKm?.let { groups.add(listOf(Part("↓", 0.6f, LBL, false), Part(fmt("%.0f", it), 1f, WHITE, true), Part("km", 0.42f, UNIT, false))) }
-        d.duskMs?.let { groups.add(listOf(Part("", 0.62f, ORANGE, false, IC_SUN), Part(clock(it), 0.86f, ORANGE, true))) }
-        val etaCol = if (d.twilightLabel == "zmrok" && d.etaMs != null && d.duskMs != null && d.etaMs > d.duskMs) RED else WHITE
-        groups.add(if (d.etaMs != null) listOf(Part("ETA", 0.42f, LBL, false), Part(clock(d.etaMs), 1f, etaCol, true))
-                   else listOf(Part("ETA brak", 0.5f, NONE, false)))
-        row(c, groups, l, r, base, size)
     }
 
     private fun drawRoute(c: Canvas, d: KokpitNavData, l: Float, r: Float, tt: Float, b: Float) {
@@ -254,27 +273,4 @@ object KokpitNavRenderer {
         fp.color = WHITE; c.drawRect(fx - 2f, tt - 4f, fx + 2f, b + 4f, fp)
     }
 
-    private fun drawInfo(c: Canvas, d: KokpitNavData, l: Float, r: Float, base: Float, size: Float) {
-        val groups = ArrayList<List<Part>>()
-        val g = d.gradePct
-        groups.add(if (g == null) listOf(Part("", 0.9f, NONE, false, IC_TRI, 3f), Part("—", 0.8f, NONE, true))
-                   else listOf(Part("", 0.9f, gradeColor(g), false, IC_TRI, g), Part(fmt("%.0f", g), 1f, WHITE, true), Part("%", 0.5f, UNIT, false)))
-        if (d.ascDone != null && d.ascLeft != null)
-            groups.add(listOf(Part("", 0.55f, Color.parseColor("#4ADE80"), false, IC_UP), Part(d.ascDone.toString(), 1f, WHITE, true),
-                Part("/", 0.6f, LBL, false), Part(d.ascLeft.toString(), 1f, WHITE, true)))
-        val tg = ArrayList<Part>()
-        tg.add(Part("", 0.4f, LBL, false, IC_TEMP))
-        tg.add(if (d.tempC != null) Part(fmt("%.0f", d.tempC) + "°", 1f, WHITE, true) else Part("—", 0.8f, NONE, true))
-        val rn = d.rainNowMmH; val rs = d.rainSoon
-        if (rn != null && rn >= 0.1f) { tg.add(Part("", 0.5f, BLUE, false, IC_DROP)); tg.add(Part(fmt("%.1f", rn).replace('.', ','), 0.9f, BLUE, true)); tg.add(Part("mm", 0.45f, BLUE, false)) }
-        else if (rs != null && rs.probPct >= 30) { tg.add(Part("", 0.5f, BLUE, false, IC_DROP)); tg.add(Part("${rs.probPct}%", 0.9f, BLUE, true)); tg.add(Part("${rs.minutes}′", 0.45f, BLUE, false)) }
-        groups.add(tg)
-        val wm = d.windMps
-        groups.add(if (wm == null) listOf(Part("wiatr —", 0.5f, NONE, false)) else {
-            val rel = d.windRelDeg
-            if (rel != null) listOf(Part("", 0.8f, WHITE, false, IC_ARROW, rel.toFloat()), Part(fmt("%.0f", wm), 1f, WHITE, true), Part("m/s", 0.45f, UNIT, false))
-            else listOf(Part(fmt("%.0f", wm), 1f, WHITE, true), Part("m/s " + (d.windDirDeg?.takeIf { it >= 0 }?.let { compass(it) } ?: ""), 0.45f, UNIT, false))
-        })
-        row(c, groups, l, r, base, size)
-    }
 }
