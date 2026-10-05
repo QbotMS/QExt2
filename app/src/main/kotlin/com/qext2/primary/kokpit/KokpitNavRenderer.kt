@@ -222,8 +222,8 @@ object KokpitNavRenderer {
         tg.add(Part("", 0.4f, LBL, false, IC_TEMP))
         tg.add(if (d.tempC != null) Part(fmt("%.0f", d.tempC) + "°", 1f, WHITE, true) else Part("—", 0.8f, NONE, true))
         val rn = d.rainNowMmH; val rs = d.rainSoon
-        if (rn != null && rn >= 0.1f) { tg.add(Part("", 0.5f, BLUE, false, IC_DROP)); tg.add(Part(fmt("%.1f", rn).replace('.', ','), 0.9f, BLUE, true)); tg.add(Part("mm", 0.42f, BLUE, false)) }
-        else if (rs != null && rs.probPct >= 30) { tg.add(Part("", 0.5f, BLUE, false, IC_DROP)); tg.add(Part("${rs.probPct}%", 0.9f, BLUE, true)); tg.add(Part("${rs.minutes}′", 0.42f, BLUE, false)) }
+        if (rn != null && rn >= 0.1f) { tg.add(Part("", 0.42f, BLUE, false, IC_DROP)); tg.add(Part(fmt("%.1f", rn).replace('.', ','), 0.68f, BLUE, true)); tg.add(Part("mm", 0.36f, BLUE, false)) }
+        else if (rs != null && rs.probPct >= 30) { tg.add(Part("", 0.42f, BLUE, false, IC_DROP)); tg.add(Part("${rs.probPct}%", 0.68f, BLUE, true)); tg.add(Part("${rs.minutes}′", 0.36f, BLUE, false)) }
         b.add(tg)
         val etaCol = if (d.twilightLabel == "zmrok" && d.etaMs != null && d.duskMs != null && d.etaMs > d.duskMs) RED else WHITE
         b.add(if (d.etaMs != null) listOf(Part("ETA", 0.38f, LBL, false), Part(clock(d.etaMs), 1f, etaCol, true))
