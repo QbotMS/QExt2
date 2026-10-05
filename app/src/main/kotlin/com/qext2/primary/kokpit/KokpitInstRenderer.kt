@@ -85,10 +85,17 @@ object KokpitInstRenderer {
         val cy = H - 6f
         val oval = RectF(cx - r, cy - r, cx + r, cy + r)
         drawArcs(c, d, oval, cx, cy, r, sw)
-        drawCenter(c, d, cx, cy, r, sw)
         val sideW = cx - r - sw / 2f - 14f
-        drawLeft(c, d, 6f, sideW, H)
-        drawRight(c, d, W - 6f - sideW, sideW, H)
+        if (H < 170f) {
+            // pole niskie (2 pola na mapie): tylko to, co czytelne w jezdzie - duze cyfry, bez drobnych opisow
+            drawCenterCompact(c, d, cx, cy, r, sw)
+            drawLeftCompact(c, d, 6f, sideW, H)
+            drawRightCompact(c, d, W - 6f - sideW, sideW, H)
+        } else {
+            drawCenter(c, d, cx, cy, r, sw)
+            drawLeft(c, d, 6f, sideW, H)
+            drawRight(c, d, W - 6f - sideW, sideW, H)
+        }
         if (d.demo) t(c, "DEMO", cx, H * 0.16f, H * 0.09f, col("#FB923C"), true, Paint.Align.CENTER)
         return bmp
     }
@@ -183,6 +190,64 @@ object KokpitInstRenderer {
         t(c, "▲ CPe5 ", cx - gap - w(cpe, subSize), sBase, subSize * 0.55f, WHITE, false, Paint.Align.RIGHT)
         t(c, "▲ Ø ", cx + gap, sBase, subSize * 0.55f, YEL, false)
         t(c, d.avgSpeedKmh?.let { fmt("%.1f", it) } ?: "—", cx + gap + w("▲ Ø ", subSize * 0.55f, false), sBase, subSize, WHITE, true)
+    }
+
+    private fun drawCenterCompact(c: Canvas, d: KokpitInstData, cx: Float, cy: Float, r: Float, sw: Float) {
+        val inner = r - sw / 2f
+        val gap = inner * 0.06f
+        val hSize = (inner * 0.17f).coerceAtLeast(17f)
+        val hBase = cy - inner * 0.60f
+        val vBase = cy - inner * 0.10f
+        fp.color = col("#2A3038"); c.drawRect(cx - 1f, hBase - hSize, cx + 1f, cy - 4f, fp)
+        t(c, "W", cx - gap, hBase, hSize, UNIT, true, Paint.Align.RIGHT)
+        t(c, "km/h", cx + gap, hBase, hSize, UNIT, true)
+        val pv = d.powerW?.toString() ?: "—"
+        val sv = d.speedKmh?.let { fmt("%.1f", it) } ?: "—"
+        val maxW = inner * 0.92f
+        var vs = inner * 0.58f
+        while (vs > 12f && (w(pv, vs) > maxW || w(sv, vs) > maxW)) vs -= 1f
+        t(c, pv, cx - gap, vBase, vs, if (d.powerW != null) d.powerColor else NONE, true, Paint.Align.RIGHT)
+        t(c, sv, cx + gap, vBase, vs, if (d.speedKmh != null) d.speedColor else NONE, true)
+    }
+
+    private fun drawLeftCompact(c: Canvas, d: KokpitInstData, x: Float, wd: Float, H: Float) {
+        val z = d.hrZone
+        val zc = if (z != null) col(HRZ[(z - 1).coerceIn(0, 4)]) else NONE
+        val zs = z?.let { "Z$it" } ?: "—"
+        var big = H * 0.40f
+        while (big > 12f && w(zs, big) > wd) big -= 1f
+        t(c, zs, x, H * 0.42f, big, zc, true)
+        val hv = d.hr?.toString() ?: "—"
+        val mid = H * 0.30f
+        t(c, hv, x, H * 0.86f, mid, if (d.hr != null) WHITE else NONE, true)
+        t(c, "bpm", x + w(hv, mid) + 5f, H * 0.86f, (H * 0.14f).coerceAtLeast(15f), UNIT, false)
+    }
+
+    private fun drawRightCompact(c: Canvas, d: KokpitInstData, x: Float, wd: Float, H: Float) {
+        val r = x + wd
+        val cv = d.cadence?.toString() ?: "—"
+        val big = H * 0.40f
+        t(c, cv, r, H * 0.42f, big, if (d.cadence != null) WHITE else NONE, true, Paint.Align.RIGHT)
+        t(c, "rpm", r - w(cv, big) - 5f, H * 0.42f, (H * 0.14f).coerceAtLeast(15f), UNIT, false, Paint.Align.RIGHT)
+        // pasek kadencji ze strefa optymalna i srednia (zolty trojkat)
+        val bx = x; val bwid = wd; val by = H * 0.52f; val bh = H * 0.07f
+        fun px(rpm: Int) = bx + bwid * ((rpm - 40).coerceIn(0, 80) / 80f)
+        fp.color = TRACK; c.drawRect(bx, by, bx + bwid, by + bh, fp)
+        fp.color = col("#2F7D4A"); c.drawRect(px(d.optCadLow), by, px(d.optCadHigh), by + bh, fp)
+        d.cadenceAvg?.let { a ->
+            val ax = px(a); val p = Path(); p.moveTo(ax - 6f, by - 9f); p.lineTo(ax + 6f, by - 9f); p.lineTo(ax, by - 1f); p.close()
+            fp.color = YEL; c.drawPath(p, fp)
+        }
+        d.cadence?.let { cad -> val mx = px(cad); fp.color = DARK; c.drawRect(mx - 3f, by - 3f, mx + 3f, by + bh + 3f, fp); fp.color = WHITE; c.drawRect(mx - 1.5f, by - 3f, mx + 1.5f, by + bh + 3f, fp) }
+        // bieg: aktualny bialy; gdy zalecany inny - strzalka i zalecana koronka na zielono
+        val gtxt = if (d.gearFront != null && d.gearRear != null) "${d.gearFront}×${d.gearRear}" else "—"
+        val gs = H * 0.30f
+        val rec = d.recCog
+        if (rec != null && d.gearRear != null && rec != d.gearRear) {
+            val rt = "→$rec"
+            t(c, rt, r, H * 0.92f, gs * 0.8f, col("#4ADE80"), true, Paint.Align.RIGHT)
+            t(c, gtxt, r - w(rt, gs * 0.8f) - 6f, H * 0.92f, gs, if (d.gearRear != null) WHITE else NONE, true, Paint.Align.RIGHT)
+        } else t(c, gtxt, r, H * 0.92f, gs, if (d.gearRear != null) WHITE else NONE, true, Paint.Align.RIGHT)
     }
 
     private fun drawLeft(c: Canvas, d: KokpitInstData, x: Float, wd: Float, H: Float) {

@@ -73,7 +73,12 @@ object KokpitNavRenderer {
 
     private fun w(t: String, size: Float, b: Boolean): Float { tp.typeface = if (b) bold else reg; tp.textSize = size; return tp.measureText(t) }
 
-    private fun partW(p: Part, size: Float): Float = if (p.icon != 0) p.rel * size else w(p.text, p.rel * size, p.bold)
+    /** minimalna czytelna wielkosc drobnego tekstu (jednostki, ETA) na Karoo 3 */
+    private const val MIN_TXT = 17f
+
+    private fun ts(p: Part, size: Float): Float = maxOf(p.rel * size, MIN_TXT)
+
+    private fun partW(p: Part, size: Float): Float = if (p.icon != 0) p.rel * size else w(p.text, ts(p, size), p.bold)
 
     private fun groupW(g: List<Part>, size: Float): Float = g.sumOf { partW(it, size).toDouble() }.toFloat() + size * 0.1f * (g.size - 1)
 
@@ -89,7 +94,7 @@ object KokpitNavRenderer {
             for ((i, p) in g.withIndex()) {
                 if (i > 0) x += size * 0.1f
                 if (p.icon != 0) icon(c, p, x, base, size) else {
-                    tp.typeface = if (p.bold) bold else reg; tp.textSize = p.rel * size; tp.color = p.color; tp.textAlign = Paint.Align.LEFT
+                    tp.typeface = if (p.bold) bold else reg; tp.textSize = ts(p, size); tp.color = p.color; tp.textAlign = Paint.Align.LEFT
                     c.drawText(p.text, x, base, tp)
                 }
                 x += partW(p, size)
