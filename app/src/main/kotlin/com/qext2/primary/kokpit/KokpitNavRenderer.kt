@@ -211,7 +211,7 @@ object KokpitNavRenderer {
         // wiekszy komunikat, minimalne odstepy miedzy wierszami (wysokosci liczone od wielkosci cyfr)
         val msgH = (H * 0.30f).coerceIn(30f, 60f)
         val barH = (H * 0.05f).coerceIn(5f, 10f)
-        val gTop = 3f; val gBar1 = 5f; val gBar2 = 4f; val gBot = 3f
+        val gTop = 3f; val gBar1 = 5f; val gBar2 = 4f; val gBot = 8f   // dolny wiersz odsuniety od krawedzi
         val avail = H - msgH - gTop - gBar1 - barH - gBar2 - gBot
         val capB = avail / 2.1f
         val capA = capB * 1.1f
