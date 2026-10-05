@@ -310,8 +310,6 @@ object KokpitInstRenderer {
         //     predkosci polowa wielkosci, gorna krawedz rowno z gorna krawedzia cyfr
         val xl = lox - inner + 7f * s
         val xr = rox + inner - 7f * s
-        t(c, "W", xl, base, 17f * s, UNIT, true)
-        t(c, "km/h", xr, base, 15f * s, UNIT, false, Paint.Align.RIGHT)
         val pv = d.powerW?.toString() ?: "—"
         val v10 = d.speedKmh?.let { kotlin.math.round(it * 10f).toInt() }
         val sInt = v10?.let { (it / 10).toString() } ?: "—"
@@ -319,8 +317,11 @@ object KokpitInstRenderer {
         val vg = 8f * s
         val pL = xl + w("W", 17f * s) + 4f * s
         val sR = xr - w("km/h", 15f * s, false) - 4f * s
+        // moc i predkosc nie mniejsze niz tetno/kadencja (54 px); jednostki rysowane tylko, gdy sie mieszcza
         var vs = 60f * s
-        while (vs > 12f && (w(pv, vs) > cx - vg - pL || w(sInt, vs) + w(sDec, vs / 2f) > sR - cx - vg)) vs -= 1f
+        while (vs > 54f * s && (w(pv, vs) > cx - vg - pL || w(sInt, vs) + w(sDec, vs / 2f) > sR - cx - vg)) vs -= 1f
+        if (cx - vg - w(pv, vs) >= pL - 2f * s) t(c, "W", xl, base, 17f * s, UNIT, true)
+        if (cx + vg + w(sInt, vs) + w(sDec, vs / 2f) <= sR + 2f * s) t(c, "km/h", xr, base, 15f * s, UNIT, false, Paint.Align.RIGHT)
         t(c, pv, cx - vg, base, vs, if (d.powerW != null) d.powerColor else NONE, true, Paint.Align.RIGHT)
         val spCol = if (d.speedKmh != null) d.speedColor else NONE
         t(c, sInt, cx + vg, base, vs, spCol, true)
