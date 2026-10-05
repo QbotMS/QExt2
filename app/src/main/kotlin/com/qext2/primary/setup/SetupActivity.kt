@@ -232,6 +232,13 @@ class SetupActivity : Activity() {
             setStatus(if (checked) "ETA: nowe (v2)" else "ETA: stare")
         }
 
+        val cbStatsDemo = findViewById<CheckBox>(R.id.cb_stats_v2_demo)
+        cbStatsDemo?.isChecked = AthleteDataStore.loadStatsV2Demo()
+        cbStatsDemo?.setOnCheckedChangeListener { _, checked ->
+            AthleteDataStore.saveStatsV2Demo(checked)
+            setStatus(if (checked) "STATS v2: dane demo ON" else "STATS v2: dane z jazdy")
+        }
+
         tvCogs?.setOnClickListener {
             val input = EditText(this).apply {
                 setText(AthleteDataStore.loadCassetteCogsRaw())

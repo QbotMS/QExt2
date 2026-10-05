@@ -22,6 +22,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -54,6 +56,24 @@ class StatsV2DataType : DataTypeImpl("qext2", "qext2-stats-v2") {
         emitter.updateView(RemoteViews(context.packageName, R.layout.field_stats_v2))
 
         scope.launch {
+            if (AthleteDataStore.loadStatsV2Demo()) {
+                Log.i(TAG, "QEXT_STATS_V2_DEMO on")
+                while (isActive) {
+                    val bmp = try {
+                        withContext(Dispatchers.Default) { StatsV2Renderer.render(w, h, StatsV2Demo.at(System.currentTimeMillis())) }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "QEXT_STATS_V2_RENDER_FAIL msg=${e.message}", e)
+                        null
+                    }
+                    if (bmp != null) {
+                        val rv = RemoteViews(context.packageName, R.layout.field_stats_v2)
+                        rv.setImageViewBitmap(R.id.iv_stats_v2, bmp)
+                        emitter.updateView(rv)
+                    }
+                    delay(2000L)
+                }
+                return@launch
+            }
             val ext = QExt2PrimaryExtension.instance ?: return@launch
             var lastData: StatsV2Data? = null
             var lastEmitMs = 0L

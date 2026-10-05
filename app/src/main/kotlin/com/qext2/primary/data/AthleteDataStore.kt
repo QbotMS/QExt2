@@ -547,6 +547,14 @@ object AthleteDataStore {
     fun loadEtaV2Enabled(): Boolean =
         prefs?.getBoolean("eta_v2", true) ?: true
 
+    /** STATS v2: dane symulacyjne zamiast danych z jazdy (test bez jazdy). */
+    fun saveStatsV2Demo(enabled: Boolean) {
+        prefs?.edit()?.putBoolean("stats_v2_demo", enabled)?.apply()
+    }
+
+    fun loadStatsV2Demo(): Boolean =
+        prefs?.getBoolean("stats_v2_demo", false) ?: false
+
     /** Typowa predkosc ruchu z poprzednich jazd (wartosc startowa ETA poziom 3), km/h; 0 = brak. */
     fun saveEtaPriorKmh(kmh: Double) {
         prefs?.edit()?.putFloat("eta_prior_kmh", kmh.toFloat())?.apply()

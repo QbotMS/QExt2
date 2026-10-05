@@ -42,6 +42,7 @@ data class StatsV2Data(
     val cadAvg: Int? = null,
     val batDrain: Float? = null,
     val batLeftSec: Long? = null,
+    val demo: Boolean = false,
 )
 
 object StatsV2Renderer {
@@ -321,6 +322,7 @@ object StatsV2Renderer {
     private fun drawRoute(c: Canvas, r: RectF, d: StatsV2Data) {
         cell(c, r)
         val lb = label(c, r, listOf(P_ROUTE), "TRASA", "km", material = true)
+        if (d.demo) rightLabel(c, r, listOf(Triple("DEMO", 22f, AMBER)))
         val l = X(r.left) + F(10f); val rr = X(r.right) - F(10f)
         // wiersz wartosci
         val vcy = lb + F(32f)
