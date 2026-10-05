@@ -209,6 +209,7 @@ class EtaEngine(
     private var lastPeriodicLogMs = 0L
     private val checkpointPreds = ArrayList<Triple<Double, Long, Long>>() // frac, nowe, stare
     private var arrivalLogged = false
+    private val longStopsKm = ArrayList<Double>()   // postoje >= 10 min (km jazdy)
 
     @Synchronized
     fun setRoute(encoded: String?, routeDistance: Double?, surfaceKnown: Boolean, surfaceAtKm: ((Double) -> SurfaceType?)?) {
@@ -252,6 +253,7 @@ class EtaEngine(
         prevPos = null; aF = 0.0; pF = 0.0; aS = 0.0; pS = 0.0
         vFast = Double.NaN; vSlow = Double.NaN
         checkpointPreds.clear(); arrivalLogged = false
+        longStopsKm.clear()
     }
 
     private fun posFromRemaining(remainingM: Double): Double? {
@@ -284,6 +286,7 @@ class EtaEngine(
         if (isMoving) {
             if (curStopSec > 0.0) {
                 if (curStopSec <= LONG_STOP_SEC) shortStopSec += curStopSec else longStopSec += curStopSec
+                if (curStopSec >= 600.0) longStopsKm.add(rideDistanceM / 1000.0)
                 curStopSec = 0.0
             }
             rideStarted = true
@@ -387,6 +390,9 @@ class EtaEngine(
 
         return Output(etaMs, level, remMoving, pool, factor)
     }
+
+    @Synchronized
+    fun longStopsKm(): List<Double> = ArrayList(longStopsKm)
 
     /** Najblizszy stromy zjazd przed toba (z profilu Karoo): (odleglosc m, najmniejsze nachylenie %) albo null. */
     @Synchronized

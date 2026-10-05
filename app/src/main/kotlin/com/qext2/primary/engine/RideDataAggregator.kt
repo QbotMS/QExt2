@@ -114,6 +114,10 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         optCadenceLow = 70, optCadenceHigh = 90, isActive = false,
     ))
     private val civilDuskMsRef = AtomicReference(0L)
+    private val civilDawnMsRef = AtomicReference(0L)
+    private val headwindDirDegRef = AtomicReference<Double?>(null)
+    private val headwindSpeedMpsRef = AtomicReference<Double?>(null)
+    private val headwindUpdatedMsRef = AtomicReference(0L)
     private val maxHrRef = AtomicReference(180)
     private val todayFactorRef = AtomicReference(1.0f)
     // Surowa wartosc + znacznik pobrania: todayFactorRef jest z nich PRZELICZANY co tick
@@ -643,6 +647,40 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 }
             )
         )
+
+        consumerIds.add(
+            karooSystem.addConsumer<OnStreamState>(
+                params = OnStreamState.StartStreaming(DataType.Type.CIVIL_DAWN),
+                onEvent = { event ->
+                    val s = event.state
+                    if (s is StreamState.Streaming) {
+                        val v = s.dataPoint.singleValue
+                            ?: (s.dataPoint.values[DataType.Field.CIVIL_DAWN] as? Double)
+                        if (v != null) civilDawnMsRef.set(v.toLong())
+                    }
+                }
+            )
+        )
+
+        // KOKPIT: wiatr wzgledem jazdy z rozszerzenia karoo-headwind (jak pole DYN/ACTIVE)
+        for ((field, ref) in listOf("headwindDirection" to headwindDirDegRef, "headwindSpeed" to headwindSpeedMpsRef)) {
+            try {
+                consumerIds.add(
+                    karooSystem.addConsumer<OnStreamState>(
+                        params = OnStreamState.StartStreaming(DataType.dataTypeId("karoo-headwind", field)),
+                        onEvent = { event ->
+                            val s = event.state
+                            if (s is StreamState.Streaming) {
+                                val v = s.dataPoint.singleValue ?: s.dataPoint.values.values.firstOrNull() as? Double
+                                if (v != null && v.isFinite()) { ref.set(v); headwindUpdatedMsRef.set(System.currentTimeMillis()) }
+                            }
+                        }
+                    )
+                )
+            } catch (e: Exception) {
+                Log.w(TAG, "QEXT_HEADWIND_SUB_FAIL field=$field msg=${e.message}")
+            }
+        }
 
         consumerIds.add(
             karooSystem.addConsumer<OnStreamState>(
@@ -1443,6 +1481,18 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     fun getCivilDuskMs(): Long = civilDuskMsRef.get()
 
     fun getRainForecast(): com.qext2.primary.weather.RainForecast? = rainForecastRef.get()
+
+    fun getCivilDawnMs(): Long = civilDawnMsRef.get()
+
+    /** (kierunek wzgledny stopnie, predkosc m/s) z karoo-headwind, gdy swieze (<= 15 s); inaczej null */
+    fun getHeadwindRel(): Pair<Int, Float>? {
+        if (System.currentTimeMillis() - headwindUpdatedMsRef.get() > 15_000L) return null
+        val d = headwindDirDegRef.get() ?: return null
+        val sp = headwindSpeedMpsRef.get() ?: return null
+        return (((d % 360.0) + 360.0) % 360.0).toInt() to kotlin.math.abs(sp).toFloat()
+    }
+
+    fun getLongStopsKm(): List<Double> = try { etaEngine.longStopsKm() } catch (_: Exception) { emptyList() }
 
     fun getWeatherWindDirDeg(): Int? = weatherWindDirectionDegRef.get()
 

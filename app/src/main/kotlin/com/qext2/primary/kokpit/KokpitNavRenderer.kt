@@ -26,6 +26,12 @@ data class KokpitNavData(
     val rainSoon: RainSoon? = null,
     val windMps: Float? = null,
     val windDirDeg: Int? = null,
+    /** kierunek wiatru wzgledem jazdy z rozszerzenia karoo-headwind (0 = strzalka w gore); null = brak */
+    val windRelDeg: Int? = null,
+    /** etykieta nastepnego zdarzenia: "zmrok" albo "świt" (godzina w duskMs) */
+    val twilightLabel: String = "zmrok",
+    /** postoje >= 10 min: km na trasie */
+    val stopsKm: List<Float> = emptyList(),
     val demo: Boolean = false,
 )
 
@@ -123,13 +129,13 @@ object KokpitNavRenderer {
         val g1u = d.totalKm?.let { "/ " + fmt("%.0f", it) + " km" } ?: "km"
         val left = d.leftKm?.let { fmt("%.0f", it) }
         val eta = d.etaMs?.let { clock(it) }
-        val etaCol = if (d.etaMs != null && d.duskMs != null && d.etaMs > d.duskMs) RED else WHITE
+        val etaCol = if (d.twilightLabel == "zmrok" && d.etaMs != null && d.duskMs != null && d.etaMs > d.duskMs) RED else WHITE
         val dusk = d.duskMs?.let { clock(it) }
         val v = F(28f)
         // szerokosci grup
         val w1 = group(c, 0f, 0f, "", done, g1u, v, WHITE, false)
         val w2 = if (left != null) group(c, 0f, 0f, "zostało", left, "km", v, WHITE, false) else 0f
-        val w3 = if (dusk != null) F(22f) + group(c, 0f, 0f, "zmrok", dusk, "", F(24f), ORANGE, false) else 0f
+        val w3 = if (dusk != null) F(22f) + group(c, 0f, 0f, d.twilightLabel, dusk, "", F(24f), ORANGE, false) else 0f
         val w4 = group(c, 0f, 0f, "ETA", eta ?: "brak", "", if (eta != null) v else F(18f), if (eta != null) etaCol else NONE, false)
         val ws = listOf(w1, w2, w3, w4).filter { it > 0f }
         val gap = ((r - l) - ws.sum()) / (ws.size - 1).coerceAtLeast(1)
@@ -138,7 +144,7 @@ object KokpitNavRenderer {
         if (left != null) { group(c, x, base, "zostało", left, "km", v, WHITE); x += w2 + gap }
         if (dusk != null) {
             sun(c, x, base - F(14f), F(18f))
-            group(c, x + F(22f), base, "zmrok", dusk, "", F(24f), ORANGE); x += w3 + gap
+            group(c, x + F(22f), base, d.twilightLabel, dusk, "", F(24f), ORANGE); x += w3 + gap
         }
         group(c, r - w4, base, "ETA", eta ?: "brak", "", if (eta != null) v else F(18f), if (eta != null) etaCol else NONE)
     }
@@ -172,6 +178,11 @@ object KokpitNavRenderer {
                 c.drawRect(x + F(0.5f), tt, x + ww - F(0.5f), b, fp)
                 x += ww
             }
+        }
+        for (k in d.stopsKm) {
+            val sx0 = l + (r - l) * (k / total).coerceIn(0f, 1f)
+            fp.color = Color.parseColor("#111315"); c.drawRect(sx0 - F(4f), tt, sx0 + F(4f), b, fp)
+            fp.color = Color.parseColor("#F59E0B"); c.drawRect(sx0 - F(2.5f), tt, sx0 + F(2.5f), b, fp)
         }
         fp.color = Color.parseColor("#111315"); c.drawRect(fx - F(4f), tt - F(5f), fx + F(4f), b + F(5f), fp)
         fp.color = WHITE; c.drawRect(fx - F(2f), tt - F(5f), fx + F(2f), b + F(5f), fp)
@@ -222,11 +233,28 @@ object KokpitNavRenderer {
         t(c, "WIATR", X(BW - 8f), lb, F(13f), LBL, false, Paint.Align.RIGHT)
         val wm = d.windMps
         if (wm == null) t(c, "brak", X(BW - 8f), vb, F(18f), NONE, false, Paint.Align.RIGHT) else {
-            val unit = "m/s" + (d.windDirDeg?.takeIf { it >= 0 }?.let { " " + compass(it) } ?: "")
+            val rel = d.windRelDeg
+            val unit = "m/s" + (if (rel == null) d.windDirDeg?.takeIf { it >= 0 }?.let { " " + compass(it) } ?: "" else "")
             val uw = w(unit, F(12f), false)
             t(c, unit, X(BW - 8f), vb, F(12f), UNIT, false, Paint.Align.RIGHT)
-            t(c, fmt("%.0f", wm), X(BW - 8f) - uw - F(4f), vb, F(24f), WHITE, true, Paint.Align.RIGHT)
+            val vs = fmt("%.0f", wm)
+            t(c, vs, X(BW - 8f) - uw - F(4f), vb, F(24f), WHITE, true, Paint.Align.RIGHT)
+            if (rel != null) arrow(c, X(BW - 8f) - uw - F(8f) - w(vs, F(24f)) - F(12f), vb - F(9f), F(10f), rel.toFloat())
         }
+    }
+
+    /** strzalka wiatru obrocona o deg (0 = w gore), srodek (cx, cy), promien r */
+    private fun arrow(c: Canvas, cx: Float, cy: Float, r: Float, deg: Float) {
+        fp.color = WHITE
+        val a = Math.toRadians(deg.toDouble())
+        fun pt(dx: Float, dy: Float): Pair<Float, Float> {
+            val x = dx * Math.cos(a) - dy * Math.sin(a); val y = dx * Math.sin(a) + dy * Math.cos(a)
+            return (cx + x.toFloat()) to (cy + y.toFloat())
+        }
+        val p = Path()
+        val (x1, y1) = pt(0f, -r); val (x2, y2) = pt(r * 0.75f, r * 0.55f); val (x3, y3) = pt(0f, r * 0.15f); val (x4, y4) = pt(-r * 0.75f, r * 0.55f)
+        p.moveTo(x1, y1); p.lineTo(x2, y2); p.lineTo(x3, y3); p.lineTo(x4, y4); p.close()
+        c.drawPath(p, fp)
     }
 
     private fun drop(c: Canvas, x: Float, y: Float, size: Float, col: Int) {

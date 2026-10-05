@@ -57,6 +57,8 @@ class KokpitNavDataType : DataTypeImpl("qext2", "qext2-kokpit-nav") {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         emitter.updateView(RemoteViews(context.packageName, R.layout.field_stats_v2))
 
+        val rotator = RouteMessageRotator()
+
         fun emit(data: KokpitNavData) {
             val bmp = try { KokpitNavRenderer.render(w, h, data) } catch (e: Exception) {
                 Log.w(TAG, "QEXT_KOKPIT_NAV_RENDER_FAIL msg=${e.message}", e); null
@@ -81,7 +83,7 @@ class KokpitNavDataType : DataTypeImpl("qext2", "qext2-kokpit-nav") {
             ext.aggregatorFlow
                 .flatMapLatest { agg -> (agg?.statsSnapshot ?: flowOf(StatsRideSnapshot())).map { agg to it } }
                 .collect { (agg, snap) ->
-                    val d = try { toData(agg, snap) } catch (e: Exception) {
+                    val d = try { toData(agg, snap, rotator) } catch (e: Exception) {
                         Log.w(TAG, "QEXT_KOKPIT_NAV_DATA_FAIL msg=${e.message}"); null
                     } ?: return@collect
                     val now = System.currentTimeMillis()
@@ -98,7 +100,7 @@ class KokpitNavDataType : DataTypeImpl("qext2", "qext2-kokpit-nav") {
 
     private fun cls(t: SurfaceType) = when (t) { SurfaceType.PAVED -> SurfClass.PAVED; SurfaceType.GRAVEL -> SurfClass.GRAVEL; SurfaceType.LOOSE -> SurfClass.LOOSE }
 
-    private fun toData(agg: RideDataAggregator?, s: StatsRideSnapshot): KokpitNavData {
+    private fun toData(agg: RideDataAggregator?, s: StatsRideSnapshot, rotator: RouteMessageRotator): KokpitNavData {
         val now = System.currentTimeMillis()
         val pos = s.distanceKm.coerceAtLeast(0f)
         val dtdKm = ((agg?.getDistanceToDestinationMeters() ?: 0.0) / 1000.0).toFloat()
@@ -113,27 +115,41 @@ class KokpitNavDataType : DataTypeImpl("qext2", "qext2-kokpit-nav") {
         val rf = agg?.getRainForecast()
         val rfMin = rf?.minutes
         val rainSoon = if (rf != null && rfMin != null && RainForecastClient.isFresh(rf)) RainSoon(rfMin, rf.probPct, rf.mmPerH) else null
-        val dusk = agg?.getCivilDuskMs()?.takeIf { it > now }
+        // nastepne zdarzenie: swit przed wschodem, zmrok w dzien, po zmroku swit nastepnego dnia (SDK: CIVIL_DAWN / CIVIL_DUSK)
+        val duskRaw = agg?.getCivilDuskMs() ?: 0L
+        val dawnRaw = agg?.getCivilDawnMs() ?: 0L
+        val (twMs, twLabel) = when {
+            dawnRaw > now -> dawnRaw to "świt"
+            duskRaw > now -> duskRaw to "zmrok"
+            dawnRaw > 0L -> (dawnRaw + 86_400_000L) to "świt"
+            else -> 0L to "zmrok"
+        }
+        val dusk = if (twLabel == "zmrok" && twMs > now) twMs else null
         val eta = if (s.etaModelReady && s.etaTimestamp > 0L) s.etaTimestamp else null
-        val msg = RouteMessageEngine.pick(
+        val pois = SurfaceBridge.poisSnapshot().map { PoiInfo(it.km, it.cat, it.name, it.today) }
+        val cands = RouteMessageEngine.candidates(
             RouteMsgInput(
                 nowMs = now, hasRoute = s.hasRoute, posKm = pos, surfaces = segs, climbs = climbs, descent = descent,
                 rainNowMmH = rainNow, rainSoon = rainSoon, carbBalanceG = if (s.carbModelReady) s.carbBalanceG else null,
-                duskMs = dusk ?: 0L, etaMs = eta ?: 0L,
+                duskMs = dusk ?: 0L, etaMs = eta ?: 0L, pois = pois,
             )
         )
+        val msg = rotator.next(now, cands)
+        val hw = agg?.getHeadwindRel()
         val ahead = if (segs.isNotEmpty() && total != null) segs.sortedBy { it.kmStart }.filter { it.kmEnd > pos }
             .map { (it.kmEnd - maxOf(it.kmStart, pos)) to RouteMessageEngine.surfColor(it.surface) } else null
         return KokpitNavData(
             msg = msg, doneKm = pos, totalKm = total, leftKm = if (total != null) dtdKm else null,
-            duskMs = dusk, etaMs = eta, ahead = ahead,
+            duskMs = if (twMs > now) twMs else null, twilightLabel = twLabel, etaMs = eta, ahead = ahead,
+            stopsKm = agg?.getLongStopsKm()?.map { it.toFloat() } ?: emptyList(),
             gradePct = agg?.getEffectiveGrade()?.toFloat(),
             ascDone = if (s.routeClimbSourceReady) s.ascentDoneM else null,
             ascLeft = if (s.routeClimbSourceReady) s.ascentLeftM else null,
             tempC = if (fresh) s.weatherTemperatureC else null,
             rainNowMmH = rainNow, rainSoon = rainSoon,
-            windMps = if (fresh) s.weatherWindSpeedMps else null,
+            windMps = hw?.second ?: if (fresh) s.weatherWindSpeedMps else null,
             windDirDeg = if (fresh) agg?.getWeatherWindDirDeg() else null,
+            windRelDeg = hw?.first,
         )
     }
 }
@@ -147,6 +163,7 @@ object KokpitNavDemo {
         RouteMsg(MsgKind.RAIN, "deszcz za 20 min:", "60%", "#60A5FA"),
         RouteMsg(MsgKind.FUEL, "zjedz:", "-35 g", "#E9A23B"),
         RouteMsg(MsgKind.DUSK, "meta po zmroku:", "zmrok 18:42", "#F87171"),
+        RouteMsg(MsgKind.POI, "za 1,4 km: sklep", "Biedronka · 05:00–23:00", "#4ADE80"),
     )
     fun at(now: Long): KokpitNavData {
         val t = ((now / 1000L) % 120L).toFloat(); val f = t / 120f
@@ -159,7 +176,8 @@ object KokpitNavDemo {
             msg = m, doneKm = done, totalKm = total, leftKm = total - done,
             duskMs = now + 95 * 60_000L, etaMs = now + (((total - done) / 19f) * 3600_000f).toLong(),
             ahead = ahead, gradePct = (kotlin.math.sin(t / 6f) * 9f), ascDone = (1280 * f).toInt(), ascLeft = (1280 * (1 - f)).toInt(),
-            tempC = 24f, rainNowMmH = null, rainSoon = RainSoon(40, 60, 1.2f), windMps = 4f, windDirDeg = 300, demo = true,
+            tempC = 24f, rainNowMmH = null, rainSoon = RainSoon(40, 60, 1.2f), windMps = 4f, windDirDeg = 300,
+            windRelDeg = ((now / 1000L) * 6 % 360).toInt(), stopsKm = listOf(22f, 41.5f).filter { it < done }, demo = true,
         )
     }
 }

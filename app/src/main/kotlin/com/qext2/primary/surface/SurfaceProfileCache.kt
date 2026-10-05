@@ -21,6 +21,9 @@ private const val TAG = "QEXT_SURFACE"
 /**
  * Segment nawierzchni z profilu QBota.
  */
+/** Punkt z QBota (/api/poi/by-name): cat = water | shop | food, today = godziny na dzis. */
+data class PoiPoint(val km: Float, val cat: String, val name: String, val today: String?)
+
 data class SurfaceSegment(
     val kmStart: Float,
     val kmEnd: Float,
@@ -45,6 +48,7 @@ class SurfaceProfileCache(
 ) {
     private var lastPolylineHash: Int? = null
     private var segments: List<SurfaceSegment> = emptyList()
+    @Volatile private var pois: List<PoiPoint> = emptyList()
     private var fetchJob: Job? = null
 
     // Bieżąca nawierzchnia emitowana na zewnątrz (dla aggregatora)
@@ -84,6 +88,7 @@ class SurfaceProfileCache(
             val g = httpGet
             if (g != null) {
                 fetchViaKaroo(routeName, g)
+                fetchPoisViaKaroo(routeName, g)
             } else {
                 fetchJob?.cancel()
                 fetchJob = CoroutineScope(Dispatchers.IO).launch {
@@ -124,6 +129,33 @@ class SurfaceProfileCache(
 
     fun segmentsSnapshot(): List<SurfaceSegment> = segments
 
+    fun poisSnapshot(): List<PoiPoint> = pois
+
+    private fun fetchPoisViaKaroo(
+        routeName: String,
+        httpGet: (String, Map<String, String>, (Int, String?) -> Unit) -> Unit,
+    ) {
+        val url = "$qbotBaseUrl/api/poi/by-name?name=" + java.net.URLEncoder.encode(routeName, "UTF-8")
+        httpGet(url, mapOf("Authorization" to "Bearer $qbotBearer")) { code, body ->
+            if (code != 200 || body == null) {
+                Log.w(TAG, "POI_FETCH failed status=$code")
+                return@httpGet
+            }
+            try {
+                val arr = JSONArray(body)
+                val out = ArrayList<PoiPoint>(arr.length())
+                for (k in 0 until arr.length()) {
+                    val o = arr.getJSONObject(k)
+                    out.add(PoiPoint(o.getDouble("km").toFloat(), o.optString("cat"), o.optString("name"), if (o.isNull("today")) null else o.optString("today")))
+                }
+                pois = out.sortedBy { it.km }
+                Log.i(TAG, "POI_FETCH OK pois=${pois.size} route='$routeName'")
+            } catch (e: Exception) {
+                Log.w(TAG, "POI_FETCH parse_error msg=${e.message}")
+            }
+        }
+    }
+
     fun initialByType(): Map<SurfaceType, Float> = remainingByType(0f)
 
     fun remainingByType(kmAlongRoute: Float): Map<SurfaceType, Float> {
@@ -139,6 +171,7 @@ class SurfaceProfileCache(
     private fun clearCache() {
         fetchJob?.cancel()
         segments = emptyList()
+        pois = emptyList()
         hasQBotData = false
         lastPolylineHash = null
         _currentSurface.update { SurfaceType.PAVED }
