@@ -28,4 +28,10 @@ object SurfaceBridge {
 
     fun initialByType(): Map<SurfaceType, Float> =
         cache?.initialByType() ?: emptyMap()
+
+    fun hasProfile(): Boolean = cache?.hasProfile() == true
+
+    /** Nawierzchnia z profilu QBota albo null, gdy profilu brak (ETA v2: nie zgadujemy). */
+    fun surfaceAtOrNull(kmAlongRoute: Float): SurfaceType? =
+        if (hasProfile()) cache?.surfaceAt(kmAlongRoute) else null
 }

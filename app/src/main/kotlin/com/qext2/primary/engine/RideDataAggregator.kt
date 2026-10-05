@@ -151,6 +151,14 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val hrBuffer = HrDecouplingBuffer()
     private val hrAdvisor = HrStrainAdvisor(hrBuffer)
     private val etaMovingSpeedHistory = ArrayDeque<Pair<Long, Float>>()
+    // ETA v2 (docs/ETA_V2_PLAN.md)
+    private val etaEngine = com.qext2.primary.eta.EtaEngine(
+        log = { Log.i(TAG, it) },
+        loadPriorKmh = { AthleteDataStore.loadEtaPriorKmh() },
+        savePriorKmh = { AthleteDataStore.saveEtaPriorKmh(it) },
+    )
+    private val etaSurfaceAt: (Double) -> com.qext2.primary.model.SurfaceType? =
+        { km -> com.qext2.primary.surface.SurfaceBridge.surfaceAtOrNull(km.toFloat()) }
     private val lastEtaMsRef = AtomicReference(0L)
     private val lastDeadlineMsRef = AtomicReference(0L)
     private val carbNeededTotalGRef = AtomicReference(0.0)
@@ -702,6 +710,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                             navClimbsRef.set(emptyList())
                             currentSurfaceRef.set(com.qext2.primary.model.SurfaceType.PAVED)
                             com.qext2.primary.surface.SurfaceBridge.onNavigationState(event, null)
+                            etaEngine.clearRoute()
                             if (QExt2DebugConfig.DEBUG_LOGGING) Log.i(TAG, "QEXT_NAV_STATE type=Idle name= routeDistance=-- climbs=0")
                         }
                         is OnNavigationState.NavigationState.NavigatingRoute -> {
@@ -724,6 +733,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                                 if (QExt2DebugConfig.DEBUG_LOGGING) Log.i(TAG, "QEXT_ROUTE_CLIMB index=${c.index} start=${c.startDistance} len=${c.length} elev=${c.totalElevation} grade=${c.grade}%")
                             }
                             com.qext2.primary.surface.SurfaceBridge.onNavigationState(event, ns.name)
+                            etaEngine.setRoute(ns.routeElevationPolyline, ns.routeDistance, com.qext2.primary.surface.SurfaceBridge.hasProfile(), etaSurfaceAt)
                         }
                         is OnNavigationState.NavigationState.NavigatingToDestination -> {
                             navRouteActiveRef.set(true)
@@ -746,6 +756,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                                 if (QExt2DebugConfig.DEBUG_LOGGING) Log.i(TAG, "QEXT_ROUTE_CLIMB index=${c.index} start=${c.startDistance} len=${c.length} elev=${c.totalElevation} grade=${c.grade}%")
                             }
                             com.qext2.primary.surface.SurfaceBridge.onNavigationState(event, destName)
+                            etaEngine.setRoute(ns.elevationPolyline, null, com.qext2.primary.surface.SurfaceBridge.hasProfile(), etaSurfaceAt)
                         }
                     }
                     } catch (e: Exception) {
@@ -1124,9 +1135,23 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val movingAvgKph = if (etaMovingSpeedHistory.isNotEmpty()) {
                     etaMovingSpeedHistory.map { it.second }.average().toFloat()
                 } else 0f
-                val etaMs = if (hasRoute && remainingKm > 0f && movingAvgKph > 0f) {
+                val etaMsOld = if (hasRoute && remainingKm > 0f && movingAvgKph > 0f) {
                     (now + (remainingKm / movingAvgKph * 3600_000L).toLong()).coerceAtLeast(now + 60_000L)
                 } else 0L
+                // ETA v2 (docs/ETA_V2_PLAN.md); stare ETA liczone dalej jako zapas i do porownania w logu
+                val etaV2 = try {
+                    etaEngine.tick(
+                        nowMs = now, isMoving = isMoving, speedKmh = speedKmhNow,
+                        remainingM = remainingMeters, hasRoute = hasRoute,
+                        rideDistanceM = distanceMetersRef.get(), oldEtaMs = etaMsOld,
+                        surfaceKnown = com.qext2.primary.surface.SurfaceBridge.hasProfile(),
+                        surfaceAtKm = etaSurfaceAt,
+                    )
+                } catch (e: Exception) {
+                    Log.w(TAG, "QEXT_ETA_CRASH msg=${e.message}", e)
+                    null
+                }
+                val etaMs = if (AthleteDataStore.loadEtaV2Enabled() && etaV2 != null && etaV2.etaMs > 0L) etaV2.etaMs else etaMsOld
                 lastEtaMsRef.set(etaMs)
                 val deadlineTs = resolveDeadlineMs(now)
                 lastDeadlineMsRef.set(deadlineTs)

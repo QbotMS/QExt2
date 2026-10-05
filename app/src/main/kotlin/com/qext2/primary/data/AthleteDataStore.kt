@@ -539,6 +539,22 @@ object AthleteDataStore {
     fun loadGearEdgeBeepEnabled(): Boolean =
         prefs?.getBoolean("gear_edge_beep", true) ?: true
 
+    /** ETA v2 (docs/ETA_V2_PLAN.md): true = nowe ETA, false = stare (srednia 30 min). */
+    fun saveEtaV2Enabled(enabled: Boolean) {
+        prefs?.edit()?.putBoolean("eta_v2", enabled)?.apply()
+    }
+
+    fun loadEtaV2Enabled(): Boolean =
+        prefs?.getBoolean("eta_v2", true) ?: true
+
+    /** Typowa predkosc ruchu z poprzednich jazd (wartosc startowa ETA poziom 3), km/h; 0 = brak. */
+    fun saveEtaPriorKmh(kmh: Double) {
+        prefs?.edit()?.putFloat("eta_prior_kmh", kmh.toFloat())?.apply()
+    }
+
+    fun loadEtaPriorKmh(): Double =
+        (prefs?.getFloat("eta_prior_kmh", 0f) ?: 0f).toDouble()
+
     /**
      * Parsuje liste koronek "10,12,...,52" -> IntArray.
      * Tolerancyjny: spacje, srednik, ukosnik, biale znaki jako separatory;

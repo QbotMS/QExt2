@@ -225,6 +225,13 @@ class SetupActivity : Activity() {
             setStatus(if (checked) "Dzwiek skrajnych koronek: ON" else "Dzwiek skrajnych koronek: OFF")
         }
 
+        val cbEtaV2 = findViewById<CheckBox>(R.id.cb_eta_v2)
+        cbEtaV2?.isChecked = AthleteDataStore.loadEtaV2Enabled()
+        cbEtaV2?.setOnCheckedChangeListener { _, checked ->
+            AthleteDataStore.saveEtaV2Enabled(checked)
+            setStatus(if (checked) "ETA: nowe (v2)" else "ETA: stare")
+        }
+
         tvCogs?.setOnClickListener {
             val input = EditText(this).apply {
                 setText(AthleteDataStore.loadCassetteCogsRaw())
