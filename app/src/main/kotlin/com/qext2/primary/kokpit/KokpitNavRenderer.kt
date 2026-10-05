@@ -191,6 +191,22 @@ object KokpitNavRenderer {
         c.drawColor(BG)
         val pad = 8f
         // komunikat | A: km zrobione/calosc, zostalo, nachylenie | pasek trasy | B: temp+opad, ETA, wiatr | C: przewyzszenie, zmrok/swit
+        val g = groups(d)
+        if (H < 170f) {
+            // pole niskie (2 pola na mapie, ~126-143 px): tylko 2 wiersze, zeby cyfry zostaly duze.
+            // Przewyzszenie i zmrok/swit nie mieszcza sie - zmrok dalej pojawia sie w komunikacie.
+            val msgH = (H * 0.24f).coerceIn(26f, 36f)
+            val barH = (H * 0.055f).coerceIn(5f, 9f)
+            val rest = H - msgH - barH
+            val aH = rest * 0.52f
+            val bH = rest - aH
+            drawMsg(c, d, W, msgH)
+            row(c, g.first, pad, W - pad, msgH + aH * 0.88f, aH * 0.92f)
+            val bt = msgH + aH
+            drawRoute(c, d, pad, W - pad, bt, bt + barH)
+            row(c, g.second, pad, W - pad, bt + barH + bH * 0.86f, bH * 0.86f)
+            return bmp
+        }
         val msgH = (H * 0.23f).coerceIn(32f, 50f)
         val barH = (H * 0.05f).coerceIn(6f, 12f)
         val rest = H - msgH - barH
@@ -198,7 +214,6 @@ object KokpitNavRenderer {
         val bH = rest * 0.33f
         val cH = rest - aH - bH
         drawMsg(c, d, W, msgH)
-        val g = groups(d)
         row(c, g.first, pad, W - pad, msgH + aH * 0.86f, aH * 0.86f)
         val bt = msgH + aH
         drawRoute(c, d, pad, W - pad, bt, bt + barH)
