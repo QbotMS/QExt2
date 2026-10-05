@@ -192,33 +192,17 @@ object KokpitNavRenderer {
         val pad = 8f
         // komunikat | A: km zrobione/calosc, zostalo, nachylenie | pasek trasy | B: temp+opad, ETA, wiatr | C: przewyzszenie, zmrok/swit
         val g = groups(d)
-        if (H < 170f) {
-            // pole niskie (2 pola na mapie, ~126-143 px): tylko 2 wiersze, zeby cyfry zostaly duze.
-            // Przewyzszenie i zmrok/swit nie mieszcza sie - zmrok dalej pojawia sie w komunikacie.
-            val msgH = (H * 0.24f).coerceIn(26f, 36f)
-            val barH = (H * 0.055f).coerceIn(5f, 9f)
-            val rest = H - msgH - barH
-            val aH = rest * 0.52f
-            val bH = rest - aH
-            drawMsg(c, d, W, msgH)
-            row(c, g.first, pad, W - pad, msgH + aH * 0.88f, aH * 0.92f)
-            val bt = msgH + aH
-            drawRoute(c, d, pad, W - pad, bt, bt + barH)
-            row(c, g.second, pad, W - pad, bt + barH + bH * 0.86f, bH * 0.86f)
-            return bmp
-        }
-        val msgH = (H * 0.23f).coerceIn(32f, 50f)
-        val barH = (H * 0.05f).coerceIn(6f, 12f)
+        // komunikat | A: km zrobione/calosc, zostalo, nachylenie | pasek trasy | B: temp+opad, zmrok/swit, ETA, wiatr
+        val msgH = (H * 0.24f).coerceIn(26f, 50f)
+        val barH = (H * 0.055f).coerceIn(5f, 12f)
         val rest = H - msgH - barH
-        val aH = rest * 0.37f
-        val bH = rest * 0.33f
-        val cH = rest - aH - bH
+        val aH = rest * 0.52f
+        val bH = rest - aH
         drawMsg(c, d, W, msgH)
-        row(c, g.first, pad, W - pad, msgH + aH * 0.86f, aH * 0.86f)
+        row(c, g.first, pad, W - pad, msgH + aH * 0.88f, aH * 0.92f)
         val bt = msgH + aH
         drawRoute(c, d, pad, W - pad, bt, bt + barH)
-        row(c, g.second, pad, W - pad, bt + barH + bH * 0.86f, bH * 0.84f)
-        row(c, g.third, pad, W - pad, bt + barH + bH + cH * 0.84f, cH * 0.84f)
+        row(c, g.second, pad, W - pad, bt + barH + bH * 0.86f, bH * 0.86f)
         return bmp
     }
 
@@ -240,6 +224,8 @@ object KokpitNavRenderer {
         if (rn != null && rn >= 0.1f) { tg.add(Part("", 0.42f, BLUE, false, IC_DROP)); tg.add(Part(fmt("%.1f", rn).replace('.', ','), 0.68f, BLUE, true)); tg.add(Part("mm", 0.36f, BLUE, false)) }
         else if (rs != null && rs.probPct >= 30) { tg.add(Part("", 0.42f, BLUE, false, IC_DROP)); tg.add(Part("${rs.probPct}%", 0.68f, BLUE, true)); tg.add(Part("${rs.minutes}′", 0.36f, BLUE, false)) }
         b.add(tg)
+        val dawnB = d.twilightLabel != "zmrok"
+        d.duskMs?.let { b.add(listOf(Part("", 1.1f, ORANGE, false, IC_SUN, if (dawnB) 1f else -1f), Part(clock(it), 0.86f, ORANGE, true))) }
         val etaCol = if (d.twilightLabel == "zmrok" && d.etaMs != null && d.duskMs != null && d.etaMs > d.duskMs) RED else WHITE
         b.add(if (d.etaMs != null) listOf(Part("ETA", 0.38f, LBL, false), Part(clock(d.etaMs), 1f, etaCol, true))
               else listOf(Part("ETA brak", 0.5f, NONE, false)))
