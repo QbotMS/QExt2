@@ -1,0 +1,136 @@
+package com.qext2.primary.statsv2
+
+import android.content.Context
+import android.util.Log
+import android.widget.RemoteViews
+import androidx.annotation.Keep
+import com.qext2.primary.QExt2PrimaryExtension
+import com.qext2.primary.R
+import com.qext2.primary.data.AthleteDataStore
+import com.qext2.primary.engine.RideDataAggregator
+import com.qext2.primary.model.StatsRideSnapshot
+import com.qext2.primary.model.SurfaceType
+import com.qext2.primary.surface.SurfaceBridge
+import io.hammerhead.karooext.extension.DataTypeImpl
+import io.hammerhead.karooext.internal.Emitter
+import io.hammerhead.karooext.internal.ViewEmitter
+import io.hammerhead.karooext.models.DataPoint
+import io.hammerhead.karooext.models.StreamState
+import io.hammerhead.karooext.models.UpdateGraphicConfig
+import io.hammerhead.karooext.models.ViewConfig
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+private const val TAG = "QExt2StatsV2"
+
+/**
+ * STATS v2 (test) — osobne pole obok starego STATS (docs/FIELD_LOOK_PLAN.md).
+ * Rysowane jako obrazek przez StatsV2Renderer. Bledy rysowania nie przewracaja reszty QExt2.
+ */
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+@Keep
+class StatsV2DataType : DataTypeImpl("qext2", "qext2-stats-v2") {
+
+    override fun startStream(emitter: Emitter<StreamState>) {
+        emitter.onNext(StreamState.Streaming(DataPoint(dataTypeId = dataTypeId, values = emptyMap())))
+        emitter.setCancellable { Log.d(TAG, "startStream cancelled") }
+    }
+
+    override fun startView(context: Context, config: ViewConfig, emitter: ViewEmitter) {
+        QExt2PrimaryExtension.instance?.onFieldVisible()
+        emitter.onNext(UpdateGraphicConfig(showHeader = false))
+        AthleteDataStore.init(context)
+        val w = config.viewSize.first.coerceAtLeast(120)
+        val h = config.viewSize.second.coerceAtLeast(160)
+        Log.i(TAG, "QEXT_STATS_V2_VIEW size=${w}x$h")
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+        emitter.updateView(RemoteViews(context.packageName, R.layout.field_stats_v2))
+
+        scope.launch {
+            val ext = QExt2PrimaryExtension.instance ?: return@launch
+            var lastData: StatsV2Data? = null
+            var lastEmitMs = 0L
+            ext.aggregatorFlow
+                .flatMapLatest { agg -> (agg?.statsSnapshot ?: flowOf(StatsRideSnapshot())).map { agg to it } }
+                .collect { (agg, snap) ->
+                    val data = try {
+                        toData(agg, snap)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "QEXT_STATS_V2_DATA_FAIL msg=${e.message}")
+                        null
+                    } ?: return@collect
+                    val now = System.currentTimeMillis()
+                    if (data == lastData || now - lastEmitMs < 1000L) return@collect
+                    lastData = data
+                    lastEmitMs = now
+                    val bmp = try {
+                        withContext(Dispatchers.Default) { StatsV2Renderer.render(w, h, data) }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "QEXT_STATS_V2_RENDER_FAIL msg=${e.message}", e)
+                        null
+                    } ?: return@collect
+                    val rv = RemoteViews(context.packageName, R.layout.field_stats_v2)
+                    rv.setImageViewBitmap(R.id.iv_stats_v2, bmp)
+                    emitter.updateView(rv)
+                }
+        }
+
+        emitter.setCancellable {
+            QExt2PrimaryExtension.instance?.onFieldHidden()
+            scope.cancel()
+        }
+    }
+
+    private fun npZone(np: Int, cp: Float): Int? {
+        if (np <= 0 || cp <= 0f) return null
+        val r = np / cp
+        return when {
+            r < 0.55f -> 1
+            r < 0.75f -> 2
+            r < 0.90f -> 3
+            r < 1.05f -> 4
+            r < 1.20f -> 5
+            else -> 6
+        }
+    }
+
+    private fun toData(agg: RideDataAggregator?, s: StatsRideSnapshot): StatsV2Data {
+        val dtdKm = (agg?.getDistanceToDestinationMeters() ?: 0.0) / 1000.0
+        val total = if (s.hasRoute && dtdKm > 0.05) s.distanceKm + dtdKm.toFloat() else null
+        val surf = if (SurfaceBridge.hasProfile()) SurfaceBridge.remainingByType(s.distanceKm.coerceAtLeast(0f)) else null
+        return StatsV2Data(
+            np = s.npWholeWatts.takeIf { it > 0 },
+            npZone = npZone(s.npWholeWatts, s.cpEffW),
+            ifv = s.ifEffWholeRide.takeIf { it > 0f },
+            vi = s.viValue.takeIf { it > 0f },
+            rsrv = if (s.rsrvModelReady) s.rideReservePercent else null,
+            xss = s.xssValue.takeIf { it > 0f },
+            kcal = s.caloriesKcal.takeIf { it > 0 },
+            hasRoute = s.hasRoute,
+            doneKm = s.distanceKm,
+            totalKm = total,
+            etaMs = if (s.etaModelReady && s.etaTimestamp > 0L) s.etaTimestamp else null,
+            avgGrossKmh = if (s.grossElapsedSec > 60L) s.distanceKm / (s.grossElapsedSec / 3600f) else null,
+            movingSec = s.movingElapsedSec,
+            stopsSec = (s.grossElapsedSec - s.movingElapsedSec).coerceAtLeast(0L),
+            surfPaved = surf?.get(SurfaceType.PAVED),
+            surfGravel = surf?.get(SurfaceType.GRAVEL),
+            surfLoose = surf?.get(SurfaceType.LOOSE),
+            ascDone = if (s.routeClimbSourceReady) s.ascentDoneM else null,
+            ascLeft = if (s.routeClimbSourceReady) s.ascentLeftM else null,
+            carbRate = if (s.carbModelReady) s.carbsGPerH else null,
+            carbSpent = if (s.carbModelReady) s.carbNeededG else null,
+            fluidRate = if (s.fluidModelReady) s.fluidLPerH else null,
+            cadAvg = s.cadenceAvg.takeIf { it > 0 },
+            batDrain = if (s.batteryDrainReady) s.batteryDrainPctPerHour else null,
+            batLeftSec = if (s.batteryEstimateReady) s.batteryTimeLeftSec else null,
+        )
+    }
+}

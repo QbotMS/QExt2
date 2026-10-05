@@ -182,7 +182,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         }
     }
 
-    private val _types: List<DataTypeImpl> = listOf(CompositePrimaryDataType(), CompositeActiveDataType(), BpActiveStaticDataType(), StatsDataType())
+    private val _types: List<DataTypeImpl> = listOf(CompositePrimaryDataType(), CompositeActiveDataType(), BpActiveStaticDataType(), StatsDataType(), com.qext2.primary.statsv2.StatsV2DataType())
     override val types: List<DataTypeImpl> get() = _types
 
     override fun startFit(emitter: Emitter<FitEffect>) {

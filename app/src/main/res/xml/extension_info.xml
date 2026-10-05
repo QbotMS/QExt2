@@ -34,4 +34,11 @@
         graphical="true"
         icon="@drawable/ic_qext2_power" />
 
+    <DataType
+        typeId="qext2-stats-v2"
+        displayName="@string/qext2_stats_v2_name"
+        description="@string/qext2_stats_v2_desc"
+        graphical="true"
+        icon="@drawable/ic_qext2_power" />
+
 </ExtensionInfo>
