@@ -19,6 +19,8 @@ data class ClimbInfo(val startKm: Float, val lengthKm: Float, val gradePct: Floa
 data class DescentInfo(val distAheadKm: Float, val gradePct: Float)
 data class RainSoon(val minutes: Int, val probPct: Int, val mmPerH: Float)
 /** Punkt z QBota: cat = water | shop | food; today = godziny na dzis (np. "06:00–20:00", "zamknięte") albo null. */
+/** Stan W' (jak w ClimbPacingProducer): pct, stan (BOMBA m:ss / ODBUDOWA m:ss / TRZYMASZ! / PRZEPAŁ), krytyczny. */
+data class WPrimeInfo(val pct: Int, val state: String, val critical: Boolean)
 data class PoiInfo(val km: Float, val cat: String, val name: String, val today: String?)
 
 data class RouteMsgInput(
@@ -34,9 +36,10 @@ data class RouteMsgInput(
     val duskMs: Long = 0L,
     val etaMs: Long = 0L,
     val pois: List<PoiInfo> = emptyList(),
+    val wprime: WPrimeInfo? = null,
 )
 
-enum class MsgKind { RAIN, FUEL, DUSK, DESCENT, CLIMB, SURFACE, POI, NONE }
+enum class MsgKind { WPRIME, RAIN, FUEL, DUSK, DESCENT, CLIMB, SURFACE, POI, NONE }
 
 /** lead = zwykly tekst, accent = wyrozniony fragment w kolorze accentColor (#RRGGBB). */
 data class RouteMsg(val kind: MsgKind, val lead: String, val accent: String, val accentColor: String)
@@ -84,6 +87,8 @@ object RouteMessageEngine {
     /** Wszystkie aktualne komunikaty, od najwazniejszego. */
     fun candidates(i: RouteMsgInput): List<RouteMsg> {
         val out = ArrayList<RouteMsg>()
+        // 0. W' (najwyzszy priorytet - wymaga natychmiastowej reakcji)
+        i.wprime?.let { wp -> out.add(RouteMsg(MsgKind.WPRIME, "W′ ${wp.pct}%:", wp.state, if (wp.critical) "#F87171" else "#FB923C")) }
         // 1. pilne
         val rn = i.rainNowMmH
         if (rn != null && rn >= 0.1f) out.add(RouteMsg(MsgKind.RAIN, "pada:", String.format(java.util.Locale.US, "%.1f mm/h", rn).replace('.', ','), "#60A5FA"))
@@ -125,13 +130,16 @@ object RouteMessageEngine {
             sc?.let { (d, s, len) -> far.add(d to surfMsg(d, s, len)) }
             far.minByOrNull { it.first }?.let { out.add(it.second) }
         }
-        if (out.isEmpty()) out.add(RouteMsg(MsgKind.NONE, "do mety bez zmian nawierzchni i podjazdów", "", "#9AA5B1"))
+        if (out.isEmpty()) out.add(
+            if (i.surfaces.isEmpty()) RouteMsg(MsgKind.NONE, "brak danych o nawierzchni (QBot)", "", "#9AA5B1")
+            else RouteMsg(MsgKind.NONE, "do mety bez zmian nawierzchni i podjazdów", "", "#9AA5B1")
+        )
         return out
     }
 
     fun pick(i: RouteMsgInput): RouteMsg = candidates(i).first()
 
-    fun isUrgent(k: MsgKind) = k == MsgKind.RAIN || k == MsgKind.FUEL || k == MsgKind.DUSK
+    fun isUrgent(k: MsgKind) = k == MsgKind.WPRIME || k == MsgKind.RAIN || k == MsgKind.FUEL || k == MsgKind.DUSK
 
     private fun poiMsg(d: Float, p: PoiInfo): RouteMsg {
         val what = when (p.cat) { "water" -> "woda"; "shop" -> "sklep"; "food" -> "jedzenie"; else -> p.cat }
@@ -163,6 +171,7 @@ class RouteMessageRotator {
     fun next(nowMs: Long, cands: List<RouteMsg>): RouteMsg {
         if (cands.isEmpty()) return RouteMsg(MsgKind.NONE, "", "", "#9AA5B1")
         val top = cands[0]
+        if (top.kind == MsgKind.WPRIME) { current = top; currentSince = nowMs; return top }
         if (RouteMessageEngine.isUrgent(top.kind)) {
             if (urgentKind != top.kind) { urgentKind = top.kind; urgentSince = nowMs }
         } else urgentKind = null

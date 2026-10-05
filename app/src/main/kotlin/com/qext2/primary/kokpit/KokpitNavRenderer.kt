@@ -70,6 +70,7 @@ object KokpitNavRenderer {
     private const val IC_TEMP = 4
     private const val IC_DROP = 5
     private const val IC_ARROW = 6
+    private const val IC_DTD = 7
 
     private fun w(t: String, size: Float, b: Boolean): Float { tp.typeface = if (b) bold else reg; tp.textSize = size; return tp.measureText(t) }
 
@@ -156,6 +157,15 @@ object KokpitNavRenderer {
                 path.moveTo(cx, top); path.quadTo(x + wI, top + hI * 0.62f, cx, base); path.quadTo(x, top + hI * 0.62f, cx, top)
                 path.close(); c.drawPath(path, fp)
             }
+            IC_DTD -> {
+                // litery D-T-D jedna pod druga, na wysokosci cyfr
+                val ls = (size * 0.72f) / 3f / 0.72f * 0.95f
+                tp.typeface = bold; tp.textSize = ls; tp.color = p.color; tp.textAlign = Paint.Align.CENTER
+                val cxL = x + wI / 2f
+                val capH = size * 0.72f
+                for ((k, ch) in listOf("D", "T", "D").withIndex()) c.drawText(ch, cxL, base - capH + capH * (k + 1) / 3f, tp)
+                tp.textAlign = Paint.Align.LEFT
+            }
             IC_ARROW -> {
                 val cx = x + wI / 2f; val cy = base - hI / 2f; val r = min(wI, hI) * 0.55f
                 val a = Math.toRadians(p.arg.toDouble())
@@ -215,7 +225,7 @@ object KokpitNavRenderer {
         // A: km zrobione / calosc, zostalo, nachylenie
         val a = ArrayList<List<Part>>()
         a.add(listOf(Part(fmt("%.0f", d.doneKm), 1f, WHITE, true), Part(d.totalKm?.let { "/" + fmt("%.0f", it) } ?: "km", 0.55f, UNIT, false)))
-        a.add(d.leftKm?.let { listOf(Part("↓", 0.7f, LBL, false), Part(fmt("%.0f", it), 1f, WHITE, true), Part("km", 0.42f, UNIT, false)) }
+        a.add(d.leftKm?.let { listOf(Part("", 0.26f, LBL, false, IC_DTD), Part(fmt("%.0f", it), 1f, WHITE, true), Part("km", 0.42f, UNIT, false)) }
               ?: listOf(Part("↓ —", 0.7f, NONE, false)))
         val gr = d.gradePct
         a.add(if (gr == null) listOf(Part("", 0.9f, NONE, false, IC_TRI, 3f), Part("—", 0.8f, NONE, true))

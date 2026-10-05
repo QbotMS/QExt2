@@ -98,6 +98,26 @@ class KokpitNavDataType : DataTypeImpl("qext2", "qext2-kokpit-nav") {
         }
     }
 
+    /** Stan W' jak w ClimbPacingProducer (prog 55%, martwa strefa +-10 W wokol CP). */
+    private fun wprimeInfo(agg: RideDataAggregator?, s: StatsRideSnapshot): WPrimeInfo? {
+        val pct = s.wBalancePercent
+        if (pct < 0 || pct >= com.qext2.primary.active.ClimbPacingProducer.WBAL_MSG_THRESHOLD) return null
+        val cp = s.cpEffW; val wp = s.wPrimeEffKj
+        if (cp < 50f || wp <= 0f) return null
+        val p0 = agg?.snapshot?.value ?: return null
+        if (p0.powerFreshnessMs >= 8_000L) return null
+        val power = p0.power3s
+        val diff = power - cp
+        val wBalJ = pct / 100f * wp * 1000f
+        val P = com.qext2.primary.active.ClimbPacingProducer
+        return when {
+            pct == 0 && diff > 10f -> WPrimeInfo(pct, "PRZEPAŁ", true)
+            diff > 10f -> { val t = P.bombSeconds(wBalJ, diff); WPrimeInfo(pct, "BOMBA ${P.formatMmSs(t)}", t < 120f) }
+            diff < -10f -> WPrimeInfo(pct, "ODBUDOWA ${P.formatMmSs(P.recoverySeconds(pct / 100f, cp, power.toFloat()))}", false)
+            else -> WPrimeInfo(pct, "TRZYMASZ!", false)
+        }
+    }
+
     private fun cls(t: SurfaceType) = when (t) { SurfaceType.PAVED -> SurfClass.PAVED; SurfaceType.GRAVEL -> SurfClass.GRAVEL; SurfaceType.LOOSE -> SurfClass.LOOSE }
 
     private fun toData(agg: RideDataAggregator?, s: StatsRideSnapshot, rotator: RouteMessageRotator): KokpitNavData {
@@ -131,7 +151,7 @@ class KokpitNavDataType : DataTypeImpl("qext2", "qext2-kokpit-nav") {
             RouteMsgInput(
                 nowMs = now, hasRoute = s.hasRoute, posKm = pos, surfaces = segs, climbs = climbs, descent = descent,
                 rainNowMmH = rainNow, rainSoon = rainSoon, carbBalanceG = if (s.carbModelReady) s.carbBalanceG else null,
-                duskMs = dusk ?: 0L, etaMs = eta ?: 0L, pois = pois,
+                duskMs = dusk ?: 0L, etaMs = eta ?: 0L, pois = pois, wprime = wprimeInfo(agg, s),
             )
         )
         val msg = rotator.next(now, cands)
@@ -164,6 +184,7 @@ object KokpitNavDemo {
         RouteMsg(MsgKind.FUEL, "zjedz:", "-35 g", "#E9A23B"),
         RouteMsg(MsgKind.DUSK, "meta po zmroku:", "zmrok 18:42", "#F87171"),
         RouteMsg(MsgKind.POI, "za 1,4 km: sklep", "Biedronka · 05:00–23:00", "#4ADE80"),
+        RouteMsg(MsgKind.WPRIME, "W′ 32%:", "BOMBA 1:45", "#F87171"),
     )
     fun at(now: Long): KokpitNavData {
         val t = ((now / 1000L) % 120L).toFloat(); val f = t / 120f

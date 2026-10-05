@@ -234,10 +234,11 @@ object KokpitInstRenderer {
     }
 
     /** kreska-znacznik promieniowo przez caly luk, wystajaca po obu stronach */
+    /** kreska-znacznik w obrebie grubosci luku (bez wystawania), grubsza */
     private fun markLine(c: Canvas, ox: Float, oy: Float, r: Float, sw: Float, ang: Float, color: Int) {
-        val (x1, y1) = pt(ox, oy, r - sw / 2f - 6f, ang); val (x2, y2) = pt(ox, oy, r + sw / 2f + 7f, ang)
-        sp.color = DARK; sp.strokeWidth = 6f; c.drawLine(x1, y1, x2, y2, sp)
-        sp.color = color; sp.strokeWidth = 3f; c.drawLine(x1, y1, x2, y2, sp)
+        val (x1, y1) = pt(ox, oy, r - sw / 2f, ang); val (x2, y2) = pt(ox, oy, r + sw / 2f, ang)
+        sp.color = DARK; sp.strokeWidth = 8f; c.drawLine(x1, y1, x2, y2, sp)
+        sp.color = color; sp.strokeWidth = 5f; c.drawLine(x1, y1, x2, y2, sp)
     }
 
     private fun capBase(top: Float, size: Float) = top + size * 0.72f
@@ -286,45 +287,47 @@ object KokpitInstRenderer {
         // separator
         fp.color = col("#2A3038"); c.drawRect(cx - 1f, 30f * s, cx + 1f, H - 4f * s, fp)
 
-        // --- odniesienia: "214 CP |" i "| (/) 17.5" + trendy nad etykietami
+        // --- odniesienia (wg mockupu): "CP/5 214" przy lewym luku i "17.5 (/)" przy prawym;
+        //     zmiana sygnalizowana kolorem etykiety: zielony = rosnie, czerwony = spada, szary = bez zmian
         val g = 6f * s
-        val refSize = 30f * s
-        val refBase = capBase(48f * s, refSize)
+        val refSize = 32f * s
+        val refBase = capBase(39f * s, refSize)
+        fun trendCol(t: Int) = when { t > 0 -> GOOD; t < 0 -> col("#F87171"); else -> SUB }
         val cpTxt = d.cpe5W?.let { fmt("%.0f", it) } ?: "—"
-        val barW = 3f * s
-        var x = cx - g
-        fp.color = DARK; c.drawRect(x - barW - 1.5f, refBase - refSize * 0.72f - 1f, x + 1.5f, refBase + 1f, fp)
-        fp.color = WHITE; c.drawRect(x - barW, refBase - refSize * 0.72f, x, refBase, fp)
-        x -= barW + 4f * s
-        t(c, "CP", x, refBase, 15f * s, SUB, false, Paint.Align.RIGHT)
-        val cpLblW = w("CP", 15f * s, false)
-        trend(c, x - cpLblW / 2f, 34f * s, 14f * s, d.cpTrend, if (d.cpTrend > 0) GOOD else BAD)
-        x -= cpLblW + 4f * s
-        t(c, cpTxt, x, refBase, refSize, WHITE, true, Paint.Align.RIGHT)
+        t(c, cpTxt, cx - g, refBase, refSize, WHITE, true, Paint.Align.RIGHT)
+        val cpLX = cx - g - w(cpTxt, refSize) - 5f * s
+        val lbl = 16f * s
+        val cpCol = trendCol(d.cpTrend)
+        val capTop = refBase - refSize * 0.72f
+        t(c, "CP", cpLX, capTop + lbl * 0.72f, lbl, cpCol, false, Paint.Align.RIGHT)
+        t(c, "5", cpLX - w("CP", lbl, false) / 2f, capTop + lbl * 0.72f + lbl * 0.80f, lbl, cpCol, false, Paint.Align.CENTER)
+        val avTxt = d.avgSpeedKmh?.let { fmt("%.1f", it) } ?: "—"
+        t(c, avTxt, cx + g, refBase, refSize, WHITE, true)
+        val symSz = 16f * s
+        avgSym(c, cx + g + w(avTxt, refSize) + 5f * s, refBase - refSize * 0.36f - symSz / 2f, symSz, trendCol(d.avgSpeedTrend))
 
-        x = cx + g
-        fp.color = DARK; c.drawRect(x - 1.5f, refBase - refSize * 0.72f - 1f, x + barW + 1.5f, refBase + 1f, fp)
-        fp.color = YEL; c.drawRect(x, refBase - refSize * 0.72f, x + barW, refBase, fp)
-        x += barW + 4f * s
-        val symSz = 14.4f * s
-        avgSym(c, x, refBase - symSz, symSz, SUB)
-        trend(c, x + symSz / 2f, 34f * s, 14f * s, d.avgSpeedTrend, if (d.avgSpeedTrend > 0) GOOD else BAD)
-        x += symSz + 4f * s
-        t(c, d.avgSpeedKmh?.let { fmt("%.1f", it) } ?: "—", x, refBase, refSize, WHITE, true)
-
-        // --- glowne wartosci: moc srodkowana miedzy "W" a srodkiem, predkosc miedzy srodkiem a "km/h"
-        val vSize = 56f * s
+        // --- glowne wartosci: moc dosunieta do srodka z lewej, predkosc z prawej; czesc dziesietna
+        //     predkosci polowa wielkosci, gorna krawedz rowno z gorna krawedzia cyfr
         val xl = lox - inner + 7f * s
         val xr = rox + inner - 7f * s
         t(c, "W", xl, base, 17f * s, UNIT, true)
         t(c, "km/h", xr, base, 15f * s, UNIT, false, Paint.Align.RIGHT)
         val pv = d.powerW?.toString() ?: "—"
-        val sv = d.speedKmh?.let { fmt("%.0f", it) } ?: "—"
-        val pL = xl + w("W", 17f * s) + 4f * s; val sR = xr - w("km/h", 15f * s, false) - 4f * s
-        var vs = vSize
-        while (vs > 12f && (w(pv, vs) > cx - g - pL || w(sv, vs) > sR - cx - g)) vs -= 1f
-        t(c, pv, (pL + cx) / 2f, base, vs, if (d.powerW != null) d.powerColor else NONE, true, Paint.Align.CENTER)
-        t(c, sv, (cx + sR) / 2f, base, vs, if (d.speedKmh != null) d.speedColor else NONE, true, Paint.Align.CENTER)
+        val v10 = d.speedKmh?.let { kotlin.math.round(it * 10f).toInt() }
+        val sInt = v10?.let { (it / 10).toString() } ?: "—"
+        val sDec = v10?.let { "." + (it % 10).toString() } ?: ""
+        val vg = 8f * s
+        val pL = xl + w("W", 17f * s) + 4f * s
+        val sR = xr - w("km/h", 15f * s, false) - 4f * s
+        var vs = 60f * s
+        while (vs > 12f && (w(pv, vs) > cx - vg - pL || w(sInt, vs) + w(sDec, vs / 2f) > sR - cx - vg)) vs -= 1f
+        t(c, pv, cx - vg, base, vs, if (d.powerW != null) d.powerColor else NONE, true, Paint.Align.RIGHT)
+        val spCol = if (d.speedKmh != null) d.speedColor else NONE
+        t(c, sInt, cx + vg, base, vs, spCol, true)
+        if (sDec.isNotEmpty()) {
+            val ds = vs / 2f
+            t(c, sDec, cx + vg + w(sInt, vs), base - vs * 0.72f + ds * 0.72f, ds, spCol, true)
+        }
 
         // --- lewy brzeg: serce + tetno (strefa albo bpm), srednie tetno z trendem, W' bal
         val leftEdge = 4f * s
