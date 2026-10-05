@@ -41,4 +41,11 @@
         graphical="true"
         icon="@drawable/ic_qext2_power" />
 
+    <DataType
+        typeId="qext2-kokpit-nav"
+        displayName="@string/qext2_kokpit_nav_name"
+        description="@string/qext2_kokpit_nav_desc"
+        graphical="true"
+        icon="@drawable/ic_qext2_power" />
+
 </ExtensionInfo>

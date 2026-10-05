@@ -159,6 +159,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     )
     private val etaSurfaceAt: (Double) -> com.qext2.primary.model.SurfaceType? =
         { km -> com.qext2.primary.surface.SurfaceBridge.surfaceAtOrNull(km.toFloat()) }
+    // KOKPIT: prognoza opadu (Open-Meteo)
+    private val rainForecastRef = AtomicReference<com.qext2.primary.weather.RainForecast?>(null)
     private val lastEtaMsRef = AtomicReference(0L)
     private val lastDeadlineMsRef = AtomicReference(0L)
     private val carbNeededTotalGRef = AtomicReference(0.0)
@@ -1314,9 +1316,15 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     }
 
     suspend fun fetchWeatherIfNeeded() {
-        if (!WeatherClient.isKeyConfigured()) return
         val lat = AthleteDataStore.loadLocationLat() ?: return
         val lon = AthleteDataStore.loadLocationLon() ?: return
+        // KOKPIT: prognoza opadu z Open-Meteo (bez klucza), niezalezna od OWM
+        try {
+            com.qext2.primary.weather.RainForecastClient.fetch(karooSystem, lat, lon)?.let { rainForecastRef.set(it) }
+        } catch (e: Exception) {
+            Log.w(TAG, "QEXT_RAIN_FETCH_CRASH msg=${e.message}")
+        }
+        if (!WeatherClient.isKeyConfigured()) return
         // Krotki retry: fetch OWM bywa wolny/kruchy (~12s przy limicie 15s).
         // Bez tego jeden nieudany fetch = pelne 10 min ciszy do nastepnego pollingu.
         // Retry przyciety (audyt baterii 2026-07-26): 2 proby zamiast 3, limit 8s/proba
@@ -1433,6 +1441,13 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     fun setManualBike(b: BikeDetector.Bike?) { bikeDetector.setManual(b) }
 
     fun getCivilDuskMs(): Long = civilDuskMsRef.get()
+
+    fun getRainForecast(): com.qext2.primary.weather.RainForecast? = rainForecastRef.get()
+
+    fun getWeatherWindDirDeg(): Int? = weatherWindDirectionDegRef.get()
+
+    fun getSteepDescentAhead(): Pair<Double, Double>? =
+        try { etaEngine.steepDescentAhead(distanceToDestinationMetersRef.get()) } catch (_: Exception) { null }
 
     fun getEtaMs(): Long = lastEtaMsRef.get()
 

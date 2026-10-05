@@ -122,6 +122,8 @@ class SurfaceProfileCache(
      */
     fun hasProfile(): Boolean = segments.isNotEmpty()
 
+    fun segmentsSnapshot(): List<SurfaceSegment> = segments
+
     fun initialByType(): Map<SurfaceType, Float> = remainingByType(0f)
 
     fun remainingByType(kmAlongRoute: Float): Map<SurfaceType, Float> {

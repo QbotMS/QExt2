@@ -31,6 +31,8 @@ object SurfaceBridge {
 
     fun hasProfile(): Boolean = cache?.hasProfile() == true
 
+    fun segmentsSnapshot(): List<SurfaceSegment> = cache?.segmentsSnapshot() ?: emptyList()
+
     /** Nawierzchnia z profilu QBota albo null, gdy profilu brak (ETA v2: nie zgadujemy). */
     fun surfaceAtOrNull(kmAlongRoute: Float): SurfaceType? =
         if (hasProfile()) cache?.surfaceAt(kmAlongRoute) else null

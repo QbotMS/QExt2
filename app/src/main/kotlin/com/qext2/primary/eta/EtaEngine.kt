@@ -76,7 +76,7 @@ object ElevationPolyline {
 }
 
 /** Plan czasu jazdy: skumulowany czas ruchu [s] na granicach odcinkow co stepM. */
-class EtaPlan(val stepM: Double, val lengthM: Double, val cumSec: DoubleArray) {
+class EtaPlan(val stepM: Double, val lengthM: Double, val cumSec: DoubleArray, val grades: DoubleArray = DoubleArray(0)) {
     val totalSec: Double get() = cumSec.last()
 
     fun timeAt(posM: Double): Double {
@@ -146,6 +146,7 @@ object EtaPlanner {
 
         val n = kotlin.math.ceil(length / STEP_M).toInt().coerceAtLeast(1)
         val cum = DoubleArray(n + 1)
+        val gr = DoubleArray(n)
         for (i in 0 until n) {
             val s = i * STEP_M
             val e = min((i + 1) * STEP_M, length)
@@ -154,11 +155,12 @@ object EtaPlanner {
             val a = max(0.0, mid - GRADE_HALF_WINDOW_M)
             val b = min(length, mid + GRADE_HALF_WINDOW_M)
             val grade = if (b > a) ((elevAt(b) - elevAt(a)) / (b - a) * 100.0).coerceIn(-30.0, 30.0) else 0.0
+            gr[i] = grade
             val surface = surfaceAtKm?.invoke(mid / 1000.0)
             val v = EtaSpeedTable.speedKmh(grade, surface).coerceAtLeast(3.0)
             cum[i + 1] = cum[i] + segLen / (v / 3.6)
         }
-        return Result(EtaPlan(STEP_M, length, cum), pts.size, length, spacing, "ok")
+        return Result(EtaPlan(STEP_M, length, cum, gr), pts.size, length, spacing, "ok")
     }
 }
 
@@ -384,6 +386,26 @@ class EtaEngine(
         }
 
         return Output(etaMs, level, remMoving, pool, factor)
+    }
+
+    /** Najblizszy stromy zjazd przed toba (z profilu Karoo): (odleglosc m, najmniejsze nachylenie %) albo null. */
+    @Synchronized
+    fun steepDescentAhead(remainingM: Double, horizonM: Double = 3000.0, thresholdPct: Double = -6.0): Pair<Double, Double>? {
+        val p = plan ?: return null
+        if (p.grades.isEmpty() || remainingM <= 0.0) return null
+        val pos = posFromRemaining(remainingM) ?: return null
+        val last = min(p.grades.size - 1, ((pos + horizonM) / p.stepM).toInt())
+        var i = (pos / p.stepM).toInt() + 1
+        while (i <= last) {
+            if (p.grades[i] <= thresholdPct) {
+                var j = i
+                var mn = p.grades[i]
+                while (j + 1 < p.grades.size && p.grades[j + 1] <= thresholdPct) { j++; mn = min(mn, p.grades[j]) }
+                return max(0.0, i * p.stepM - pos) to mn
+            }
+            i++
+        }
+        return null
     }
 
     private fun hhmm(ms: Long): String {
