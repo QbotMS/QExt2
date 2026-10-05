@@ -115,6 +115,12 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     ))
     private val civilDuskMsRef = AtomicReference(0L)
     private val civilDawnMsRef = AtomicReference(0L)
+    // KOKPIT: pogoda po trasie
+    private val routeLineRef = AtomicReference<com.qext2.primary.weather.RouteLine?>(null)
+    private val routeWxRef = AtomicReference<com.qext2.primary.weather.RouteWx?>(null)
+    private val lastWxLatRef = AtomicReference<Double?>(null)
+    private val lastWxLonRef = AtomicReference<Double?>(null)
+    private val lastWxMsRef = AtomicReference(0L)
     private val hrDecouplingPctRef = AtomicReference(0f)   // dryf tetna (HrStrainAdvisor), 0 = brak/nieaktywny
     private val headwindDirDegRef = AtomicReference<Double?>(null)
     private val headwindSpeedMpsRef = AtomicReference<Double?>(null)
@@ -752,6 +758,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                             currentSurfaceRef.set(com.qext2.primary.model.SurfaceType.PAVED)
                             com.qext2.primary.surface.SurfaceBridge.onNavigationState(event, null)
                             etaEngine.clearRoute()
+                            routeLineRef.set(null)
                             if (QExt2DebugConfig.DEBUG_LOGGING) Log.i(TAG, "QEXT_NAV_STATE type=Idle name= routeDistance=-- climbs=0")
                         }
                         is OnNavigationState.NavigationState.NavigatingRoute -> {
@@ -775,6 +782,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                             }
                             com.qext2.primary.surface.SurfaceBridge.onNavigationState(event, ns.name)
                             etaEngine.setRoute(ns.routeElevationPolyline, ns.routeDistance, com.qext2.primary.surface.SurfaceBridge.hasProfile(), etaSurfaceAt)
+                            routeLineRef.set(try { com.qext2.primary.weather.RouteLine.build(ns.routePolyline, ns.reversed) } catch (e: Exception) { null })
                         }
                         is OnNavigationState.NavigationState.NavigatingToDestination -> {
                             navRouteActiveRef.set(true)
@@ -798,6 +806,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                             }
                             com.qext2.primary.surface.SurfaceBridge.onNavigationState(event, destName)
                             etaEngine.setRoute(ns.elevationPolyline, null, com.qext2.primary.surface.SurfaceBridge.hasProfile(), etaSurfaceAt)
+                            routeLineRef.set(try { com.qext2.primary.weather.RouteLine.build(ns.polyline, false) } catch (e: Exception) { null })
                         }
                     }
                     } catch (e: Exception) {
@@ -1358,12 +1367,41 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     suspend fun fetchWeatherIfNeeded() {
         val lat = AthleteDataStore.loadLocationLat() ?: return
         val lon = AthleteDataStore.loadLocationLon() ?: return
-        // KOKPIT: prognoza opadu z Open-Meteo (bez klucza), niezalezna od OWM
-        try {
-            com.qext2.primary.weather.RainForecastClient.fetch(karooSystem, lat, lon)?.let { rainForecastRef.set(it) }
-        } catch (e: Exception) {
-            Log.w(TAG, "QEXT_RAIN_FETCH_CRASH msg=${e.message}")
+        val now = System.currentTimeMillis()
+        // oszczednosc baterii: bez pobierania, gdy stoisz (< 100 m od ostatniego pobrania), a dane sa swieze
+        val llat = lastWxLatRef.get(); val llon = lastWxLonRef.get()
+        if (llat != null && llon != null &&
+            com.qext2.primary.weather.RouteLine.haversine(llat, llon, lat, lon) < 100.0 &&
+            now - lastWxMsRef.get() < 30 * 60_000L &&
+            com.qext2.primary.weather.RouteWeatherClient.isFresh(routeWxRef.get())) {
+            Log.i(TAG, "QEXT_WX_SKIP stationary")
+            return
         }
+        // KOKPIT: jedno zapytanie Open-Meteo (biezaca pogoda + prognoza po trasie co 15 min wg ETA)
+        val pts = buildWxPoints(lat, lon)
+        val wx = try { com.qext2.primary.weather.RouteWeatherClient.fetch(karooSystem, pts) } catch (e: Exception) {
+            Log.w(TAG, "QEXT_ROUTE_WX_CRASH msg=${e.message}"); null
+        }
+        if (wx != null) {
+            routeWxRef.set(wx); lastWxLatRef.set(lat); lastWxLonRef.set(lon); lastWxMsRef.set(now)
+            val cond = when (wx.nowKind) {
+                com.qext2.primary.weather.WxKind.STORM -> "Thunderstorm"
+                com.qext2.primary.weather.WxKind.SNOW -> "Snow"
+                com.qext2.primary.weather.WxKind.RAIN -> "Rain"
+                com.qext2.primary.weather.WxKind.DRIZZLE -> "Drizzle"
+                com.qext2.primary.weather.WxKind.FOG -> "Fog"
+                com.qext2.primary.weather.WxKind.OVERCAST, com.qext2.primary.weather.WxKind.PARTLY -> "Clouds"
+                com.qext2.primary.weather.WxKind.CLEAR -> "Clear"
+            }
+            val tc = wx.tempC
+            if (tc != null) updateWeather(com.qext2.primary.weather.WeatherData(
+                temperatureC = tc, feelsLikeC = null, windSpeedMps = wx.windMps ?: 0f,
+                windDirectionDeg = wx.windDirDeg ?: -1, humidityPct = wx.humidityPct ?: 0,
+                rain1hMm = wx.rainNowMmH, snow1hMm = null, condition = cond, updatedAt = now, source = "open-meteo",
+            ))
+            return
+        }
+        // zapas: OpenWeather (jak dotad)
         if (!WeatherClient.isKeyConfigured()) return
         // Krotki retry: fetch OWM bywa wolny/kruchy (~12s przy limicie 15s).
         // Bez tego jeden nieudany fetch = pelne 10 min ciszy do nastepnego pollingu.
@@ -1381,6 +1419,25 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
             Log.w(TAG, "QEXT_WEATHER_FETCH_RETRY attempt=${i + 1} failed")
         }
     }
+
+    /** Punkty pogody: biezaca pozycja + co 15 min jazdy wg ETA v2 (do 2 h, nie dalej niz meta). */
+    private fun buildWxPoints(lat: Double, lon: Double): List<com.qext2.primary.weather.WxPoint> {
+        val out = arrayListOf(com.qext2.primary.weather.WxPoint(lat, lon, 0, 0f))
+        val line = routeLineRef.get() ?: return out
+        val dtd = distanceToDestinationMetersRef.get()
+        if (dtd <= 0.0) return out
+        val pos0 = (line.lengthM - dtd).coerceAtLeast(0.0)
+        for (k in 1..8) {
+            val sec = k * 15 * 60.0
+            val d = etaEngine.posAfterMovingSec(dtd, sec)?.let { (p, q) -> pos0 + (q - p) } ?: (pos0 + sec * 20.0 / 3.6)
+            if (d >= line.lengthM) break
+            val (la, lo) = line.at(d)
+            out.add(com.qext2.primary.weather.WxPoint(la, lo, k * 15, ((d - pos0) / 1000.0).toFloat()))
+        }
+        return out
+    }
+
+    fun getRouteWeather(): com.qext2.primary.weather.RouteWx? = routeWxRef.get()
 
     fun refreshDeadlineFromStore() {
         val (h, m) = AthleteDataStore.loadDeadline()

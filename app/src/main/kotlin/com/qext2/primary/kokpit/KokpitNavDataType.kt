@@ -132,9 +132,9 @@ class KokpitNavDataType : DataTypeImpl("qext2", "qext2-kokpit-nav") {
         val cond = (s.weatherCondition ?: "").lowercase()
         val rainNow = if (!fresh) null else s.weatherRain1hMm?.takeIf { it > 0f }
             ?: if (cond.contains("rain") || cond.contains("drizzle")) 0.2f else null
-        val rf = agg?.getRainForecast()
-        val rfMin = rf?.minutes
-        val rainSoon = if (rf != null && rfMin != null && RainForecastClient.isFresh(rf)) RainSoon(rfMin, rf.probPct, rf.mmPerH) else null
+        // pogoda po trasie (Open-Meteo, co 15 min jazdy wg ETA, do 2 h)
+        val rw = agg?.getRouteWeather()?.takeIf { com.qext2.primary.weather.RouteWeatherClient.isFresh(it) }
+        val rainSoon = rw?.event?.let { RainSoon(it.minutes, it.probPct, it.mmPerH, it.kind.name, it.kmAhead) }
         // nastepne zdarzenie: swit przed wschodem, zmrok w dzien, po zmroku swit nastepnego dnia (SDK: CIVIL_DAWN / CIVIL_DUSK)
         val duskRaw = agg?.getCivilDuskMs() ?: 0L
         val dawnRaw = agg?.getCivilDawnMs() ?: 0L
@@ -170,6 +170,7 @@ class KokpitNavDataType : DataTypeImpl("qext2", "qext2-kokpit-nav") {
             windMps = hw?.second ?: if (fresh) s.weatherWindSpeedMps else null,
             windDirDeg = if (fresh) agg?.getWeatherWindDirDeg() else null,
             windRelDeg = hw?.first,
+            sky = rw?.sky?.name,
         )
     }
 }
@@ -202,7 +203,8 @@ object KokpitNavDemo {
             msg = m, doneKm = done, totalKm = total, leftKm = total - done,
             duskMs = now + 95 * 60_000L, etaMs = now + (((total - done) / 19f) * 3600_000f).toLong(),
             ahead = ahead, gradePct = (kotlin.math.sin(t / 6f) * 9f), ascDone = (1280 * f).toInt(), ascLeft = (1280 * (1 - f)).toInt(),
-            tempC = 24f, rainNowMmH = null, rainSoon = RainSoon(40, 60, 1.2f), windMps = 4f, windDirDeg = 300,
+            tempC = 24f, rainNowMmH = null, rainSoon = if (sec >= 50L) RainSoon(40, 70, 2f, "STORM", 12f) else null,
+            sky = if ((now / 60000L) % 2L == 0L) "PARTLY" else "CLEAR", windMps = 4f, windDirDeg = 300,
             windRelDeg = ((now / 1000L) * 6 % 360).toInt(), stopsKm = listOf(22f, 41.5f).filter { it < done }, demo = true,
         )
     }

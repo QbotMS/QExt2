@@ -190,7 +190,8 @@ object KokpitInstDemo {
             hr = hr, hrAvg = 134, hrZone = z, wbalPct = if (alarm) 14 else 88,
             cadence = cad, cadenceAvg = 85, optCadLow = 80, optCadHigh = 95,
             gearFront = 36, gearRear = rear, cogs = cogs, recCog = null,
-            cpTrend = if (alarm) -1 else 0, avgSpeedTrend = if (alarm) 0 else 1, hrAvgTrend = 0, cadAvgTrend = 0,
+            // demo: trend sredniej predkosci zmienia sie w cyklu 3 min: rosnie / bez zmian / spada
+            cpTrend = if (alarm) -1 else 0, avgSpeedTrend = when (((now / 60000L) % 3L).toInt()) { 0 -> 1; 1 -> 0; else -> -1 }, hrAvgTrend = 0, cadAvgTrend = 0,
             powerCeilingW = 285,
             hrDriftLevel = if (alarm) 2 else if (t >= 40f) 1 else 0,
             demo = true,

@@ -33,6 +33,8 @@ data class KokpitNavData(
     val twilightLabel: String = "zmrok",
     /** postoje >= 10 min: km na trasie */
     val stopsKm: List<Float> = emptyList(),
+    /** niebo na najblizsza godzine bez opadu: CLEAR / PARTLY / OVERCAST / FOG (null = brak danych) */
+    val sky: String? = null,
     val demo: Boolean = false,
 )
 
@@ -71,6 +73,12 @@ object KokpitNavRenderer {
     private const val IC_DROP = 5
     private const val IC_ARROW = 6
     private const val IC_DTD = 7
+    private const val IC_SUNY = 8
+    private const val IC_PARTLY = 9
+    private const val IC_CLOUD = 10
+    private const val IC_FOG = 11
+    private const val IC_SNOW = 12
+    private const val IC_STORM = 13
 
     private fun w(t: String, size: Float, b: Boolean): Float { tp.typeface = if (b) bold else reg; tp.textSize = size; return tp.measureText(t) }
 
@@ -157,6 +165,30 @@ object KokpitNavRenderer {
                 path.moveTo(cx, top); path.quadTo(x + wI, top + hI * 0.62f, cx, base); path.quadTo(x, top + hI * 0.62f, cx, top)
                 path.close(); c.drawPath(path, fp)
             }
+            IC_SUNY -> sunIcon(c, x + wI / 2f, base - hI * 0.5f, hI * 0.30f, p.color)
+            IC_PARTLY -> {
+                sunIcon(c, x + wI * 0.38f, base - hI * 0.62f, hI * 0.22f, p.color)
+                cloudIcon(c, x + wI * 0.08f, base - hI * 0.55f, wI * 0.9f, hI * 0.55f, Color.parseColor("#E5E7EB"))
+            }
+            IC_CLOUD -> cloudIcon(c, x, base - hI * 0.75f, wI, hI * 0.75f, p.color)
+            IC_FOG -> {
+                fp.style = Paint.Style.STROKE; fp.strokeWidth = hI * 0.11f
+                for (k in 0..2) { val yy = base - hI * (0.2f + 0.28f * k); c.drawLine(x + wI * (0.05f + 0.1f * (k % 2)), yy, x + wI * (0.95f - 0.1f * ((k + 1) % 2)), yy, fp) }
+                fp.style = Paint.Style.FILL
+            }
+            IC_SNOW -> {
+                fp.style = Paint.Style.STROKE; fp.strokeWidth = hI * 0.10f
+                val sx = x + wI / 2f; val sy = base - hI / 2f; val rr = hI * 0.45f
+                for (k in 0..2) { val a = Math.toRadians(90.0 + 60.0 * k); val dx = (rr * Math.cos(a)).toFloat(); val dy = (rr * Math.sin(a)).toFloat(); c.drawLine(sx - dx, sy - dy, sx + dx, sy + dy, fp) }
+                fp.style = Paint.Style.FILL
+            }
+            IC_STORM -> {
+                cloudIcon(c, x, base - hI * 0.95f, wI, hI * 0.6f, UNIT)
+                val bx = x + wI * 0.45f; val by = base - hI * 0.5f; val bh = hI * 0.55f
+                val bp = Path(); bp.moveTo(bx + bh * 0.25f, by); bp.lineTo(bx - bh * 0.15f, by + bh * 0.55f); bp.lineTo(bx + bh * 0.08f, by + bh * 0.55f)
+                bp.lineTo(bx - bh * 0.1f, by + bh); bp.lineTo(bx + bh * 0.35f, by + bh * 0.38f); bp.lineTo(bx + bh * 0.12f, by + bh * 0.38f); bp.close()
+                fp.color = p.color; c.drawPath(bp, fp)
+            }
             IC_DTD -> {
                 // litery D-T-D jedna pod druga, na wysokosci cyfr
                 val ls = (size * 0.72f) / 3f / 0.72f * 0.95f
@@ -179,6 +211,25 @@ object KokpitNavRenderer {
                 c.drawPath(path, fp)
             }
         }
+    }
+
+    private fun sunIcon(c: Canvas, cx: Float, cy: Float, r: Float, color: Int) {
+        fp.color = color; c.drawCircle(cx, cy, r, fp)
+        fp.style = Paint.Style.STROKE; fp.strokeWidth = r * 0.28f
+        for (k in 0 until 8) {
+            val a = Math.toRadians(45.0 * k); val ca = Math.cos(a).toFloat(); val sa = Math.sin(a).toFloat()
+            c.drawLine(cx + ca * r * 1.35f, cy + sa * r * 1.35f, cx + ca * r * 1.85f, cy + sa * r * 1.85f, fp)
+        }
+        fp.style = Paint.Style.FILL
+    }
+
+    /** chmura w prostokacie (x, y, w, h) */
+    private fun cloudIcon(c: Canvas, x: Float, y: Float, w: Float, h: Float, color: Int) {
+        fp.color = color
+        c.drawCircle(x + w * 0.30f, y + h * 0.62f, h * 0.36f, fp)
+        c.drawCircle(x + w * 0.55f, y + h * 0.45f, h * 0.45f, fp)
+        c.drawCircle(x + w * 0.78f, y + h * 0.64f, h * 0.32f, fp)
+        c.drawRect(x + w * 0.28f, y + h * 0.62f, x + w * 0.80f, y + h * 0.98f, fp)
     }
 
     private fun clock(ms: Long): String {
@@ -240,7 +291,19 @@ object KokpitNavRenderer {
         tg.add(if (d.tempC != null) Part(fmt("%.0f", d.tempC) + "°", 1f, WHITE, true) else Part("—", 0.8f, NONE, true))
         val rn = d.rainNowMmH; val rs = d.rainSoon
         if (rn != null && rn >= 0.1f) { tg.add(Part("", 0.42f, BLUE, false, IC_DROP)); tg.add(Part(fmt("%.1f", rn).replace('.', ','), 0.68f, BLUE, true)); tg.add(Part("mm", 0.36f, BLUE, false)) }
-        else if (rs != null && rs.probPct >= 30) { tg.add(Part("", 0.42f, BLUE, false, IC_DROP)); tg.add(Part("${rs.probPct}%", 0.68f, BLUE, true)); tg.add(Part("${rs.minutes}′", 0.36f, BLUE, false)) }
+        else if (rs != null && rs.probPct >= 30 && rs.kind != "FOG") {
+            // opad po trasie w ciagu 2 h: burza czerwona, snieg jasnoniebieski, deszcz niebieski
+            val (ic, cl) = when (rs.kind) { "STORM" -> IC_STORM to RED; "SNOW" -> IC_SNOW to Color.parseColor("#BFDBFE"); else -> IC_DROP to BLUE }
+            tg.add(Part("", if (ic == IC_DROP) 0.42f else 0.75f, cl, false, ic)); tg.add(Part("${rs.probPct}%", 0.68f, cl, true)); tg.add(Part("${rs.minutes}′", 0.36f, cl, false))
+        } else d.sky?.let { sk ->
+            // bez opadu: niebo (slonce zawsze zolte - swiadomy wyjatek od zasady kolorow)
+            when (sk) {
+                "CLEAR" -> tg.add(Part("", 0.75f, Color.parseColor("#FACC15"), false, IC_SUNY))
+                "PARTLY" -> tg.add(Part("", 0.85f, Color.parseColor("#FACC15"), false, IC_PARTLY))
+                "FOG" -> tg.add(Part("", 0.75f, UNIT, false, IC_FOG))
+                else -> tg.add(Part("", 0.85f, UNIT, false, IC_CLOUD))
+            }
+        }
         b.add(tg)
         val etaCol = if (d.twilightLabel == "zmrok" && d.etaMs != null && d.duskMs != null && d.etaMs > d.duskMs) RED else WHITE
         b.add(if (d.etaMs != null) listOf(Part("ETA", 0.38f, LBL, false), Part(clock(d.etaMs), 1f, etaCol, true))

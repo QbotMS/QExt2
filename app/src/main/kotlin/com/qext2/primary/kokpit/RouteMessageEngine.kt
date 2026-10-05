@@ -17,7 +17,7 @@ enum class SurfClass { PAVED, GRAVEL, LOOSE }
 data class SurfSeg(val kmStart: Float, val kmEnd: Float, val surface: SurfClass)
 data class ClimbInfo(val startKm: Float, val lengthKm: Float, val gradePct: Float)
 data class DescentInfo(val distAheadKm: Float, val gradePct: Float)
-data class RainSoon(val minutes: Int, val probPct: Int, val mmPerH: Float)
+data class RainSoon(val minutes: Int, val probPct: Int, val mmPerH: Float, val kind: String = "RAIN", val kmAhead: Float = 0f)
 /** Punkt z QBota: cat = water | shop | food; today = godziny na dzis (np. "06:00–20:00", "zamknięte") albo null. */
 /** Stan W' (jak w ClimbPacingProducer): pct, stan (BOMBA m:ss / ODBUDOWA m:ss / TRZYMASZ! / PRZEPAŁ), krytyczny. */
 data class WPrimeInfo(val pct: Int, val state: String, val critical: Boolean)
@@ -94,7 +94,15 @@ object RouteMessageEngine {
         if (rn != null && rn >= 0.1f) out.add(RouteMsg(MsgKind.RAIN, "pada:", String.format(java.util.Locale.US, "%.1f mm/h", rn).replace('.', ','), "#60A5FA"))
         else {
             val rs = i.rainSoon
-            if (rs != null && rs.minutes in 0..RAIN_SOON_MIN && rs.probPct >= 40) out.add(RouteMsg(MsgKind.RAIN, "deszcz za ${rs.minutes} min:", "${rs.probPct}%", "#60A5FA"))
+            if (rs != null) {
+                val where = if (rs.kmAhead >= 0.5f) " (${km(rs.kmAhead)} km)" else ""
+                when (rs.kind) {
+                    "STORM" -> if (rs.minutes <= 60) out.add(RouteMsg(MsgKind.RAIN, "burza za ${rs.minutes} min$where:", "${rs.probPct}%", "#F87171"))
+                    "SNOW" -> if (rs.minutes <= RAIN_SOON_MIN) out.add(RouteMsg(MsgKind.RAIN, "śnieg za ${rs.minutes} min$where:", "${rs.probPct}%", "#BFDBFE"))
+                    "FOG" -> {}
+                    else -> if (rs.minutes in 0..RAIN_SOON_MIN && rs.probPct >= 40) out.add(RouteMsg(MsgKind.RAIN, "deszcz za ${rs.minutes} min$where:", "${rs.probPct}%", "#60A5FA"))
+                }
+            }
         }
         val cb = i.carbBalanceG
         if (cb != null && cb <= FUEL_ALERT_G) out.add(RouteMsg(MsgKind.FUEL, "zjedz:", "${cb} g", "#E9A23B"))

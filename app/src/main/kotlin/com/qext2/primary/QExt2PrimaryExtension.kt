@@ -473,12 +473,12 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
     }
 
     private fun startWeatherPolling() {
-        if (!WeatherClient.isKeyConfigured()) return
+        // Open-Meteo nie wymaga klucza (OpenWeather tylko jako zapas)
         if (weatherPollJob?.isActive == true) return
         weatherPollJob = serviceScope.launch {
             while (_aggregator != null) {
                 _aggregator?.fetchWeatherIfNeeded()
-                kotlinx.coroutines.delay(600_000L)
+                kotlinx.coroutines.delay(900_000L)   // 15 min = krok prognozy
             }
         }
     }

@@ -394,6 +394,19 @@ class EtaEngine(
     @Synchronized
     fun longStopsKm(): List<Double> = ArrayList(longStopsKm)
 
+    /** (pozycja teraz, pozycja po `sec` s jazdy wg planu) w metrach od startu trasy; null bez planu. */
+    @Synchronized
+    fun posAfterMovingSec(remainingM: Double, sec: Double): Pair<Double, Double>? {
+        val p = plan ?: return null
+        val pos = posFromRemaining(remainingM) ?: return null
+        val target = p.timeAt(pos) + sec
+        val cs = p.cumSec
+        var i = (pos / p.stepM).toInt().coerceIn(0, cs.size - 1)
+        while (i < cs.size && cs[i] < target) i++
+        val d = if (i >= cs.size) p.lengthM else i * p.stepM
+        return pos to d
+    }
+
     /** Najblizszy stromy zjazd przed toba (z profilu Karoo): (odleglosc m, najmniejsze nachylenie %) albo null. */
     @Synchronized
     fun steepDescentAhead(remainingM: Double, horizonM: Double = 3000.0, thresholdPct: Double = -6.0): Pair<Double, Double>? {
