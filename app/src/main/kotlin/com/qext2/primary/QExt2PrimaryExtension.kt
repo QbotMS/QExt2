@@ -73,6 +73,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         logBuildBaseline()
         runStartupSelfCheck()
         AthleteDataStore.init(this)
+        com.qext2.primary.eta.EtaFileLog.init(getExternalFilesDir(null) ?: filesDir)
         val surfaceCache = SurfaceProfileCache(
             qbotBaseUrl = BuildConfig.QBOT_BASE_URL,
             qbotBearer = BuildConfig.QBOT_BEARER,

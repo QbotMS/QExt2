@@ -153,7 +153,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val etaMovingSpeedHistory = ArrayDeque<Pair<Long, Float>>()
     // ETA v2 (docs/ETA_V2_PLAN.md)
     private val etaEngine = com.qext2.primary.eta.EtaEngine(
-        log = { Log.i(TAG, it) },
+        log = { Log.i(TAG, it); com.qext2.primary.eta.EtaFileLog.append(it) },
         loadPriorKmh = { AthleteDataStore.loadEtaPriorKmh() },
         savePriorKmh = { AthleteDataStore.saveEtaPriorKmh(it) },
     )
