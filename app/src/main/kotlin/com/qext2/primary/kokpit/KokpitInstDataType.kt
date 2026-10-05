@@ -151,6 +151,7 @@ class KokpitInstDataType : DataTypeImpl("qext2", "qext2-kokpit-inst") {
             cogs = cogs, recCog = rec,
             hrShowZone = AthleteDataStore.loadHrZoneMode(),
             powerCeilingW = pc?.takeIf { it.isActive }?.ceilingW,
+            hrDriftLevel = (agg?.getHrDecouplingPct() ?: 0f).let { if (it >= 10f) 2 else if (it >= 6f) 1 else 0 },
         )
     }
 }
@@ -191,6 +192,7 @@ object KokpitInstDemo {
             gearFront = 36, gearRear = rear, cogs = cogs, recCog = null,
             cpTrend = if (alarm) -1 else 0, avgSpeedTrend = if (alarm) 0 else 1, hrAvgTrend = 0, cadAvgTrend = 0,
             powerCeilingW = 285,
+            hrDriftLevel = if (alarm) 2 else if (t >= 40f) 1 else 0,
             demo = true,
         )
     }

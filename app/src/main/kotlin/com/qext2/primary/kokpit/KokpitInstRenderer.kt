@@ -36,6 +36,8 @@ data class KokpitInstData(
     val hrShowZone: Boolean = true,
     /** bezpieczny pulap mocy z PacingEngine (null = brak); moc > pulap = czerwona, >= 95% = zolta */
     val powerCeilingW: Int? = null,
+    /** dryf tetna: 0 brak, 1 umiarkowany (>= 6%), 2 duzy (>= 10%) - barwi ikone serca */
+    val hrDriftLevel: Int = 0,
     /** trendy srednich: +1 rosnie, -1 maleje, 0 bez wyraznej zmiany */
     val cpTrend: Int = 0,
     val avgSpeedTrend: Int = 0,
@@ -342,7 +344,7 @@ object KokpitInstRenderer {
         val leftEdge = 4f * s
         val big = 54f * s
         val topBase = capBase(10f * s, big)          // tetno i kadencja 8 px nizej
-        heart(c, leftEdge + 2f * s, topBase - 20f * s, 22f * s)
+        heart(c, leftEdge + 2f * s, topBase - 20f * s, 22f * s, when (d.hrDriftLevel) { 2 -> col("#F87171"); 1 -> col("#FB923C"); else -> WHITE })
         val z = d.hrZone
         val showZone = d.hrShowZone && z != null
         val hrTxt = if (showZone) "Z$z" else d.hr?.toString() ?: "—"
@@ -383,7 +385,7 @@ object KokpitInstRenderer {
         tp.textScaleX = 1f
     }
 
-    private fun heart(c: Canvas, x: Float, y: Float, wd: Float) {
+    private fun heart(c: Canvas, x: Float, y: Float, wd: Float, color: Int) {
         val k = wd / 38f
         val p = Path()
         p.moveTo(x + 19 * k, y + 33 * k); p.lineTo(x + 5 * k, y + 18 * k)
@@ -391,7 +393,7 @@ object KokpitInstRenderer {
         p.cubicTo(x + 14 * k, y + 2 * k, x + 17 * k, y + 5 * k, x + 19 * k, y + 8 * k)
         p.cubicTo(x + 21 * k, y + 5 * k, x + 24 * k, y + 2 * k, x + 28 * k, y + 2 * k)
         p.cubicTo(x + 35 * k, y + 2 * k, x + 39 * k, y + 11 * k, x + 33 * k, y + 18 * k)
-        p.close(); fp.color = col("#F87171"); c.drawPath(p, fp)
+        p.close(); fp.color = color; c.drawPath(p, fp)
     }
 
     private fun drawCenterCompact(c: Canvas, d: KokpitInstData, cx: Float, cy: Float, r: Float, sw: Float) {

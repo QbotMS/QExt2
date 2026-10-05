@@ -115,6 +115,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     ))
     private val civilDuskMsRef = AtomicReference(0L)
     private val civilDawnMsRef = AtomicReference(0L)
+    private val hrDecouplingPctRef = AtomicReference(0f)   // dryf tetna (HrStrainAdvisor), 0 = brak/nieaktywny
     private val headwindDirDegRef = AtomicReference<Double?>(null)
     private val headwindSpeedMpsRef = AtomicReference<Double?>(null)
     private val headwindUpdatedMsRef = AtomicReference(0L)
@@ -1277,6 +1278,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     grossElapsedSec = rideTimeSecRef.get().takeIf { it > 0L } ?: elapsedSec,
                     distanceKm = (distanceMetersRef.get() / 1000.0).toFloat(),
                 )
+                hrDecouplingPctRef.set(hrResult.decouplingPct)
                 if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "HR_DECOUPLING reason=${hrResult.reasonCode} decouplingPct=${hrResult.decouplingPct} color=${hrResult.color}")
                 } catch (e: Exception) {
                     Log.w(TAG, "QEXT_TICK_CRASH msg=${e.message}", e)
@@ -1490,6 +1492,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     fun getRainForecast(): com.qext2.primary.weather.RainForecast? = rainForecastRef.get()
 
     fun getCivilDawnMs(): Long = civilDawnMsRef.get()
+
+    /** Dryf tetna w % (jak w HrStrainAdvisor: baza 8-18 min vs ostatnie 8 min); 0 gdy jeszcze nie liczony. */
+    fun getHrDecouplingPct(): Float = hrDecouplingPctRef.get()
 
     /** (kierunek wzgledny stopnie, predkosc m/s) z karoo-headwind, gdy swieze (<= 15 s); inaczej null */
     fun getHeadwindRel(): Pair<Int, Float>? {
