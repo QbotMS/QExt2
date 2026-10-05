@@ -1453,6 +1453,13 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         return best
     }
 
+    /** Kaseta aktualnego roweru (override z ustawien albo domyslna) - dla KOKPIT instrumenty. */
+    fun getCassetteCogs(): List<Int> {
+        val ov = cassetteCogsRef.get()
+        if (cassetteOverrideRef.get() && ov.isNotEmpty()) return ov.toList()
+        return defaultCassetteForBike()
+    }
+
     private fun resolveRearTeeth(pos: Int, reportedTeeth: Int): Int {
         // 1) reczny override kasety (np. gorska 10-52 na AXS) wygrywa
         val ov = cassetteCogsRef.get()

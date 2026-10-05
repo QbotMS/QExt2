@@ -48,4 +48,11 @@
         graphical="true"
         icon="@drawable/ic_qext2_power" />
 
+    <DataType
+        typeId="qext2-kokpit-inst"
+        displayName="@string/qext2_kokpit_inst_name"
+        description="@string/qext2_kokpit_inst_desc"
+        graphical="true"
+        icon="@drawable/ic_qext2_power" />
+
 </ExtensionInfo>

@@ -12,6 +12,8 @@
     <string name="qext2_stats_desc">NP, IF, VI, TSS, reserve, HRD, route, battery, deadline</string>
     <string name="qext2_stats_v2_name">QExt2 STATS v2 (test)</string>
     <string name="qext2_kokpit_nav_name">QExt2 KOKPIT nawigacja (test)</string>
+    <string name="qext2_kokpit_inst_name">QExt2 KOKPIT instrumenty (test)</string>
+    <string name="qext2_kokpit_inst_desc">Polkole mocy i predkosci, tetno, W' bal, kadencja, bieg z kaseta</string>
     <string name="qext2_kokpit_nav_desc">Komunikaty z trasy, km/ETA/zmrok, trasa z nawierzchnia, nachylenie, przewyzszenie, opad, wiatr</string>
     <string name="qext2_stats_v2_desc">STATS rysowane: NP/IF/VI, RSRV/XSS/KCAL, trasa, nawierzchnia, przewyzszenie, CARB, KAD, BAT</string>
 </resources>
