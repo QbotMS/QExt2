@@ -121,6 +121,19 @@ class StatsV2DataType : DataTypeImpl("qext2", "qext2-stats-v2") {
         }
     }
 
+    /** najblizsze zdarzenie: (czas, czy swit) - swit przed wschodem, zmrok w dzien, po zmroku swit nastepnego dnia */
+    private fun twilight(agg: RideDataAggregator?): Pair<Long, Boolean>? {
+        val now = System.currentTimeMillis()
+        val dusk = agg?.getCivilDuskMs() ?: 0L
+        val dawn = agg?.getCivilDawnMs() ?: 0L
+        return when {
+            dawn > now -> dawn to true
+            dusk > now -> dusk to false
+            dawn > 0L -> (dawn + 86_400_000L) to true
+            else -> null
+        }
+    }
+
     private fun toData(agg: RideDataAggregator?, s: StatsRideSnapshot): StatsV2Data {
         val dtdKm = (agg?.getDistanceToDestinationMeters() ?: 0.0) / 1000.0
         val total = if (s.hasRoute && dtdKm > 0.05) s.distanceKm + dtdKm.toFloat() else null
@@ -151,6 +164,17 @@ class StatsV2DataType : DataTypeImpl("qext2", "qext2-stats-v2") {
             cadAvg = s.cadenceAvg.takeIf { it > 0 },
             batDrain = if (s.batteryDrainReady) s.batteryDrainPctPerHour else null,
             batLeftSec = if (s.batteryEstimateReady) s.batteryTimeLeftSec else null,
+            twilightMs = twilight(agg)?.first,
+            twilightDawn = twilight(agg)?.second ?: false,
+            winNp = RideWindows.snapshot().first.map { it.np },
+            winEf = RideWindows.snapshot().first.map { it.ef },
+            winPartial = RideWindows.snapshot().second,
+            cpW = s.cpEffW.takeIf { it > 0f },
+            ahead = if (s.hasRoute && SurfaceBridge.hasProfile()) SurfaceBridge.segmentsSnapshot().sortedBy { it.kmStart }
+                .filter { it.kmEnd > s.distanceKm }
+                .map { (it.kmEnd - maxOf(it.kmStart, s.distanceKm)) to android.graphics.Color.parseColor(when (it.surface) { SurfaceType.PAVED -> "#C9D2DC"; SurfaceType.GRAVEL -> "#D9A04E"; SurfaceType.LOOSE -> "#E0563B" }) }
+                else null,
+            stopsKm = agg?.getLongStopsKm()?.map { it.toFloat() } ?: emptyList(),
         )
     }
 }

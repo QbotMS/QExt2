@@ -59,6 +59,14 @@ object StatsV2Demo {
             cadAvg = 78 + (8 * sin(t / 7f)).toInt(),
             batDrain = 4f + 4f * f,
             batLeftSec = ((100f - 60f * f) / (4f + 4f * f) * 3600f).toLong(),
+            twilightMs = nowMs + 95 * 60_000L,
+            winNp = List(18) { k -> (200 + 25 * kotlin.math.sin(k / 3.0) + (if (k == 6 || k == 7 || k == 15) 55 else 0)).toInt() } + listOf(188),
+            winEf = List(18) { k -> (1.62f - 0.004f * k - (if (k == 6 || k == 7 || k == 15) 0.03f else 0f)) } + listOf(1.53f),
+            winPartial = true,
+            typEf = 1.60f,
+            cpW = 250f,
+            ahead = listOf(52f to android.graphics.Color.parseColor("#C9D2DC"), 37f to android.graphics.Color.parseColor("#D9A04E"), 7f to android.graphics.Color.parseColor("#E0563B")),
+            stopsKm = listOf(22f, 41.5f),
             demo = true,
         )
     }

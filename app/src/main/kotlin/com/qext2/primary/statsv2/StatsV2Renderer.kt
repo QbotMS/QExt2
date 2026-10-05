@@ -42,6 +42,18 @@ data class StatsV2Data(
     val cadAvg: Int? = null,
     val batDrain: Float? = null,
     val batLeftSec: Long? = null,
+    /** nastepne zdarzenie: zmierzch albo swit (null = brak danych) */
+    val twilightMs: Long? = null,
+    val twilightDawn: Boolean = false,
+    /** PRZEBIEG: NP i EF okien 5 min (ostatnie moze byc niepelne), typowe EF z QBota (null = brak) */
+    val winNp: List<Int> = emptyList(),
+    val winEf: List<Float?> = emptyList(),
+    val winPartial: Boolean = false,
+    val typEf: Float? = null,
+    val cpW: Float? = null,
+    /** pozostala czesc trasy wg nawierzchni: (km, kolor ARGB) po kolei; null = brak profilu */
+    val ahead: List<Pair<Float, Int>>? = null,
+    val stopsKm: List<Float> = emptyList(),
     val demo: Boolean = false,
 )
 
@@ -102,7 +114,9 @@ object StatsV2Renderer {
         c.drawColor(BG)
 
         val g = 2f
-        val rows = floatArrayOf(126f, 116f, 200f, 92f, 92f)
+        // uklad (mockup "STATS - PRZEBIEG"): NP/IF/VI 116, PRZEBIEG 136, RSRV/XSS/KCAL 100, TRASA z nawierzchnia 198,
+        // PRZEWYZSZENIE 92, dolny rzad reszta (~108)
+        val rows = floatArrayOf(116f, 136f, 100f, 198f, 92f)
         var y = 0f
         val col3 = (BW - 2 * g) / 3f
         // 1: NP / IF / VI
@@ -111,18 +125,18 @@ object StatsV2Renderer {
         drawValueCell(c, RectF(2 * col3 + 2 * g, y, BW, y + rows[0]), listOf(P_BOLT), null, "VI", "",
             d.vi?.let { fmt("%.2f", it) }, 70f, viColor(d.vi))
         y += rows[0] + g
-        // 2: RSRV / XSS / KCAL
-        drawRsrv(c, RectF(0f, y, col3, y + rows[1]), d.rsrv)
-        drawValueCell(c, RectF(col3 + g, y, 2 * col3 + g, y + rows[1]), listOf(P_BARS), null, "XSS", "",
-            d.xss?.let { fmt("%.0f", it) }, 66f, WHITE)
-        drawValueCell(c, RectF(2 * col3 + 2 * g, y, BW, y + rows[1]), listOf(P_FLAME), null, "KCAL", "",
-            d.kcal?.toString(), 62f, WHITE)
+        // 2: PRZEBIEG (NP w oknach 5 min + EF)
+        drawWindows(c, RectF(0f, y, BW, y + rows[1]), d)
         y += rows[1] + g
-        // 3: trasa
-        drawRoute(c, RectF(0f, y, BW, y + rows[2]), d)
+        // 3: RSRV / XSS / KCAL
+        drawRsrv(c, RectF(0f, y, col3, y + rows[2]), d.rsrv)
+        drawValueCell(c, RectF(col3 + g, y, 2 * col3 + g, y + rows[2]), listOf(P_BARS), null, "XSS", "",
+            d.xss?.let { fmt("%.0f", it) }, 66f, WHITE)
+        drawValueCell(c, RectF(2 * col3 + 2 * g, y, BW, y + rows[2]), listOf(P_FLAME), null, "KCAL", "",
+            d.kcal?.toString(), 62f, WHITE)
         y += rows[2] + g
-        // 4: nawierzchnia
-        drawSurface(c, RectF(0f, y, BW, y + rows[3]), d)
+        // 4: trasa (pasek z nawierzchnia)
+        drawRoute(c, RectF(0f, y, BW, y + rows[3]), d)
         y += rows[3] + g
         // 5: przewyzszenie
         drawAscent(c, RectF(0f, y, BW, y + rows[4]), d)
@@ -134,7 +148,7 @@ object StatsV2Renderer {
         val bottom = BH
         drawFood(c, RectF(0f, y, wFood, bottom), d)
         drawValueCell(c, RectF(wFood + g, y, wFood + g + wKad, bottom), listOf(P_BAR, P_CAD), null, "KAD", "",
-            d.cadAvg?.toString(), 60f, WHITE)
+            d.cadAvg?.toString(), 54f, WHITE)
         drawBattery(c, RectF(wFood + wKad + 2 * g, y, BW, bottom), d)
         return bmp
     }
@@ -237,7 +251,7 @@ object StatsV2Renderer {
         val tw = textW(t, size)
         val pad = F(6f)
         val need = tw + 2 * pad + F(12f)
-        if (align == Paint.Align.CENTER && segW < tw + F(8f)) return
+        if (align == Paint.Align.CENTER && segW < tw + F(2f)) return
         if (segW >= need && lum(bg) >= 0.05) {
             tp.textSize = size
             val fm = tp.fontMetrics
@@ -325,7 +339,11 @@ object StatsV2Renderer {
     private fun drawRoute(c: Canvas, r: RectF, d: StatsV2Data) {
         cell(c, r)
         val lb = label(c, r, listOf(P_ROUTE), "TRASA", "km", material = true)
-        if (d.demo) rightLabel(c, r, listOf(Triple("DEMO", 22f, AMBER)))
+        // nad ETA: najblizszy zmierzch albo swit (mniejszy), DEMO obok
+        val tw = ArrayList<Triple<String, Float, Int>>()
+        if (d.demo) tw.add(Triple("DEMO", 20f, AMBER))
+        d.twilightMs?.let { tw.add(Triple(if (d.twilightDawn) "świt" else "zmrok", 20f, SUB)); tw.add(Triple(clock(it), 26f, WHITE)) }
+        if (tw.isNotEmpty()) rightLabel(c, r, tw)
         val l = X(r.left) + F(10f); val rr = X(r.right) - F(10f)
         // wiersz wartosci
         val vcy = lb + F(32f)
@@ -347,15 +365,31 @@ object StatsV2Renderer {
             text(c, "ETA brak", rr, vcy + F(8f), F(24f), NONE, Paint.Align.RIGHT)
         }
         // pasek
-        val bt = Y(r.top) + Y(112f); val bb = bt + Y(40f)
+        val bt = Y(r.top) + Y(104f); val bb = bt + Y(44f)
         fp.color = TRACK; c.drawRect(l, bt, rr, bb, fp)
         if (d.hasRoute && total != null && total > 0f) {
             val frac = (d.doneKm / total).coerceIn(0f, 1f)
             val fx = l + (rr - l) * frac
             fp.color = Color.parseColor("#3E7CB1"); c.drawRect(l, bt, fx, bb, fp)
+            // pozostala czesc wg nawierzchni (jak w KOKPIT), liczby km w odcinkach
+            d.ahead?.takeIf { it.isNotEmpty() }?.let { segs ->
+                val sum = segs.sumOf { it.first.toDouble() }.toFloat().coerceAtLeast(0.001f)
+                var x = fx
+                for ((len, col) in segs) {
+                    val ww = (rr - fx) * (len / sum)
+                    fp.color = col; c.drawRect(x + F(1f), bt, x + ww - F(1f), bb, fp)
+                    if (len >= 0.5f) barText(c, fmt("%.0f", len), x + ww / 2f, (bt + bb) / 2f, F(30f), ww - F(2f), col, Paint.Align.CENTER)
+                    x += ww
+                }
+            }
+            // postoje >= 10 min
+            for (k in d.stopsKm) {
+                val sx0 = l + (rr - l) * (k / total).coerceIn(0f, 1f)
+                fp.color = PILL; c.drawRect(sx0 - F(5f), bt, sx0 + F(5f), bb, fp)
+                fp.color = AMBER; c.drawRect(sx0 - F(3f), bt, sx0 + F(3f), bb, fp)
+            }
+            fp.color = PILL; c.drawRect(fx - F(5f), bt - F(8f), fx + F(5f), bb + F(8f), fp)
             fp.color = WHITE; c.drawRect(fx - F(3f), bt - F(8f), fx + F(3f), bb + F(8f), fp)
-            val left = fmt("zostało %.0f km", max(0f, total - d.doneKm))
-            if (rr - fx > textW(left, F(28f)) + F(20f)) text(c, left, rr - F(8f), (bt + bb) / 2f, F(28f), SUB, Paint.Align.RIGHT)
         } else {
             none(c, (l + rr) / 2f, (bt + bb) / 2f, "brak trasy")
         }
@@ -419,6 +453,81 @@ object StatsV2Renderer {
         ), F(30f))
     }
 
+    private val stp = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeJoin = Paint.Join.ROUND }
+
+    private fun zoneColor5(np: Int, cp: Float?): Int {
+        if (cp == null || cp <= 0f) return Color.parseColor("#6B7280")
+        val q = np / cp
+        return Color.parseColor(when { q < 0.55f -> "#6B7280"; q < 0.75f -> "#3B82F6"; q < 0.90f -> "#22C55E"; q < 1.05f -> "#EAB308"; q < 1.20f -> "#F97316"; else -> "#EF4444" })
+    }
+
+    /** PRZEBIEG: slupki NP okien 5 min (kolor = strefa wg CP), linia EF (biala z czarna obwodka), wiersz liczb. */
+    private fun drawWindows(c: Canvas, r: RectF, d: StatsV2Data) {
+        cell(c, r)
+        label(c, r, listOf(P_BAR, P_BOLT), "PRZEBIEG", "NP / 5 min")
+        if (d.winEf.any { it != null }) rightLabel(c, r, listOf(Triple("EF", 18f, WHITE)))
+        val l = X(r.left) + F(10f); val rr = X(r.right) - F(10f)
+        val sumSize = F(34f)
+        val sumBase = Y(r.bottom) - F(8f)
+        val ct = Y(r.top) + F(6f) + F(28f) + F(4f)
+        val cb = sumBase - sumSize * 0.72f - F(8f)
+        val all = d.winNp
+        if (all.isEmpty()) { none(c, (l + rr) / 2f, (ct + sumBase) / 2f, "pierwsze okno po 5 min jazdy"); return }
+        val slots = 23
+        val n = all.size.coerceAtMost(slots)
+        val np = all.takeLast(n); val ef = d.winEf.takeLast(n)
+        val gap = F(3f); val bw = (rr - l - gap * (slots - 1)) / slots
+        val mx = (np.maxOrNull() ?: 1).coerceAtLeast(50) * 1.08f
+        val lastDone = if (d.winPartial) n - 2 else n - 1
+        val best = (0..lastDone.coerceAtLeast(0)).maxByOrNull { np[it] }
+        fun xAt(k: Int) = rr - (n - k) * (bw + gap) + gap
+        for (k in 0 until n) {
+            val x = xAt(k)
+            val hh = (cb - ct) * (np[k] / mx)
+            fp.color = zoneColor5(np[k], d.cpW)
+            fp.alpha = if (d.winPartial && k == n - 1) 140 else 220
+            c.drawRect(x, cb - hh, x + bw, cb, fp)
+            fp.alpha = 255
+            if (k == best && n > 1) { stp.color = WHITE; stp.strokeWidth = F(2f); c.drawRect(x, cb - hh, x + bw, cb, stp) }
+        }
+        // EF: wlasna skala dopasowana do zakresu wartosci
+        val efv = ef.mapIndexedNotNull { k, e -> e?.let { k to it } }
+        if (efv.size >= 2) {
+            val vals = efv.map { it.second } + listOfNotNull(d.typEf)
+            val lo = (vals.minOrNull() ?: 1f) - 0.02f; val hi = (vals.maxOrNull() ?: 2f) + 0.02f
+            fun yOf(e: Float) = ct + F(3f) + (cb - ct - F(6f)) * (1f - (e - lo) / (hi - lo))
+            d.typEf?.let { t ->
+                val yy = yOf(t); var x = l
+                stp.color = SUB; stp.strokeWidth = F(1.5f)
+                while (x < rr) { c.drawLine(x, yy, minOf(x + F(5f), rr), yy, stp); x += F(9f) }
+            }
+            val path = Path()
+            efv.forEachIndexed { i, (k, e) -> val px = xAt(k) + bw / 2f; val py = yOf(e); if (i == 0) path.moveTo(px, py) else path.lineTo(px, py) }
+            stp.color = Color.BLACK; stp.strokeWidth = F(8f); c.drawPath(path, stp)
+            stp.color = WHITE; stp.strokeWidth = F(3.5f); c.drawPath(path, stp)
+            for ((k, e) in efv) {
+                val px = xAt(k) + bw / 2f; val py = yOf(e)
+                fp.color = Color.BLACK; c.drawCircle(px, py, F(4.4f), fp)
+                fp.color = WHITE; c.drawCircle(px, py, F(3.2f), fp)
+            }
+        }
+        // wiersz liczb: ostatnie pelne okno, EF (typowe), najlepsze okno
+        val li = lastDone.coerceAtLeast(0)
+        val sb = sumBase
+        fun grp(x: Float, label: String, value: String, unit: String, align: Paint.Align) {
+            val lw = textW(label, F(20f)) + F(5f); val vw = textW(value, sumSize); val uw = if (unit.isEmpty()) 0f else F(5f) + textW(unit, F(18f))
+            val total = lw + vw + uw
+            val x0 = when (align) { Paint.Align.LEFT -> x; Paint.Align.RIGHT -> x - total; else -> x - total / 2f }
+            tp.textAlign = Paint.Align.LEFT
+            tp.textSize = F(20f); tp.color = SUB; c.drawText(label, x0, sb, tp)
+            tp.textSize = sumSize; tp.color = WHITE; c.drawText(value, x0 + lw, sb, tp)
+            if (unit.isNotEmpty()) { tp.textSize = F(18f); tp.color = UNIT; c.drawText(unit, x0 + lw + vw + F(5f), sb, tp) }
+        }
+        grp(l, "5′", np[li].toString(), "W", Paint.Align.LEFT)
+        ef.getOrNull(li)?.let { e -> grp((l + rr) / 2f, "EF", fmt("%.2f", e), d.typEf?.let { "(" + fmt("%.2f", it) + ")" } ?: "", Paint.Align.CENTER) }
+        best?.let { grp(rr, "max", np[it].toString(), "W", Paint.Align.RIGHT) }
+    }
+
     private fun drawAscent(c: Canvas, r: RectF, d: StatsV2Data) {
         cell(c, r)
         label(c, r, listOf(P_GRADE), "PRZEWYŻSZENIE", "m")
@@ -427,10 +536,24 @@ object StatsV2Renderer {
         val dn = d.ascDone; val lf = d.ascLeft
         if (dn == null || lf == null || dn + lf <= 0) { none(c, (l + rr) / 2f, (t + b) / 2f); return }
         rightLabel(c, r, listOf(Triple("razem", 22f, SUB), Triple((dn + lf).toString(), 26f, WHITE)))
-        segBar(c, l, t, rr, b, listOf(
-            Triple(dn.toFloat(), Color.parseColor("#2F7D4A"), "↑ $dn"),
-            Triple(lf.toFloat(), TRACK, lf.toString()),
-        ), F(40f))
+        val gap = F(2f)
+        val tot = (dn + lf).toFloat()
+        val gw = (rr - l - gap) * (dn / tot)
+        val green = Color.parseColor("#2F7D4A")
+        fp.color = green; c.drawRect(l, t, l + gw, b, fp)
+        fp.color = TRACK; c.drawRect(l + gw + gap, t, rr, b, fp)
+        val cy = (t + b) / 2f
+        val sz = F(34f)
+        val dTxt = "↑ $dn"
+        val lTxt = lf.toString()
+        if (gw >= textW(dTxt, sz) + F(16f)) {
+            barText(c, dTxt, l + gw / 2f, cy, sz, gw, green, Paint.Align.CENTER)
+            barText(c, lTxt, l + gw + gap + (rr - l - gw - gap) / 2f, cy, sz, rr - l - gw - gap, TRACK, Paint.Align.CENTER)
+        } else {
+            // zielony odcinek za waski na liczbe: wykonane zaraz za nim, pozostale przy prawej krawedzi
+            text(c, dTxt, l + gw + gap + F(6f), cy, sz, WHITE)
+            text(c, lTxt, rr - F(6f), cy, sz, WHITE, Paint.Align.RIGHT)
+        }
     }
 
     private fun drawFood(c: Canvas, r: RectF, d: StatsV2Data) {
@@ -475,9 +598,9 @@ object StatsV2Renderer {
         val mid = (lb + b) / 2f
         val v = d.batDrain?.let { fmt("%.0f", it) }
         if (v == null) { none(c, cx, mid); return }
-        val vw = textW(v, F(56f)) + F(4f) + textW("%/h", F(24f))
-        text(c, v, cx - vw / 2f, mid - F(10f), F(56f), WHITE)
-        text(c, "%/h", cx - vw / 2f + textW(v, F(56f)) + F(4f), mid - F(4f), F(24f), UNIT)
-        d.batLeftSec?.let { text(c, "~" + hm(it) + " h", cx, b - F(12f), F(24f), SUB, Paint.Align.CENTER) }
+        val vw = textW(v, F(46f)) + F(4f) + textW("%/h", F(22f))
+        text(c, v, cx - vw / 2f, mid - F(10f), F(46f), WHITE)
+        text(c, "%/h", cx - vw / 2f + textW(v, F(46f)) + F(4f), mid - F(4f), F(22f), UNIT)
+        d.batLeftSec?.let { text(c, "~" + hm(it) + " h", cx, b - F(6f), F(20f), SUB, Paint.Align.CENTER) }
     }
 }

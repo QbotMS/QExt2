@@ -46,6 +46,7 @@ private const val TAG = "QExt2Ext"
 class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var windowsJob: kotlinx.coroutines.Job? = null
     private var _karooSystem: KarooSystemService? = null
     val karooSystem: KarooSystemService? get() = _karooSystem
     private var _aggregator: RideDataAggregator? = null
@@ -90,6 +91,22 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                     if (_aggregator == null) {
                         _aggregator = RideDataAggregator(system)
                         _aggregatorFlow.value = _aggregator
+                        // STATS v2 PRZEBIEG: okna 5 min (NP, EF) karmione co ~1 s
+                        com.qext2.primary.statsv2.RideWindows.reset()
+                        windowsJob?.cancel()
+                        _aggregator?.let { a ->
+                            windowsJob = serviceScope.launch {
+                                kotlinx.coroutines.flow.combine(a.snapshot, a.statsSnapshot) { p, st -> p to st }.collect { (p, st) ->
+                                    com.qext2.primary.statsv2.RideWindows.feed(
+                                        System.currentTimeMillis(),
+                                        if (p.powerFreshnessMs < 8_000L) p.power3s else null,
+                                        if (p.hrFreshnessMs < 12_000L && p.hr > 0) p.hr else null,
+                                        p.speedKmh > 3.0,
+                                        st.distanceKm,
+                                    )
+                                }
+                            }
+                        }
                     }
                     if (visibleFieldCount > 0 && !aggregatorStreaming) {
                         _aggregator?.startStreaming()
