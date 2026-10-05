@@ -192,7 +192,7 @@ object KokpitNavRenderer {
         val pad = 8f
         // komunikat | A: km zrobione/calosc, zostalo, nachylenie | pasek trasy | B: temp+opad, ETA, wiatr | C: przewyzszenie, zmrok/swit
         val g = groups(d)
-        // komunikat | A: km zrobione/calosc, zostalo, nachylenie | pasek trasy | B: temp+opad, zmrok/swit, ETA, wiatr
+        // komunikat | A: km zrobione/calosc, zostalo, nachylenie | pasek trasy | B: temp+opad, ETA, wiatr (zmrok tylko w komunikacie)
         val msgH = (H * 0.24f).coerceIn(26f, 50f)
         val barH = (H * 0.055f).coerceIn(5f, 12f)
         val rest = H - msgH - barH
@@ -224,8 +224,6 @@ object KokpitNavRenderer {
         if (rn != null && rn >= 0.1f) { tg.add(Part("", 0.42f, BLUE, false, IC_DROP)); tg.add(Part(fmt("%.1f", rn).replace('.', ','), 0.68f, BLUE, true)); tg.add(Part("mm", 0.36f, BLUE, false)) }
         else if (rs != null && rs.probPct >= 30) { tg.add(Part("", 0.42f, BLUE, false, IC_DROP)); tg.add(Part("${rs.probPct}%", 0.68f, BLUE, true)); tg.add(Part("${rs.minutes}′", 0.36f, BLUE, false)) }
         b.add(tg)
-        val dawnB = d.twilightLabel != "zmrok"
-        d.duskMs?.let { b.add(listOf(Part("", 1.1f, ORANGE, false, IC_SUN, if (dawnB) 1f else -1f), Part(clock(it), 0.86f, ORANGE, true))) }
         val etaCol = if (d.twilightLabel == "zmrok" && d.etaMs != null && d.duskMs != null && d.etaMs > d.duskMs) RED else WHITE
         b.add(if (d.etaMs != null) listOf(Part("ETA", 0.38f, LBL, false), Part(clock(d.etaMs), 1f, etaCol, true))
               else listOf(Part("ETA brak", 0.5f, NONE, false)))
