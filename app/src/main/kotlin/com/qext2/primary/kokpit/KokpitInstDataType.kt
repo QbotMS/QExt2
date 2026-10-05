@@ -143,6 +143,7 @@ class KokpitInstDataType : DataTypeImpl("qext2", "qext2-kokpit-inst") {
             optCadLow = low, optCadHigh = high,
             gearFront = front, gearRear = rear,
             cogs = cogs, recCog = rec,
+            hrShowZone = AthleteDataStore.loadHrZoneMode(),
         )
     }
 }
