@@ -208,16 +208,19 @@ object KokpitNavRenderer {
         // komunikat | A: km zrobione/calosc, zostalo, nachylenie | pasek trasy | B: temp+opad, ETA, wiatr | C: przewyzszenie, zmrok/swit
         val g = groups(d)
         // komunikat | A: km zrobione/calosc, zostalo, nachylenie | pasek trasy | B: temp+opad, ETA, wiatr (zmrok tylko w komunikacie)
-        val msgH = (H * 0.24f).coerceIn(26f, 50f)
-        val barH = (H * 0.055f).coerceIn(5f, 12f)
-        val rest = H - msgH - barH
-        val aH = rest * 0.52f
-        val bH = rest - aH
+        // wiekszy komunikat, minimalne odstepy miedzy wierszami (wysokosci liczone od wielkosci cyfr)
+        val msgH = (H * 0.30f).coerceIn(30f, 60f)
+        val barH = (H * 0.05f).coerceIn(5f, 10f)
+        val gTop = 3f; val gBar1 = 5f; val gBar2 = 4f; val gBot = 3f
+        val avail = H - msgH - gTop - gBar1 - barH - gBar2 - gBot
+        val capB = avail / 2.1f
+        val capA = capB * 1.1f
         drawMsg(c, d, W, msgH)
-        row(c, g.first, pad, W - pad, msgH + aH * 0.88f, aH * 0.92f)
-        val bt = msgH + aH
+        val baseA = msgH + gTop + capA
+        row(c, g.first, pad, W - pad, baseA, capA / 0.72f)
+        val bt = baseA + gBar1
         drawRoute(c, d, pad, W - pad, bt, bt + barH)
-        row(c, g.second, pad, W - pad, bt + barH + bH * 0.86f, bH * 0.86f)
+        row(c, g.second, pad, W - pad, bt + barH + gBar2 + capB, capB / 0.72f)
         return bmp
     }
 
@@ -262,8 +265,8 @@ object KokpitNavRenderer {
 
     private fun drawMsg(c: Canvas, d: KokpitNavData, W: Float, h: Float) {
         fp.color = MSGBG; c.drawRect(0f, 0f, W, h, fp)
-        val size = h * 0.74f
-        val base = h * 0.76f
+        val size = h * 0.80f
+        val base = h * 0.78f
         val ac = try { Color.parseColor(d.msg.accentColor) } catch (_: Exception) { WHITE }
         fp.color = ac; c.drawRect(8f, h * 0.2f, 12f, h * 0.8f, fp)
         val parts = ArrayList<Part>()
