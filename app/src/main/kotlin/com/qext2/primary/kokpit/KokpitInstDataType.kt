@@ -64,6 +64,8 @@ class KokpitInstDataType : DataTypeImpl("qext2", "qext2-kokpit-inst") {
             emitter.updateView(rv)
         }
 
+        // trendy srednich (zmiana w ~10 min)
+        val trCp = Trend(3f); val trSpd = Trend(0.3f); val trHr = Trend(2f); val trCad = Trend(2f)
         // srednie tetno liczone lokalnie (tylko w ruchu)
         var hrSum = 0L
         var hrN = 0L
@@ -86,7 +88,11 @@ class KokpitInstDataType : DataTypeImpl("qext2", "qext2-kokpit-inst") {
                 }
                 .collect { (agg, p, s) ->
                     if (p.hrFreshnessMs < 12_000L && p.hr > 40 && p.speedKmh > 3.0) { hrSum += p.hr; hrN++ }
-                    val d = try { toData(agg, p, s, if (hrN > 30) (hrSum / hrN).toInt() else null) } catch (e: Exception) {
+                    val d = try { toData(agg, p, s, if (hrN > 30) (hrSum / hrN).toInt() else null).let { dd ->
+                        val now = System.currentTimeMillis()
+                        dd.copy(cpTrend = trCp.push(now, dd.cpe5W), avgSpeedTrend = trSpd.push(now, dd.avgSpeedKmh),
+                            hrAvgTrend = trHr.push(now, dd.hrAvg?.toFloat()), cadAvgTrend = trCad.push(now, dd.cadenceAvg?.toFloat()))
+                    } } catch (e: Exception) {
                         Log.w(TAG, "QEXT_KOKPIT_INST_DATA_FAIL msg=${e.message}"); null
                     } ?: return@collect
                     val now = System.currentTimeMillis()
@@ -148,6 +154,20 @@ class KokpitInstDataType : DataTypeImpl("qext2", "qext2-kokpit-inst") {
     }
 }
 
+/** Trend wartosci: porownanie z probka sprzed ~10 min (probki co 30 s); prog = minimalna zmiana. */
+class Trend(private val threshold: Float) {
+    private val samples = ArrayDeque<Pair<Long, Float>>()
+    fun push(now: Long, v: Float?): Int {
+        if (v == null) return 0
+        if (samples.isEmpty() || now - samples.last().first >= 30_000L) samples.addLast(now to v)
+        while (samples.size > 1 && now - samples.first().first > 11 * 60_000L) samples.removeFirst()
+        val old = samples.firstOrNull() ?: return 0
+        if (now - old.first < 5 * 60_000L) return 0
+        val diff = v - old.second
+        return when { diff > threshold -> 1; diff < -threshold -> -1; else -> 0 }
+    }
+}
+
 /** Dane symulacyjne dla KOKPIT instrumenty (cykl 60 s). */
 object KokpitInstDemo {
     private val cogs = listOf(10, 12, 14, 16, 18, 21, 24, 28, 32, 36, 42, 52)
@@ -167,6 +187,7 @@ object KokpitInstDemo {
             hr = hr, hrAvg = 128, hrZone = z, wbalPct = (100 - 90 * f).toInt(),
             cadence = cad, cadenceAvg = 82, optCadLow = 80, optCadHigh = 95,
             gearFront = 36, gearRear = rear, cogs = cogs, recCog = cogs.minByOrNull { kotlin.math.abs(it - rear * 87.5f / cad) },
+            cpTrend = -1, avgSpeedTrend = 1, hrAvgTrend = 1, cadAvgTrend = -1,
             demo = true,
         )
     }
