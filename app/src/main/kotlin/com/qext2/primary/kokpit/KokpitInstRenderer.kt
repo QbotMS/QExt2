@@ -295,7 +295,7 @@ object KokpitInstRenderer {
         fun trendCol(t: Int) = when { t > 0 -> GOOD; t < 0 -> col("#F87171"); else -> SUB }
         val cpTxt = d.cpe5W?.let { fmt("%.0f", it) } ?: "—"
         t(c, cpTxt, cx - g, refBase, refSize, WHITE, true, Paint.Align.RIGHT)
-        val cpLX = cx - g - w(cpTxt, refSize) - 5f * s
+        val cpLX = cx - g - w(cpTxt, refSize) - 2f * s     // CP/5 blizej wartosci
         val lbl = 16f * s
         val cpCol = trendCol(d.cpTrend)
         val capTop = refBase - refSize * 0.72f
@@ -316,12 +316,12 @@ object KokpitInstRenderer {
         val sDec = v10?.let { "." + (it % 10).toString() } ?: ""
         val vg = 8f * s
         val pL = xl + w("W", 17f * s) + 4f * s
-        val sR = xr - w("km/h", 15f * s, false) - 4f * s
+        val sR = xr - w("km/h", 12f * s, false) - 3f * s
         // moc i predkosc nie mniejsze niz tetno/kadencja (54 px); jednostki rysowane tylko, gdy sie mieszcza
         var vs = 60f * s
         while (vs > 54f * s && (w(pv, vs) > cx - vg - pL || w(sInt, vs) + w(sDec, vs / 2f) > sR - cx - vg)) vs -= 1f
         if (cx - vg - w(pv, vs) >= pL - 2f * s) t(c, "W", xl, base, 17f * s, UNIT, true)
-        if (cx + vg + w(sInt, vs) + w(sDec, vs / 2f) <= sR + 2f * s) t(c, "km/h", xr, base, 15f * s, UNIT, false, Paint.Align.RIGHT)
+        if (cx + vg + w(sInt, vs) + w(sDec, vs / 2f) <= sR + 2f * s) t(c, "km/h", xr, base, 12f * s, UNIT, false, Paint.Align.RIGHT)
         t(c, pv, cx - vg, base, vs, if (d.powerW != null) d.powerColor else NONE, true, Paint.Align.RIGHT)
         val spCol = if (d.speedKmh != null) d.speedColor else NONE
         t(c, sInt, cx + vg, base, vs, spCol, true)
