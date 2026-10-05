@@ -314,7 +314,7 @@ object KokpitInstRenderer {
         val avTxt = d.avgSpeedKmh?.let { fmt("%.1f", it) } ?: "—"
         t(c, avTxt, cx + g, refBase, refSize, WHITE, true)
         val symSz = 16f * s
-        avgSym(c, cx + g + w(avTxt, refSize) + 5f * s, refBase - refSize * 0.36f - symSz / 2f, symSz, trendCol(d.avgSpeedTrend))
+        avgSym(c, cx + g + w(avTxt, refSize) + 2f * s, refBase - refSize * 0.36f - symSz / 2f, symSz, trendCol(d.avgSpeedTrend))
 
         // --- glowne wartosci: moc dosunieta do srodka z lewej, predkosc z prawej; czesc dziesietna
         //     predkosci polowa wielkosci, gorna krawedz rowno z gorna krawedzia cyfr
@@ -326,12 +326,15 @@ object KokpitInstRenderer {
         val sDec = v10?.let { "." + (it % 10).toString() } ?: ""
         val vg = 8f * s
         val pL = xl + w("W", 17f * s) + 4f * s
-        val sR = xr - w("km/h", 12f * s, false) - 3f * s
+        val uS = 13f * s
+        val unitW = maxOf(w("km", uS, false), w("/h", uS, false))
+        val sR = xr - unitW - 3f * s
         // moc i predkosc nie mniejsze niz tetno/kadencja (54 px); jednostki rysowane tylko, gdy sie mieszcza
         var vs = 60f * s
         while (vs > 54f * s && (w(pv, vs) > cx - vg - pL || w(sInt, vs) + w(sDec, vs / 2f) > sR - cx - vg)) vs -= 1f
         if (cx - vg - w(pv, vs) >= pL - 2f * s) t(c, "W", xl, base, 17f * s, UNIT, true)
-        if (cx + vg + w(sInt, vs) + w(sDec, vs / 2f) <= sR + 2f * s) t(c, "km/h", xr, base, 12f * s, UNIT, false, Paint.Align.RIGHT)
+        t(c, "km", xr - unitW / 2f, base - uS * 0.95f, uS, UNIT, false, Paint.Align.CENTER)
+        t(c, "/h", xr - unitW / 2f, base, uS, UNIT, false, Paint.Align.CENTER)
         t(c, pv, cx - vg, base, vs, powerCol(d), true, Paint.Align.RIGHT)
         val spCol = if (d.speedKmh != null) WHITE else NONE
         t(c, sInt, cx + vg, base, vs, spCol, true)
