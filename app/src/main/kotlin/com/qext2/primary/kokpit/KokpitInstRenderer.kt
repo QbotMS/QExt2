@@ -34,6 +34,8 @@ data class KokpitInstData(
     val recCog: Int? = null,
     /** true = strefa tetna (Z1..Z5), false = bpm - przelacznik w SETUP (hr_zone_mode) */
     val hrShowZone: Boolean = true,
+    /** bezpieczny pulap mocy z PacingEngine (null = brak); moc > pulap = czerwona, >= 95% = zolta */
+    val powerCeilingW: Int? = null,
     /** trendy srednich: +1 rosnie, -1 maleje, 0 bez wyraznej zmiany */
     val cpTrend: Int = 0,
     val avgSpeedTrend: Int = 0,
@@ -243,6 +245,12 @@ object KokpitInstRenderer {
 
     private fun capBase(top: Float, size: Float) = top + size * 0.72f
 
+    private fun powerCol(d: KokpitInstData): Int {
+        val pw = d.powerW ?: return NONE
+        val ceil = d.powerCeilingW?.takeIf { it in 1..5000 } ?: return WHITE
+        return when { pw > ceil -> col("#F87171"); pw >= ceil * 0.95f -> col("#FACC15"); else -> WHITE }
+    }
+
     private fun renderCompact(c: Canvas, d: KokpitInstData, W: Float, H: Float) {
         val s = H / 126f
         val cx = W / 2f
@@ -282,8 +290,8 @@ object KokpitInstRenderer {
             needle(c, rox, cy, r, sw, sA(v))
         }
         // symbole na koncach lukow (szczyt): zlota blyskawica / niebieskie V
-        bolt(c, lox + 3f * s, cy - r - 9f * s, 22f * s, GOLD)
-        t(c, "V", rox - 3f * s, cy - r + 9f * s, 22f * s, BLUE, true, Paint.Align.RIGHT)
+        bolt(c, lox + 3f * s, cy - r - 9f * s, 22f * s, UNIT)
+        t(c, "V", rox - 3f * s, cy - r + 9f * s, 22f * s, UNIT, true, Paint.Align.RIGHT)
         // separator
         fp.color = col("#2A3038"); c.drawRect(cx - 1f, 30f * s, cx + 1f, H - 4f * s, fp)
 
@@ -322,8 +330,8 @@ object KokpitInstRenderer {
         while (vs > 54f * s && (w(pv, vs) > cx - vg - pL || w(sInt, vs) + w(sDec, vs / 2f) > sR - cx - vg)) vs -= 1f
         if (cx - vg - w(pv, vs) >= pL - 2f * s) t(c, "W", xl, base, 17f * s, UNIT, true)
         if (cx + vg + w(sInt, vs) + w(sDec, vs / 2f) <= sR + 2f * s) t(c, "km/h", xr, base, 12f * s, UNIT, false, Paint.Align.RIGHT)
-        t(c, pv, cx - vg, base, vs, if (d.powerW != null) d.powerColor else NONE, true, Paint.Align.RIGHT)
-        val spCol = if (d.speedKmh != null) d.speedColor else NONE
+        t(c, pv, cx - vg, base, vs, powerCol(d), true, Paint.Align.RIGHT)
+        val spCol = if (d.speedKmh != null) WHITE else NONE
         t(c, sInt, cx + vg, base, vs, spCol, true)
         if (sDec.isNotEmpty()) {
             val ds = vs / 2f
@@ -338,13 +346,13 @@ object KokpitInstRenderer {
         val z = d.hrZone
         val showZone = d.hrShowZone && z != null
         val hrTxt = if (showZone) "Z$z" else d.hr?.toString() ?: "—"
-        val hrCol = if (showZone) col(HRZ[(z!! - 1).coerceIn(0, 4)]) else if (d.hr != null) WHITE else NONE
+        val hrCol = when { d.hr == null && !showZone -> NONE; z == 5 -> col("#F87171"); z == 4 -> col("#FACC15"); else -> WHITE }
         t(c, hrTxt, leftEdge + 28f * s, topBase, big, hrCol, true)
         // W'
         val wSize = 50f * s
         val wb = d.wbalPct
         val wTxt = wb?.toString() ?: "—"
-        val wCol = when { wb == null -> NONE; wb > 50 -> col("#4ADE80"); wb >= 20 -> col("#FACC15"); else -> col("#F87171") }
+        val wCol = when { wb == null -> NONE; wb > 50 -> WHITE; wb >= 20 -> col("#FACC15"); else -> col("#F87171") }
         t(c, wTxt, leftEdge + 2f * s, base, wSize, wCol, true)
         val pctX = leftEdge + 2f * s + w(wTxt, wSize) + 3f * s
         t(c, "%", pctX, base, 17f * s, UNIT, false)

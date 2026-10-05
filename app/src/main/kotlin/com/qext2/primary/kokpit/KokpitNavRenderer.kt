@@ -267,8 +267,11 @@ object KokpitNavRenderer {
         fp.color = MSGBG; c.drawRect(0f, 0f, W, h, fp)
         val size = h * 0.80f
         val base = h * 0.78f
-        val ac = try { Color.parseColor(d.msg.accentColor) } catch (_: Exception) { WHITE }
-        fp.color = ac; c.drawRect(8f, h * 0.2f, 12f, h * 0.8f, fp)
+        // kolor tylko dla ostrzezen (W', zjazd, deszcz, jedzenie, zmrok); informacje (nawierzchnia, podjazd, POI) biale
+        val warn = d.msg.kind == MsgKind.WPRIME || d.msg.kind == MsgKind.DESCENT || d.msg.kind == MsgKind.RAIN ||
+            d.msg.kind == MsgKind.FUEL || d.msg.kind == MsgKind.DUSK
+        val ac = if (!warn) WHITE else try { Color.parseColor(d.msg.accentColor) } catch (_: Exception) { WHITE }
+        fp.color = if (warn) ac else UNIT; c.drawRect(8f, h * 0.2f, 12f, h * 0.8f, fp)
         val parts = ArrayList<Part>()
         if (d.msg.lead.isNotEmpty()) parts.add(Part(d.msg.lead, 1f, if (d.msg.kind == MsgKind.NONE) UNIT else WHITE, false))
         if (d.msg.accent.isNotEmpty()) parts.add(Part(d.msg.accent, 1f, ac, true))

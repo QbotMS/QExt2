@@ -192,7 +192,12 @@ object KokpitNavDemo {
         val segs = listOf(92f to "#C9D2DC", 61f to "#D9A04E", 11f to "#E0563B")
         var rem = done
         val ahead = segs.mapNotNull { (len, col) -> val r = len - rem; rem = maxOf(0f, rem - len); if (r > 0f) r to col else null }
-        val m = msgs[((now / 8000L) % msgs.size).toInt()]
+        // w normie komunikaty informacyjne; co minute 10 s ostrzezenia (kolejne z listy)
+        val sec = (now / 1000L) % 60L
+        val info = msgs.filter { it.kind == MsgKind.SURFACE || it.kind == MsgKind.CLIMB || it.kind == MsgKind.POI }
+        val warns = msgs.filter { it !in info }
+        val m = if (sec >= 50L && warns.isNotEmpty()) warns[((now / 60000L) % warns.size).toInt()]
+                else info[((now / 8000L) % info.size).toInt()]
         return KokpitNavData(
             msg = m, doneKm = done, totalKm = total, leftKm = total - done,
             duskMs = now + 95 * 60_000L, etaMs = now + (((total - done) / 19f) * 3600_000f).toLong(),

@@ -150,6 +150,7 @@ class KokpitInstDataType : DataTypeImpl("qext2", "qext2-kokpit-inst") {
             gearFront = front, gearRear = rear,
             cogs = cogs, recCog = rec,
             hrShowZone = AthleteDataStore.loadHrZoneMode(),
+            powerCeilingW = pc?.takeIf { it.isActive }?.ceilingW,
         )
     }
 }
@@ -168,26 +169,28 @@ class Trend(private val threshold: Float) {
     }
 }
 
-/** Dane symulacyjne dla KOKPIT instrumenty (cykl 60 s). */
+/** Dane symulacyjne: zwykla jazda w normie; co minute 10 s stanu alarmowego (moc nad pulapem, Z5, niskie W'). */
 object KokpitInstDemo {
     private val cogs = listOf(10, 12, 14, 16, 18, 21, 24, 28, 32, 36, 42, 52)
     fun at(now: Long): KokpitInstData {
         val t = ((now / 1000L) % 60L).toFloat()
-        val f = t / 60f
-        val pw = (120 + 260 * kotlin.math.abs(kotlin.math.sin(t / 9f))).toInt()
-        val sp = 14f + 22f * kotlin.math.abs(kotlin.math.sin(t / 13f))
-        val hr = 110 + (60 * f).toInt()
-        val cad = 70 + (25 * kotlin.math.abs(kotlin.math.sin(t / 5f))).toInt()
-        val rear = cogs[(3 + (t / 6f).toInt()) % cogs.size]
+        val alarm = t >= 50f
+        val wave = kotlin.math.sin(t / 7f)
+        val pw = if (alarm) 330 else (195 + 25 * wave).toInt()
+        val sp = 24f + 4f * kotlin.math.sin(t / 11f)
+        val hr = if (alarm) 172 else (136 + 6 * wave).toInt()
+        val cad = (84 + 5 * kotlin.math.sin(t / 5f)).toInt()
+        val rear = cogs[(4 + (t / 15f).toInt()) % cogs.size]
         val ratio = hr / 165f
         val z = when { ratio < 0.81f -> 1; ratio < 0.90f -> 2; ratio < 0.95f -> 3; ratio < 1.06f -> 4; else -> 5 }
         return KokpitInstData(
-            powerW = pw, cpW = 250f, cpe5W = 214f, powerColor = if (pw > 300) android.graphics.Color.parseColor("#F87171") else android.graphics.Color.parseColor("#4ADE80"),
-            speedKmh = sp, avgSpeedKmh = 17.5f, speedColor = android.graphics.Color.parseColor("#F2C230"),
-            hr = hr, hrAvg = 128, hrZone = z, wbalPct = (100 - 90 * f).toInt(),
-            cadence = cad, cadenceAvg = 82, optCadLow = 80, optCadHigh = 95,
-            gearFront = 36, gearRear = rear, cogs = cogs, recCog = cogs.minByOrNull { kotlin.math.abs(it - rear * 87.5f / cad) },
-            cpTrend = -1, avgSpeedTrend = 1, hrAvgTrend = 1, cadAvgTrend = -1,
+            powerW = pw, cpW = 250f, cpe5W = 214f, powerColor = android.graphics.Color.WHITE,
+            speedKmh = sp, avgSpeedKmh = 23.4f, speedColor = android.graphics.Color.WHITE,
+            hr = hr, hrAvg = 134, hrZone = z, wbalPct = if (alarm) 14 else 88,
+            cadence = cad, cadenceAvg = 85, optCadLow = 80, optCadHigh = 95,
+            gearFront = 36, gearRear = rear, cogs = cogs, recCog = null,
+            cpTrend = if (alarm) -1 else 0, avgSpeedTrend = if (alarm) 0 else 1, hrAvgTrend = 0, cadAvgTrend = 0,
+            powerCeilingW = 285,
             demo = true,
         )
     }
