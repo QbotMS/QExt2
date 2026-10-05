@@ -245,9 +245,9 @@ object KokpitInstRenderer {
     private fun renderCompact(c: Canvas, d: KokpitInstData, W: Float, H: Float) {
         val s = H / 126f
         val cx = W / 2f
-        val cy = H - 4f * s
+        val cy = H - 2f * s                            // luki 2 px nizej
         val sw = 15f * s
-        val r = cy - 2f * s - sw / 2f
+        val r = (H - 4f * s) - 2f * s - sw / 2f
         val dx = 24f * (W / 474f)
         val lox = cx - dx; val rox = cx + dx           // srodki cwiartek
         val inner = r - sw / 2f
@@ -287,7 +287,7 @@ object KokpitInstRenderer {
         fp.color = col("#2A3038"); c.drawRect(cx - 1f, 30f * s, cx + 1f, H - 4f * s, fp)
 
         // --- odniesienia: "214 CP |" i "| (/) 17.5" + trendy nad etykietami
-        val g = 14f * s
+        val g = 6f * s
         val refSize = 30f * s
         val refBase = capBase(48f * s, refSize)
         val cpTxt = d.cpe5W?.let { fmt("%.0f", it) } ?: "—"
@@ -328,24 +328,16 @@ object KokpitInstRenderer {
 
         // --- lewy brzeg: serce + tetno (strefa albo bpm), srednie tetno z trendem, W' bal
         val leftEdge = 4f * s
-        val big = 44f * s
-        val topBase = capBase(2f * s, big)
+        val big = 54f * s
+        val topBase = capBase(10f * s, big)          // tetno i kadencja 8 px nizej
         heart(c, leftEdge + 2f * s, topBase - 20f * s, 22f * s)
         val z = d.hrZone
         val showZone = d.hrShowZone && z != null
         val hrTxt = if (showZone) "Z$z" else d.hr?.toString() ?: "—"
         val hrCol = if (showZone) col(HRZ[(z!! - 1).coerceIn(0, 4)]) else if (d.hr != null) WHITE else NONE
         t(c, hrTxt, leftEdge + 28f * s, topBase, big, hrCol, true)
-        val avgSize = 27f * s
-        val avgBase = capBase(48f * s, avgSize)
-        val aSym = 16f * s
-        avgSym(c, leftEdge + 4f * s, avgBase - aSym, aSym, AVGC)
-        val hrAvgTxt = d.hrAvg?.toString() ?: "—"
-        t(c, hrAvgTxt, leftEdge + 4f * s + aSym + 3f * s, avgBase, avgSize, AVGC, false)
-        val hx = leftEdge + 4f * s + aSym + 3f * s + w(hrAvgTxt, avgSize, false) + 10f * s
-        trend(c, hx, avgBase - avgSize * 0.3f, 14f * s, d.hrAvgTrend, if (d.hrAvgTrend > 0) BAD else GOOD)
         // W'
-        val wSize = 42f * s
+        val wSize = 50f * s
         val wb = d.wbalPct
         val wTxt = wb?.toString() ?: "—"
         val wCol = when { wb == null -> NONE; wb > 50 -> col("#4ADE80"); wb >= 20 -> col("#FACC15"); else -> col("#F87171") }
@@ -354,24 +346,20 @@ object KokpitInstRenderer {
         t(c, "%", pctX, base, 17f * s, UNIT, false)
         // etykieta nad "%": nie moze wejsc na luk mocy - zmniejsz czcionke, jesli trzeba
         val lblBase = base - 17f * s * 0.72f - 3f * s
-        var lblSize = 15f * s
+        var lblSize = 16f * s
         val yTop = lblBase - lblSize * 0.72f
         val rOut = r + sw / 2f
         val dyA = (cy - yTop).coerceAtMost(rOut)
         val arcX = lox - kotlin.math.sqrt(rOut * rOut - dyA * dyA) - 3f * s
-        while (lblSize > 10f && pctX + w("W′ BAL", lblSize, false) > arcX) lblSize -= 0.5f
-        t(c, "W′ BAL", pctX, lblBase, lblSize, UNIT, false)
+        while (lblSize > 10f && pctX + w("W′", lblSize, false) > arcX) lblSize -= 0.5f
+        t(c, "W′", pctX, lblBase, lblSize, UNIT, false)
 
         // --- prawy brzeg: KAD + kadencja, srednia kadencja z trendem, BIEG + bieg na cala szerokosc
         val rightEdge = W - 4f * s
         val cv = d.cadence?.toString() ?: "—"
         t(c, cv, rightEdge, topBase, big, if (d.cadence != null) WHITE else NONE, true, Paint.Align.RIGHT)
-        t(c, "KAD", rightEdge - w(cv, big) - 5f * s, topBase, 15f * s, UNIT, false, Paint.Align.RIGHT)
-        val cadAvgTxt = d.cadenceAvg?.toString() ?: "—"
-        t(c, cadAvgTxt, rightEdge, avgBase, avgSize, AVGC, false, Paint.Align.RIGHT)
-        val cSymX = rightEdge - w(cadAvgTxt, avgSize, false) - 3f * s - aSym
-        avgSym(c, cSymX, avgBase - aSym, aSym, AVGC)
-        trend(c, cSymX - 10f * s, avgBase - avgSize * 0.3f, 14f * s, d.cadAvgTrend, if (d.cadAvgTrend > 0) GOOD else BAD)
+        // etykieta KAD wyrownana do gornej krawedzi cyfr kadencji
+        t(c, "KAD", rightEdge - w(cv, big) - 5f * s, topBase - big * 0.72f + 15f * s * 0.72f, 15f * s, UNIT, false, Paint.Align.RIGHT)
         val gx0 = rox + r + sw / 2f + 4f * s
         val gx1 = W - 6f * s
         t(c, "BIEG", gx0, base - wSize * 0.72f - 4f * s, 15f * s, UNIT, false)
