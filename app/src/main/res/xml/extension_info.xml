@@ -55,4 +55,25 @@
         graphical="true"
         icon="@drawable/ic_qext2_power" />
 
+    <DataType
+        typeId="qext2-stats-live"
+        displayName="@string/qext2_stats_live_name"
+        description="@string/qext2_stats_live_desc"
+        graphical="true"
+        icon="@drawable/ic_qext2_power" />
+
+    <DataType
+        typeId="qext2-kokpit-nav-live"
+        displayName="@string/qext2_kokpit_nav_live_name"
+        description="@string/qext2_kokpit_nav_live_desc"
+        graphical="true"
+        icon="@drawable/ic_qext2_power" />
+
+    <DataType
+        typeId="qext2-kokpit-inst-live"
+        displayName="@string/qext2_kokpit_inst_live_name"
+        description="@string/qext2_kokpit_inst_live_desc"
+        graphical="true"
+        icon="@drawable/ic_qext2_power" />
+
 </ExtensionInfo>

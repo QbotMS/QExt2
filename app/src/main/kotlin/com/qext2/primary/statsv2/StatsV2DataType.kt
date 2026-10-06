@@ -38,7 +38,8 @@ private const val TAG = "QExt2StatsV2"
  */
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @Keep
-class StatsV2DataType : DataTypeImpl("qext2", "qext2-stats-v2") {
+/** forceLive = wersja produkcyjna: zawsze dane z jazdy (bez demo). */
+class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: Boolean = false) : DataTypeImpl("qext2", typeId) {
 
     override fun startStream(emitter: Emitter<StreamState>) {
         emitter.onNext(StreamState.Streaming(DataPoint(dataTypeId = dataTypeId, values = emptyMap())))
@@ -56,7 +57,7 @@ class StatsV2DataType : DataTypeImpl("qext2", "qext2-stats-v2") {
         emitter.updateView(RemoteViews(context.packageName, R.layout.field_stats_v2))
 
         scope.launch {
-            if (AthleteDataStore.loadStatsV2Demo()) {
+            if (!forceLive && AthleteDataStore.loadStatsV2Demo()) {
                 Log.i(TAG, "QEXT_STATS_V2_DEMO on")
                 while (isActive) {
                     val bmp = try {

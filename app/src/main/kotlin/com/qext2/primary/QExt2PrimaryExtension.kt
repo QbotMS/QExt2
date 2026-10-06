@@ -199,7 +199,11 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         }
     }
 
-    private val _types: List<DataTypeImpl> = listOf(CompositePrimaryDataType(), CompositeActiveDataType(), BpActiveStaticDataType(), StatsDataType(), com.qext2.primary.statsv2.StatsV2DataType(), com.qext2.primary.kokpit.KokpitNavDataType(), com.qext2.primary.kokpit.KokpitInstDataType())
+    private val _types: List<DataTypeImpl> = listOf(CompositePrimaryDataType(), CompositeActiveDataType(), BpActiveStaticDataType(), StatsDataType(), com.qext2.primary.statsv2.StatsV2DataType(), com.qext2.primary.kokpit.KokpitNavDataType(), com.qext2.primary.kokpit.KokpitInstDataType(),
+        // wersje produkcyjne (zawsze dane z jazdy) obok testowych z demo
+        com.qext2.primary.statsv2.StatsV2DataType("qext2-stats-live", forceLive = true),
+        com.qext2.primary.kokpit.KokpitNavDataType("qext2-kokpit-nav-live", forceLive = true),
+        com.qext2.primary.kokpit.KokpitInstDataType("qext2-kokpit-inst-live", forceLive = true))
     override val types: List<DataTypeImpl> get() = _types
 
     override fun startFit(emitter: Emitter<FitEffect>) {

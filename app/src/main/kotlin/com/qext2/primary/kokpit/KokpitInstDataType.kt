@@ -38,7 +38,8 @@ private const val TAG = "QExt2KokpitInst"
  */
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @Keep
-class KokpitInstDataType : DataTypeImpl("qext2", "qext2-kokpit-inst") {
+/** forceLive = wersja produkcyjna: zawsze dane z jazdy (bez demo). */
+class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val forceLive: Boolean = false) : DataTypeImpl("qext2", typeId) {
 
     override fun startStream(emitter: Emitter<StreamState>) {
         emitter.onNext(StreamState.Streaming(DataPoint(dataTypeId = dataTypeId, values = emptyMap())))
@@ -71,7 +72,7 @@ class KokpitInstDataType : DataTypeImpl("qext2", "qext2-kokpit-inst") {
         var hrN = 0L
 
         scope.launch {
-            if (AthleteDataStore.loadStatsV2Demo()) {
+            if (!forceLive && AthleteDataStore.loadStatsV2Demo()) {
                 while (isActive) {
                     emit(KokpitInstDemo.at(System.currentTimeMillis()))
                     delay(1000L)

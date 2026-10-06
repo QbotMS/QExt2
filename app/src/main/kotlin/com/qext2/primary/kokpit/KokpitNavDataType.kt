@@ -40,7 +40,8 @@ private const val TAG = "QExt2KokpitNav"
  */
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @Keep
-class KokpitNavDataType : DataTypeImpl("qext2", "qext2-kokpit-nav") {
+/** forceLive = wersja produkcyjna: zawsze dane z jazdy (bez demo). */
+class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLive: Boolean = false) : DataTypeImpl("qext2", typeId) {
 
     override fun startStream(emitter: Emitter<StreamState>) {
         emitter.onNext(StreamState.Streaming(DataPoint(dataTypeId = dataTypeId, values = emptyMap())))
@@ -69,7 +70,7 @@ class KokpitNavDataType : DataTypeImpl("qext2", "qext2-kokpit-nav") {
         }
 
         scope.launch {
-            if (AthleteDataStore.loadStatsV2Demo()) {
+            if (!forceLive && AthleteDataStore.loadStatsV2Demo()) {
                 while (isActive) {
                     val d = withContext(Dispatchers.Default) { KokpitNavDemo.at(System.currentTimeMillis()) }
                     emit(d)
