@@ -258,8 +258,9 @@ object KokpitInstRenderer {
         val cx = W / 2f
         val cy = H - 2f * s                            // luki 2 px nizej
         val sw = 15f * s
-        val r = (H - 4f * s) - 2f * s - sw / 2f
         val dx = 24f * (W / 474f)
+        // promien z wysokosci, ale nie wiekszy niz pozwala szerokosc (boki min. 96 px na tetno/W'/kadencje/bieg)
+        val r = minOf((H - 4f * s) - 2f * s - sw / 2f, W / 2f - dx - sw / 2f - 96f * (W / 474f))
         val lox = cx - dx; val rox = cx + dx           // srodki cwiartek
         val inner = r - sw / 2f
         val ovL = RectF(lox - r, cy - r, lox + r, cy + r)
@@ -357,7 +358,17 @@ object KokpitInstRenderer {
         val wb = d.wbalPct
         val wTxt = wb?.toString() ?: "—"
         // 3 cyfry (100%) mniejsze, zeby "%" i "W'" nie wchodzily na luk mocy
-        val wSize = if (wTxt.length >= 3) 40f * s else 50f * s
+        var wSize = 50f * s
+        run {
+            val rOut = r + sw / 2f
+            while (wSize > 20f) {
+                val yTop = base - wSize * 0.72f
+                val dyA = (cy - yTop).coerceIn(0f, rOut)
+                val arcX = lox - kotlin.math.sqrt(rOut * rOut - dyA * dyA)
+                if (leftEdge + 2f * s + w(wTxt, wSize) + 6f * s <= arcX) break
+                wSize -= 1f
+            }
+        }
         val wCol = when { wb == null -> NONE; wb > 50 -> WHITE; wb >= 20 -> col("#FACC15"); else -> col("#FF8C8C") }
         t(c, wTxt, leftEdge + 2f * s, base, wSize, wCol, true)
         val pctX = leftEdge + 2f * s + w(wTxt, wSize) + 3f * s
