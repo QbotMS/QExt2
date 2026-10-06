@@ -128,6 +128,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val headwindLoggedMsRef = AtomicReference(0L)
     private val karooAvgSpeedKmhRef = AtomicReference(0.0)
     private val temperatureUpdatedMsRef = AtomicReference(0L)
+    private val resumedRef = AtomicReference(false)
+    private val resumedDistanceRef = AtomicReference(0.0)
+    private val resumeValidatedRef = java.util.concurrent.atomic.AtomicBoolean(false)
     private val maxHrRef = AtomicReference(180)
     private val todayFactorRef = AtomicReference(1.0f)
     // Surowa wartosc + znacznik pobrania: todayFactorRef jest z nich PRZELICZANY co tick
@@ -317,6 +320,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         val (savedElapsed, savedDistance) = AthleteDataStore.loadElapsedSnapshot()
         val resume = savedElapsed > 0L &&
             AthleteDataStore.elapsedSnapshotAgeMs() < 6L * 60 * 60 * 1000
+        // przywrocenie potwierdzamy pierwszym odczytem dystansu z Karoo (nowa jazda w Karoo = ok. 0 km)
+        resumedRef.set(resume); resumedDistanceRef.set(savedDistance); resumeValidatedRef.set(false)
         if (savedElapsed > 0L && !resume) {
             Log.w(TAG, "QEXT_SNAPSHOT_STALE_IGNORED elapsed=${savedElapsed}s — clean start")
             AthleteDataStore.saveElapsedSnapshot(0L, 0.0)
@@ -396,7 +401,16 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     if (s is StreamState.Streaming) {
                         val v = s.dataPoint.values[DataType.Field.DISTANCE] as? Double
                             ?: s.dataPoint.singleValue
-                        if (v != null) distanceMetersRef.set(v)
+                        if (v != null) {
+                            // decyzja po 15 s od startu (Karoo po restarcie moze chwile podawac 0, zanim wczyta swoja jazde)
+                            if (resumedRef.get() && System.currentTimeMillis() - rideStartMsRef.get() >= 15_000L &&
+                                resumeValidatedRef.compareAndSet(false, true)) {
+                                val saved = resumedDistanceRef.get()
+                                // Karoo ma nowa jazde (ok. 0 km), a zapis QExt2 ma dystans poprzedniej -> nie przywracaj
+                                if (saved > 1000.0 && v < 300.0) discardResumedRide(v, saved)
+                            }
+                            distanceMetersRef.set(v)
+                        }
                     }
                 }
             )
@@ -1360,6 +1374,24 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         hrBuffer.clear()
         hrAdvisor.reset()
         etaMovingSpeedHistory.clear()
+    }
+
+    /** Zapis QExt2 nalezal do poprzedniej jazdy (Karoo zaczelo nowa) - wszystko od zera. */
+    private fun discardResumedRide(karooDistM: Double, savedDistM: Double) {
+        Log.i(TAG, "QEXT_RESUME_DISCARDED karoo=${karooDistM.toInt()}m saved=${savedDistM.toInt()}m - nowa jazda w Karoo")
+        com.qext2.primary.util.RideFileLog.append("RESUME_DISCARDED karoo=${karooDistM.toInt()}m saved=${savedDistM.toInt()}m")
+        resumedRef.set(false)
+        AthleteDataStore.saveElapsedSnapshot(0L, 0.0)
+        rideStartWallMsRef.set(System.currentTimeMillis())
+        movingElapsedSecRef.set(0L)
+        navRouteActiveRef.set(false)
+        distanceToDestinationMetersRef.set(0.0)
+        carbNeededTotalGRef.set(0.0)
+        carbBalanceGRef.set(0)
+        AthleteDataStore.resetCarbSessionState()
+        statsCalc.reset()
+        statsCalc.captureStartReserve()
+        com.qext2.primary.statsv2.RideWindows.reset()
     }
 
     fun updateAthleteData(data: AthleteData) {
