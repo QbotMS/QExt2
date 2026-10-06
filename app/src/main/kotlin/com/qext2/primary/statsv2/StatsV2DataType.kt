@@ -170,6 +170,7 @@ class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: 
             winNp = RideWindows.snapshot().first.map { it.np },
             winEf = RideWindows.snapshot().first.map { it.ef },
             winPartial = RideWindows.snapshot().second,
+            typEf = RideWindows.typEf,
             cpW = s.cpEffW.takeIf { it > 0f },
             ahead = if (s.hasRoute && SurfaceBridge.hasProfile()) SurfaceBridge.segmentsSnapshot().sortedBy { it.kmStart }
                 .filter { it.kmEnd > s.distanceKm }

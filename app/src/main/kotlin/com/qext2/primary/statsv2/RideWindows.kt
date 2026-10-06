@@ -11,6 +11,9 @@ object RideWindows {
 
     data class Win(val np: Int, val ef: Float?)
 
+    /** Typowe EF z QBota (/api/ef/typical); null = brak danych. */
+    @Volatile var typEf: Float? = null
+
     private val done = ArrayList<Win>()
     private val roll = ArrayDeque<Int>()
     private var rollSum = 0L

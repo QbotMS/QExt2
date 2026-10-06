@@ -82,6 +82,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         )
         _surfaceCache = surfaceCache
         com.qext2.primary.surface.SurfaceBridge.init(surfaceCache)
+        fetchTypicalEf()
         val system = KarooSystemService(this)
         _karooSystem = system
         _karooSystemFlow.value = system
@@ -93,6 +94,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                         _aggregatorFlow.value = _aggregator
                         // STATS v2 PRZEBIEG: okna 5 min (NP, EF) karmione co ~1 s
                         com.qext2.primary.statsv2.RideWindows.reset()
+                        if (com.qext2.primary.statsv2.RideWindows.typEf == null) fetchTypicalEf()
                         windowsJob?.cancel()
                         _aggregator?.let { a ->
                             windowsJob = serviceScope.launch {
@@ -276,6 +278,26 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
      * Wołane gdy OnNavigationState się zmienia (z aggregatora lub zewnętrznie).
      * Czyści cache i fetchuje profil nawierzchni dla nowej trasy.
      */
+    /** STATS v2 PRZEBIEG: typowe EF z QBota (mediana 90 dni). Bledy ciche - linia "typ." po prostu sie nie pokaze. */
+    private fun fetchTypicalEf() {
+        try {
+            karooHttpGet("${BuildConfig.QBOT_BASE_URL}/api/ef/typical", mapOf("Authorization" to "Bearer ${BuildConfig.QBOT_BEARER}")) { code, body ->
+                if (code == 200 && body != null) {
+                    try {
+                        val o = org.json.JSONObject(body)
+                        val ef = if (o.isNull("ef")) null else o.getDouble("ef").toFloat()
+                        com.qext2.primary.statsv2.RideWindows.typEf = ef
+                        android.util.Log.i("QExt2Primary", "QEXT_EF_TYPICAL ef=$ef n=${o.optInt("n")}")
+                    } catch (e: Exception) {
+                        android.util.Log.w("QExt2Primary", "QEXT_EF_TYPICAL parse_error msg=${e.message}")
+                    }
+                } else android.util.Log.w("QExt2Primary", "QEXT_EF_TYPICAL failed status=$code")
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("QExt2Primary", "QEXT_EF_TYPICAL crash msg=${e.message}")
+        }
+    }
+
     private fun karooHttpGet(
         url: String,
         headers: Map<String, String>,
