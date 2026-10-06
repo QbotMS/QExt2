@@ -354,9 +354,10 @@ object KokpitInstRenderer {
         val hrCol = when { d.hr == null && !showZone -> NONE; z == 5 -> col("#F87171"); z == 4 -> col("#FACC15"); else -> WHITE }
         t(c, hrTxt, leftEdge + 28f * s, topBase, big, hrCol, true)
         // W'
-        val wSize = 50f * s
         val wb = d.wbalPct
         val wTxt = wb?.toString() ?: "—"
+        // 3 cyfry (100%) mniejsze, zeby "%" i "W'" nie wchodzily na luk mocy
+        val wSize = if (wTxt.length >= 3) 40f * s else 50f * s
         val wCol = when { wb == null -> NONE; wb > 50 -> WHITE; wb >= 20 -> col("#FACC15"); else -> col("#F87171") }
         t(c, wTxt, leftEdge + 2f * s, base, wSize, wCol, true)
         val pctX = leftEdge + 2f * s + w(wTxt, wSize) + 3f * s
@@ -379,9 +380,10 @@ object KokpitInstRenderer {
         t(c, "KAD", rightEdge - w(cv, big) - 5f * s, topBase - big * 0.72f + 15f * s * 0.72f, 15f * s, UNIT, false, Paint.Align.RIGHT)
         val gx0 = rox + r + sw / 2f + 4f * s
         val gx1 = W - 6f * s
-        t(c, "BIEG", gx0, base - wSize * 0.72f - 4f * s, 15f * s, UNIT, false)
+        val gSize = 50f * s                            // bieg zawsze tej samej wielkosci
+        t(c, "BIEG", gx0, base - gSize * 0.72f - 4f * s, 15f * s, UNIT, false)
         val gtxt = if (d.gearFront != null && d.gearRear != null) "${d.gearFront}×${d.gearRear}" else "—"
-        tp.typeface = bold; tp.textSize = wSize; tp.textAlign = Paint.Align.LEFT; tp.color = if (d.gearRear != null) WHITE else NONE
+        tp.typeface = bold; tp.textSize = gSize; tp.textAlign = Paint.Align.LEFT; tp.color = if (d.gearRear != null) WHITE else NONE
         val nat = tp.measureText(gtxt)
         tp.textScaleX = if (nat > 0f) ((gx1 - gx0) / nat).coerceIn(0.5f, 1.6f) else 1f
         c.drawText(gtxt, gx0, base, tp)

@@ -139,7 +139,7 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
             cpe5W = s.cpEffLinW.takeIf { it > 0f },
             powerColor = p.powerColor,
             speedKmh = speed,
-            avgSpeedKmh = if (s.movingElapsedSec > 60L) s.distanceKm / (s.movingElapsedSec / 3600f) else null,
+            avgSpeedKmh = (if (s.movingElapsedSec > 60L) s.distanceKm / (s.movingElapsedSec / 3600f) else null)?.takeIf { it >= 1f },
             speedColor = p.speedColor,
             hr = hr,
             hrAvg = hrAvg,
