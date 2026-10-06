@@ -181,12 +181,12 @@ object KokpitNavDemo {
     private val msgs = listOf(
         RouteMsg(MsgKind.SURFACE, "za 1,2 km:", "szuter 3,4 km", "#D9A04E"),
         RouteMsg(MsgKind.CLIMB, "za 2,1 km: podjazd", "1,8 km · 6%", "#FB923C"),
-        RouteMsg(MsgKind.DESCENT, "za 0,8 km: zjazd", "-9% szuter", "#F87171"),
+        RouteMsg(MsgKind.DESCENT, "za 0,8 km: zjazd", "-9% szuter", "#FF8C8C"),
         RouteMsg(MsgKind.RAIN, "deszcz za 20 min:", "60%", "#60A5FA"),
         RouteMsg(MsgKind.FUEL, "zjedz:", "-35 g", "#E9A23B"),
-        RouteMsg(MsgKind.DUSK, "meta po zmroku:", "zmrok 18:42", "#F87171"),
+        RouteMsg(MsgKind.DUSK, "meta po zmroku:", "zmrok 18:42", "#FF8C8C"),
         RouteMsg(MsgKind.POI, "za 1,4 km: sklep", "Biedronka · 05:00–23:00", "#4ADE80"),
-        RouteMsg(MsgKind.WPRIME, "W′ 32%:", "BOMBA 1:45", "#F87171"),
+        RouteMsg(MsgKind.WPRIME, "W′ 32%:", "BOMBA 1:45", "#FF8C8C"),
     )
     fun at(now: Long): KokpitNavData {
         val t = ((now / 1000L) % 120L).toFloat(); val f = t / 120f

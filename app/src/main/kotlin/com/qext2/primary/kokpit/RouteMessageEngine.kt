@@ -88,7 +88,7 @@ object RouteMessageEngine {
     fun candidates(i: RouteMsgInput): List<RouteMsg> {
         val out = ArrayList<RouteMsg>()
         // 0. W' (najwyzszy priorytet - wymaga natychmiastowej reakcji)
-        i.wprime?.let { wp -> out.add(RouteMsg(MsgKind.WPRIME, "W′ ${wp.pct}%:", wp.state, if (wp.critical) "#F87171" else "#FB923C")) }
+        i.wprime?.let { wp -> out.add(RouteMsg(MsgKind.WPRIME, "W′ ${wp.pct}%:", wp.state, if (wp.critical) "#FF8C8C" else "#FB923C")) }
         // 1. pilne
         val rn = i.rainNowMmH
         if (rn != null && rn >= 0.1f) out.add(RouteMsg(MsgKind.RAIN, "pada:", String.format(java.util.Locale.US, "%.1f mm/h", rn).replace('.', ','), "#60A5FA"))
@@ -97,7 +97,7 @@ object RouteMessageEngine {
             if (rs != null) {
                 val where = if (rs.kmAhead >= 0.5f) " (${km(rs.kmAhead)} km)" else ""
                 when (rs.kind) {
-                    "STORM" -> if (rs.minutes <= 60) out.add(RouteMsg(MsgKind.RAIN, "burza za ${rs.minutes} min$where:", "${rs.probPct}%", "#F87171"))
+                    "STORM" -> if (rs.minutes <= 60) out.add(RouteMsg(MsgKind.RAIN, "burza za ${rs.minutes} min$where:", "${rs.probPct}%", "#FF8C8C"))
                     "SNOW" -> if (rs.minutes <= RAIN_SOON_MIN) out.add(RouteMsg(MsgKind.RAIN, "śnieg za ${rs.minutes} min$where:", "${rs.probPct}%", "#BFDBFE"))
                     "FOG" -> {}
                     else -> if (rs.minutes in 0..RAIN_SOON_MIN && rs.probPct >= 40) out.add(RouteMsg(MsgKind.RAIN, "deszcz za ${rs.minutes} min$where:", "${rs.probPct}%", "#60A5FA"))
@@ -108,7 +108,7 @@ object RouteMessageEngine {
         if (cb != null && cb <= FUEL_ALERT_G) out.add(RouteMsg(MsgKind.FUEL, "zjedz:", "${cb} g", "#E9A23B"))
         if (i.duskMs > 0L && i.duskMs > i.nowMs) {
             val toDusk = ((i.duskMs - i.nowMs) / 60000L).toInt()
-            if (i.etaMs > i.duskMs) out.add(RouteMsg(MsgKind.DUSK, "meta po zmroku:", "zmrok ${clock(i.duskMs)}", "#F87171"))
+            if (i.etaMs > i.duskMs) out.add(RouteMsg(MsgKind.DUSK, "meta po zmroku:", "zmrok ${clock(i.duskMs)}", "#FF8C8C"))
             else if (toDusk in 0..DUSK_WARN_MIN) out.add(RouteMsg(MsgKind.DUSK, "do zmroku:", "$toDusk min", "#FB923C"))
         }
         if (!i.hasRoute) { if (out.isEmpty()) out.add(RouteMsg(MsgKind.NONE, "brak trasy", "", "#9AA5B1")); return out }
@@ -118,7 +118,7 @@ object RouteMessageEngine {
             if (d.distAheadKm <= NEAR_KM) {
                 val s = surfaceAt(i.surfaces, i.posKm + d.distAheadKm)
                 val tail = if (s != null && s != SurfClass.PAVED) " ${surfName(s)}" else ""
-                near.add(d.distAheadKm to RouteMsg(MsgKind.DESCENT, "za ${km(d.distAheadKm)} km: zjazd", "${d.gradePct.roundToInt()}%$tail", "#F87171"))
+                near.add(d.distAheadKm to RouteMsg(MsgKind.DESCENT, "za ${km(d.distAheadKm)} km: zjazd", "${d.gradePct.roundToInt()}%$tail", "#FF8C8C"))
             }
         }
         val c = nextClimb(i.climbs, i.posKm)

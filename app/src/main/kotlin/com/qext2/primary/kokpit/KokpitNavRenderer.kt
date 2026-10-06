@@ -48,12 +48,12 @@ object KokpitNavRenderer {
     private val MSGBG = Color.parseColor("#1E2731")
     private val LBL = Color.parseColor("#AEB8C4")
     private val UNIT = Color.parseColor("#9AA5B1")
-    private val NONE = Color.parseColor("#6B7682")
+    private val NONE = Color.parseColor("#9AA3AE")
     private val WHITE = Color.WHITE
-    private val TRACK = Color.parseColor("#2B3542")
-    private val DONE = Color.parseColor("#3E7CB1")
+    private val TRACK = Color.parseColor("#465366")
+    private val DONE = Color.parseColor("#5B9BE0")
     private val ORANGE = Color.parseColor("#FB923C")
-    private val RED = Color.parseColor("#F87171")
+    private val RED = Color.parseColor("#FF8C8C")
     private val BLUE = Color.parseColor("#60A5FA")
     private val DARK = Color.parseColor("#111315")
 
@@ -238,7 +238,7 @@ object KokpitNavRenderer {
     }
 
     private fun gradeColor(g: Float): Int = when {
-        g <= -8f -> Color.parseColor("#3B4BA8"); g <= -5f -> Color.parseColor("#3E7CB1"); g <= -2f -> Color.parseColor("#2DD4BF")
+        g <= -8f -> Color.parseColor("#3B4BA8"); g <= -5f -> Color.parseColor("#5B9BE0"); g <= -2f -> Color.parseColor("#2DD4BF")
         g < 1f -> Color.parseColor("#9AA5B1"); g < 2f -> Color.parseColor("#86EFAC"); g < 5f -> Color.parseColor("#22C55E")
         g < 8f -> Color.parseColor("#EAB308"); g < 11f -> Color.parseColor("#FDBA74"); g < 14f -> Color.parseColor("#F97316")
         g < 20f -> Color.parseColor("#EF4444"); else -> Color.parseColor("#A855F7")

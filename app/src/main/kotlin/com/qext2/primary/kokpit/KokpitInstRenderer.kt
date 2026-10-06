@@ -55,18 +55,18 @@ object KokpitInstRenderer {
     private val BG = Color.parseColor("#14181D")
     private val LBL = Color.parseColor("#D5DCE3")
     private val UNIT = Color.parseColor("#9AA5B1")
-    private val AVG = Color.parseColor("#7C8794")
-    private val NONE = Color.parseColor("#6B7682")
-    private val TRACK = Color.parseColor("#2B3542")
+    private val AVG = Color.parseColor("#A3ADB8")
+    private val NONE = Color.parseColor("#9AA3AE")
+    private val TRACK = Color.parseColor("#465366")
     private val DARK = Color.parseColor("#111315")
     private val YEL = Color.parseColor("#F2C230")
     private val WHITE = Color.WHITE
 
-    private val PZ = listOf(0.00f to "#6B7280", 0.55f to "#3B82F6", 0.75f to "#22C55E", 0.90f to "#EAB308", 1.05f to "#F97316", 1.20f to "#EF4444")
+    private val PZ = listOf(0.00f to "#9AA3AE", 0.55f to "#6FA8FF", 0.75f to "#22C55E", 0.90f to "#EAB308", 1.05f to "#F97316", 1.20f to "#EF4444")
     private const val PMAX = 1.5f
     private const val SMAX = 45f
-    private val SZ = listOf(0f to "#4F6E80", 15f to "#3E7CB1", 25f to "#60A5FA", 35f to "#93C5FD")
-    private val HRZ = listOf("#9CA3AF", "#60A5FA", "#4ADE80", "#FACC15", "#F87171")
+    private val SZ = listOf(0f to "#4F6E80", 15f to "#5B9BE0", 25f to "#60A5FA", 35f to "#93C5FD")
+    private val HRZ = listOf("#9CA3AF", "#60A5FA", "#4ADE80", "#FACC15", "#FF8C8C")
 
     private val bold: Typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
     private val reg: Typeface = Typeface.create("sans-serif-condensed", Typeface.NORMAL)
@@ -150,12 +150,12 @@ object KokpitInstRenderer {
         arc(c, oval, 180f, 89.5f, TRACK, sw); arc(c, oval, 270.5f, 89.5f, TRACK, sw)
         for (k in PZ.indices) {
             val a0 = pAng(PZ[k].first); val a1 = pAng(if (k + 1 < PZ.size) PZ[k + 1].first else PMAX)
-            arc(c, oval, a0 + 0.5f, (a1 - a0 - 1f).coerceAtLeast(0.5f), col(PZ[k].second), sw, 82)
+            arc(c, oval, a0 + 0.5f, (a1 - a0 - 1f).coerceAtLeast(0.5f), col(PZ[k].second), sw, 115)
             if (k > 0) tick(c, cx, cy, r, sw, a0, col(PZ[k].second))
         }
         for (k in SZ.indices) {
             val a0 = sAng(SZ[k].first); val a1 = sAng(if (k + 1 < SZ.size) SZ[k + 1].first else SMAX)
-            arc(c, oval, a0 + 0.5f, (a1 - a0 - 1f).coerceAtLeast(0.5f), col(SZ[k].second), sw, 82)
+            arc(c, oval, a0 + 0.5f, (a1 - a0 - 1f).coerceAtLeast(0.5f), col(SZ[k].second), sw, 115)
             if (k > 0) tick(c, cx, cy, r, sw, a0, UNIT)
         }
         val cp = d.cpW
@@ -209,7 +209,7 @@ object KokpitInstRenderer {
     private val BLUE = Color.parseColor("#60A5FA")
     private val GOOD = Color.parseColor("#4ADE80")
     private val BAD = Color.parseColor("#FB923C")
-    private val AVGC = Color.parseColor("#7C8794")
+    private val AVGC = Color.parseColor("#A3ADB8")
     private val SUB = Color.parseColor("#C9D2DC")
 
     /** trojkat trendu: dir +1 w gore, -1 w dol; srodek (x, y), szerokosc w */
@@ -250,7 +250,7 @@ object KokpitInstRenderer {
     private fun powerCol(d: KokpitInstData): Int {
         val pw = d.powerW ?: return NONE
         val ceil = d.powerCeilingW?.takeIf { it in 1..5000 } ?: return WHITE
-        return when { pw > ceil -> col("#F87171"); pw >= ceil * 0.95f -> col("#FACC15"); else -> WHITE }
+        return when { pw > ceil -> col("#FF8C8C"); pw >= ceil * 0.95f -> col("#FACC15"); else -> WHITE }
     }
 
     private fun renderCompact(c: Canvas, d: KokpitInstData, W: Float, H: Float) {
@@ -273,11 +273,11 @@ object KokpitInstRenderer {
         fun sA(v: Float) = 360f - 90f * (v / SMAX).coerceIn(0f, 1f)             // predkosc: prawy dol -> szczyt
         for (k in PZ.indices) {
             val a0 = pA(PZ[k].first); val a1 = pA(if (k + 1 < PZ.size) PZ[k + 1].first else PMAX)
-            arc(c, ovL, a0 + 0.6f, (a1 - a0 - 1.2f).coerceAtLeast(0.5f), col(PZ[k].second), sw, 77)
+            arc(c, ovL, a0 + 0.6f, (a1 - a0 - 1.2f).coerceAtLeast(0.5f), col(PZ[k].second), sw, 115)
         }
         for (k in SZ.indices) {
             val a0 = sA(SZ[k].first); val a1 = sA(if (k + 1 < SZ.size) SZ[k + 1].first else SMAX)
-            arc(c, ovR, a0 - 0.6f, (a1 - a0 + 1.2f).coerceAtMost(-0.5f), col(SZ[k].second), sw, 77)
+            arc(c, ovR, a0 - 0.6f, (a1 - a0 + 1.2f).coerceAtMost(-0.5f), col(SZ[k].second), sw, 115)
         }
         val cp = d.cpW; val pw = d.powerW
         if (pw != null && cp != null && cp > 0f) {
@@ -302,7 +302,7 @@ object KokpitInstRenderer {
         val g = 6f * s
         val refSize = 32f * s
         val refBase = capBase(39f * s, refSize)
-        fun trendCol(t: Int) = when { t > 0 -> GOOD; t < 0 -> col("#F87171"); else -> SUB }
+        fun trendCol(t: Int) = when { t > 0 -> GOOD; t < 0 -> col("#FF8C8C"); else -> SUB }
         val cpTxt = d.cpe5W?.let { fmt("%.0f", it) } ?: "—"
         t(c, cpTxt, cx - g, refBase, refSize, WHITE, true, Paint.Align.RIGHT)
         val cpLX = cx - g - w(cpTxt, refSize) - 2f * s     // CP/5 blizej wartosci
@@ -347,18 +347,18 @@ object KokpitInstRenderer {
         val leftEdge = 4f * s
         val big = 54f * s
         val topBase = capBase(10f * s, big)          // tetno i kadencja 8 px nizej
-        heart(c, leftEdge + 2f * s, topBase - 20f * s, 22f * s, when (d.hrDriftLevel) { 2 -> col("#F87171"); 1 -> col("#FB923C"); else -> WHITE })
+        heart(c, leftEdge + 2f * s, topBase - 20f * s, 22f * s, when (d.hrDriftLevel) { 2 -> col("#FF8C8C"); 1 -> col("#FB923C"); else -> WHITE })
         val z = d.hrZone
         val showZone = d.hrShowZone && z != null
         val hrTxt = if (showZone) "Z$z" else d.hr?.toString() ?: "—"
-        val hrCol = when { d.hr == null && !showZone -> NONE; z == 5 -> col("#F87171"); z == 4 -> col("#FACC15"); else -> WHITE }
+        val hrCol = when { d.hr == null && !showZone -> NONE; z == 5 -> col("#FF8C8C"); z == 4 -> col("#FACC15"); else -> WHITE }
         t(c, hrTxt, leftEdge + 28f * s, topBase, big, hrCol, true)
         // W'
         val wb = d.wbalPct
         val wTxt = wb?.toString() ?: "—"
         // 3 cyfry (100%) mniejsze, zeby "%" i "W'" nie wchodzily na luk mocy
         val wSize = if (wTxt.length >= 3) 40f * s else 50f * s
-        val wCol = when { wb == null -> NONE; wb > 50 -> WHITE; wb >= 20 -> col("#FACC15"); else -> col("#F87171") }
+        val wCol = when { wb == null -> NONE; wb > 50 -> WHITE; wb >= 20 -> col("#FACC15"); else -> col("#FF8C8C") }
         t(c, wTxt, leftEdge + 2f * s, base, wSize, wCol, true)
         val pctX = leftEdge + 2f * s + w(wTxt, wSize) + 3f * s
         t(c, "%", pctX, base, 17f * s, UNIT, false)
@@ -458,7 +458,7 @@ object KokpitInstRenderer {
             val wc = when { wb > 50 -> col("#2F7D4A"); wb >= 20 -> col("#C9A227"); else -> col("#C2412D") }
             fp.color = wc; c.drawRect(bx, by + 4f, bx + bw * wb.coerceIn(0, 100) / 100f, by + 4f + bh, fp)
         }
-        val tc = when { wb == null -> NONE; wb > 50 -> col("#4ADE80"); wb >= 20 -> col("#FACC15"); else -> col("#F87171") }
+        val tc = when { wb == null -> NONE; wb > 50 -> col("#4ADE80"); wb >= 20 -> col("#FACC15"); else -> col("#FF8C8C") }
         t(c, vtxt, vx, H * 0.92f, vs, tc, true)
     }
 
@@ -514,7 +514,7 @@ object KokpitInstRenderer {
         if (wb != null) {
             val wc = when { wb > 50 -> col("#2F7D4A"); wb >= 20 -> col("#C9A227"); else -> col("#C2412D") }
             fp.color = wc; c.drawRect(x, by, x + bw * wb.coerceIn(0, 100) / 100f, by + bh, fp)
-            val tc = when { wb > 50 -> col("#4ADE80"); wb >= 20 -> col("#FACC15"); else -> col("#F87171") }
+            val tc = when { wb > 50 -> col("#4ADE80"); wb >= 20 -> col("#FACC15"); else -> col("#FF8C8C") }
             t(c, wb.toString(), x + bw + 6f, by + bh * 1.05f, H * 0.22f, tc, true)
         } else t(c, "—", x + bw + 6f, by + bh, H * 0.18f, NONE, true)
     }

@@ -66,10 +66,10 @@ object StatsV2Renderer {
     private val LABEL = Color.parseColor("#D5DCE3")
     private val UNIT = Color.parseColor("#9AA5B1")
     private val SUB = Color.parseColor("#C9D2DC")
-    private val NONE = Color.parseColor("#6B7682")
+    private val NONE = Color.parseColor("#9AA3AE")
     private val WHITE = Color.WHITE
     private val PILL = Color.parseColor("#111315")
-    private val TRACK = Color.parseColor("#2B3542")
+    private val TRACK = Color.parseColor("#465366")
     private val AMBER = Color.parseColor("#F59E0B")
 
     // --- ikony (Barberfish, Apache 2.0; siatka 38x38) i Material Symbols (960)
@@ -270,7 +270,7 @@ object StatsV2Renderer {
     // ---------------------------------------------------------------- moduly
     private fun zoneColor(z: Int?): Int = when (z) {
         1 -> Color.parseColor("#9CA3AF"); 2 -> Color.parseColor("#60A5FA"); 3 -> Color.parseColor("#4ADE80")
-        4 -> Color.parseColor("#FACC15"); 5 -> Color.parseColor("#FB923C"); 6 -> Color.parseColor("#F87171")
+        4 -> Color.parseColor("#FACC15"); 5 -> Color.parseColor("#FB923C"); 6 -> Color.parseColor("#FF8C8C")
         else -> WHITE
     }
 
@@ -278,7 +278,7 @@ object StatsV2Renderer {
         vi == null || vi <= 1.05f -> WHITE
         vi < 1.10f -> Color.parseColor("#FACC15")
         vi < 1.20f -> Color.parseColor("#FB923C")
-        else -> Color.parseColor("#F87171")
+        else -> Color.parseColor("#FF8C8C")
     }
 
     private fun drawNp(c: Canvas, r: RectF, d: StatsV2Data) {
@@ -370,7 +370,7 @@ object StatsV2Renderer {
         if (d.hasRoute && total != null && total > 0f) {
             val frac = (d.doneKm / total).coerceIn(0f, 1f)
             val fx = l + (rr - l) * frac
-            fp.color = Color.parseColor("#3E7CB1"); c.drawRect(l, bt, fx, bb, fp)
+            fp.color = Color.parseColor("#5B9BE0"); c.drawRect(l, bt, fx, bb, fp)
             // pozostala czesc wg nawierzchni (jak w KOKPIT), liczby km w odcinkach
             d.ahead?.takeIf { it.isNotEmpty() }?.let { segs ->
                 val sum = segs.sumOf { it.first.toDouble() }.toFloat().coerceAtLeast(0.001f)
@@ -456,9 +456,9 @@ object StatsV2Renderer {
     private val stp = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeJoin = Paint.Join.ROUND }
 
     private fun zoneColor5(np: Int, cp: Float?): Int {
-        if (cp == null || cp <= 0f) return Color.parseColor("#6B7280")
+        if (cp == null || cp <= 0f) return Color.parseColor("#9AA3AE")
         val q = np / cp
-        return Color.parseColor(when { q < 0.55f -> "#6B7280"; q < 0.75f -> "#3B82F6"; q < 0.90f -> "#22C55E"; q < 1.05f -> "#EAB308"; q < 1.20f -> "#F97316"; else -> "#EF4444" })
+        return Color.parseColor(when { q < 0.55f -> "#9AA3AE"; q < 0.75f -> "#6FA8FF"; q < 0.90f -> "#22C55E"; q < 1.05f -> "#EAB308"; q < 1.20f -> "#F97316"; else -> "#EF4444" })
     }
 
     /** PRZEBIEG: slupki NP okien 5 min (kolor = strefa wg CP), linia EF (biala z czarna obwodka), wiersz liczb. */
@@ -498,7 +498,7 @@ object StatsV2Renderer {
             fun yOf(e: Float) = ct + F(3f) + (cb - ct - F(6f)) * (1f - (e - lo) / (hi - lo))
             d.typEf?.let { t ->
                 val yy = yOf(t); var x = l
-                stp.color = SUB; stp.strokeWidth = F(1.5f)
+                stp.color = SUB; stp.strokeWidth = F(3f)
                 while (x < rr) { c.drawLine(x, yy, minOf(x + F(5f), rr), yy, stp); x += F(9f) }
             }
             val path = Path()
