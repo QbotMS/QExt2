@@ -58,8 +58,10 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
         emitter.updateView(RemoteViews(context.packageName, R.layout.field_stats_v2))
 
         fun emit(data: KokpitInstData) {
-            val bmp = try { KokpitInstRenderer.render(w, h, data) } catch (e: Exception) {
-                Log.w(TAG, "QEXT_KOKPIT_INST_RENDER_FAIL msg=${e.message}", e); com.qext2.primary.util.RideFileLog.append("RENDER_FAIL KOKPIT_INST msg=${e.message}"); null
+            val bmp = try { KokpitInstRenderer.render(w, h, data) } catch (e: Throwable) {
+                Log.w(TAG, "QEXT_KOKPIT_INST_RENDER_FAIL msg=${e.message}", e)
+                com.qext2.primary.util.RideFileLog.append("RENDER_FAIL KOKPIT_INST ${e.javaClass.simpleName} msg=${e.message} at=${e.stackTrace.firstOrNull()}")
+                null
             } ?: return
             val rv = RemoteViews(context.packageName, R.layout.field_stats_v2)
             rv.setImageViewBitmap(R.id.iv_stats_v2, bmp)
@@ -82,6 +84,7 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
             }
             val ext = QExt2PrimaryExtension.instance ?: return@launch
             var last: KokpitInstData? = null
+            var emits = 0
             var lastMs = 0L
             ext.aggregatorFlow
                 .flatMapLatest { agg ->
@@ -89,18 +92,26 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
                     else combine(agg.snapshot, agg.statsSnapshot) { p, s -> Triple<RideDataAggregator?, PrimaryRideSnapshot, StatsRideSnapshot>(agg, p, s) }
                 }
                 .collect { (agg, p, s) ->
+                  try {
+                    if (emits == 0) com.qext2.primary.util.RideFileLog.append("INST_FLOW first agg=${agg != null}")
                     if (p.hrFreshnessMs < 12_000L && p.hr > 40 && p.speedKmh > 3.0) { hrSum += p.hr; hrN++ }
                     val d = try { toData(agg, p, s, if (hrN > 30) (hrSum / hrN).toInt() else null).let { dd ->
                         val now = System.currentTimeMillis()
                         dd.copy(cpTrend = trCp.push(now, dd.cpe5W), avgSpeedTrend = trSpd.push(now, dd.avgSpeedKmh),
                             hrAvgTrend = trHr.push(now, dd.hrAvg?.toFloat()), cadAvgTrend = trCad.push(now, dd.cadenceAvg?.toFloat()))
-                    } } catch (e: Exception) {
-                        Log.w(TAG, "QEXT_KOKPIT_INST_DATA_FAIL msg=${e.message}"); null
+                    } } catch (e: Throwable) {
+                        Log.w(TAG, "QEXT_KOKPIT_INST_DATA_FAIL msg=${e.message}")
+                        com.qext2.primary.util.RideFileLog.append("DATA_FAIL KOKPIT_INST ${e.javaClass.simpleName} msg=${e.message} at=${e.stackTrace.firstOrNull()}")
+                        null
                     } ?: return@collect
                     val now = System.currentTimeMillis()
                     if (d == last || now - lastMs < 500L) return@collect
                     last = d; lastMs = now
                     emit(d)
+                    if (emits++ == 0) com.qext2.primary.util.RideFileLog.append("INST_EMIT first power=${d.powerW} cp=${d.cpW}")
+                  } catch (e: Throwable) {
+                    com.qext2.primary.util.RideFileLog.append("FLOW_FAIL KOKPIT_INST ${e.javaClass.simpleName} msg=${e.message} at=${e.stackTrace.firstOrNull()}")
+                  }
                 }
         }
         emitter.setCancellable {

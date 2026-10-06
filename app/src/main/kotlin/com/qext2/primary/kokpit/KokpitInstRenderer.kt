@@ -302,7 +302,7 @@ object KokpitInstRenderer {
             needle(c, lox, cy, r, sw, pA(ratio))
         }
         d.speedKmh?.let { v ->
-            arc(c, ovR, 360f, sA(v) - 360f, BLUE, sw)
+            arc(c, ovR, 360f, sA(v) - 360f, col("#FB923C"), sw)   // pomaranczowe - kontrastowe na szarym torze
             d.avgSpeedKmh?.takeIf { it > 0f }?.let { markLine(c, rox, cy, r, sw, sA(it), YEL) }
             needle(c, rox, cy, r, sw, sA(v))
         }
