@@ -90,7 +90,16 @@ object KokpitInstRenderer {
         val bmp = Bitmap.createBitmap(W.toInt(), H.toInt(), Bitmap.Config.RGB_565)
         val c = Canvas(bmp)
         c.drawColor(BG)
-        if (H < 170f) { renderCompact(c, d, W, H); return bmp }
+        if (H < 170f) {
+            // uklad z mockupu (474x126) skalowany jednolicie; nadmiar wysokosci (np. pole 143 px) jako margines,
+            // zeby luki nie rosly szerzej niz pozwalaja boki
+            val sc = minOf(H / 126f, W / 474f)
+            val hc = 126f * sc
+            c.save(); c.translate(0f, (H - hc) / 2f)
+            renderCompact(c, d, W, hc)
+            c.restore()
+            return bmp
+        }
         val cx = W / 2f
         val sw = (H * 0.10f).coerceIn(10f, 18f)          // grubosc luku
         val r = min(H - sw / 2f - 8f, W * 0.245f)         // promien (srodek luku)
@@ -260,7 +269,7 @@ object KokpitInstRenderer {
         val sw = 15f * s
         val dx = 24f * (W / 474f)
         // promien z wysokosci, ale nie wiekszy niz pozwala szerokosc (boki min. 96 px na tetno/W'/kadencje/bieg)
-        val r = minOf((H - 4f * s) - 2f * s - sw / 2f, W / 2f - dx - sw / 2f - 96f * (W / 474f))
+        val r = minOf((H - 4f * s) - 2f * s - sw / 2f, W / 2f - dx - sw / 2f - 92f * (W / 474f))
         val lox = cx - dx; val rox = cx + dx           // srodki cwiartek
         val inner = r - sw / 2f
         val ovL = RectF(lox - r, cy - r, lox + r, cy + r)
