@@ -53,12 +53,13 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
         val w = config.viewSize.first.coerceAtLeast(200)
         val h = config.viewSize.second.coerceAtLeast(80)
         Log.i(TAG, "QEXT_KOKPIT_INST_VIEW size=${w}x$h")
+        com.qext2.primary.util.RideFileLog.append("VIEW KOKPIT_INST type=$dataTypeId size=${w}x$h")
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         emitter.updateView(RemoteViews(context.packageName, R.layout.field_stats_v2))
 
         fun emit(data: KokpitInstData) {
             val bmp = try { KokpitInstRenderer.render(w, h, data) } catch (e: Exception) {
-                Log.w(TAG, "QEXT_KOKPIT_INST_RENDER_FAIL msg=${e.message}", e); null
+                Log.w(TAG, "QEXT_KOKPIT_INST_RENDER_FAIL msg=${e.message}", e); com.qext2.primary.util.RideFileLog.append("RENDER_FAIL KOKPIT_INST msg=${e.message}"); null
             } ?: return
             val rv = RemoteViews(context.packageName, R.layout.field_stats_v2)
             rv.setImageViewBitmap(R.id.iv_stats_v2, bmp)
@@ -139,7 +140,8 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
             cpe5W = s.cpEffLinW.takeIf { it > 0f },
             powerColor = p.powerColor,
             speedKmh = speed,
-            avgSpeedKmh = (if (s.movingElapsedSec > 60L) s.distanceKm / (s.movingElapsedSec / 3600f) else null)?.takeIf { it >= 1f },
+            avgSpeedKmh = (agg?.getKarooAvgSpeedKmh()?.toFloat()?.takeIf { it > 0f }
+                ?: (if (s.movingElapsedSec > 60L) s.distanceKm / (s.movingElapsedSec / 3600f) else null))?.takeIf { it >= 1f },
             speedColor = p.speedColor,
             hr = hr,
             hrAvg = hrAvg,

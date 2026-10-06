@@ -125,6 +125,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val headwindDirDegRef = AtomicReference<Double?>(null)
     private val headwindSpeedMpsRef = AtomicReference<Double?>(null)
     private val headwindUpdatedMsRef = AtomicReference(0L)
+    private val headwindLoggedMsRef = AtomicReference(0L)
+    private val karooAvgSpeedKmhRef = AtomicReference(0.0)
     private val maxHrRef = AtomicReference(180)
     private val todayFactorRef = AtomicReference(1.0f)
     // Surowa wartosc + znacznik pobrania: todayFactorRef jest z nich PRZELICZANY co tick
@@ -425,6 +427,20 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
             )
         )
 
+        // Srednia predkosc z Karoo (ta sama co w polach Karoo) - dla KOKPIT
+        consumerIds.add(
+            karooSystem.addConsumer<OnStreamState>(
+                params = OnStreamState.StartStreaming(DataType.Type.AVERAGE_SPEED),
+                onEvent = { event ->
+                    val s = event.state
+                    if (s is StreamState.Streaming) {
+                        val v = s.dataPoint.values[DataType.Field.AVERAGE_SPEED] as? Double ?: s.dataPoint.singleValue
+                        if (v != null && v.isFinite()) karooAvgSpeedKmhRef.set(v * 3.6)
+                    }
+                }
+            )
+        )
+
         // RIDE_TIME = czas BRUTTO (z pauzami). Vśr brutto = distance / RIDE_TIME.
         // Ta sama walidacja ms/s co ELAPSED_TIME (parseElapsed wybiera sec vs ms).
         consumerIds.add(
@@ -670,7 +686,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         )
 
         // KOKPIT: wiatr wzgledem jazdy z rozszerzenia karoo-headwind (jak pole DYN/ACTIVE)
-        for ((field, ref) in listOf("headwindDirection" to headwindDirDegRef, "headwindSpeed" to headwindSpeedMpsRef)) {
+        // typy karoo-headwind: "headwind" = kierunek wzgledem jazdy (stopnie), "headwindSpeed" = m/s
+        for ((field, ref) in listOf("headwind" to headwindDirDegRef, "headwindSpeed" to headwindSpeedMpsRef)) {
             try {
                 consumerIds.add(
                     karooSystem.addConsumer<OnStreamState>(
@@ -679,7 +696,12 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                             val s = event.state
                             if (s is StreamState.Streaming) {
                                 val v = s.dataPoint.singleValue ?: s.dataPoint.values.values.firstOrNull() as? Double
-                                if (v != null && v.isFinite()) { ref.set(v); headwindUpdatedMsRef.set(System.currentTimeMillis()) }
+                                if (v != null && v.isFinite()) {
+                                    ref.set(v)
+                                    val nowHw = System.currentTimeMillis()
+                                    if (nowHw - headwindLoggedMsRef.get() > 300_000L) { headwindLoggedMsRef.set(nowHw); com.qext2.primary.util.RideFileLog.append("HEADWIND field=$field v=$v") }
+                                    headwindUpdatedMsRef.set(nowHw)
+                                }
                             }
                         }
                     )
@@ -1375,6 +1397,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
             now - lastWxMsRef.get() < 30 * 60_000L &&
             com.qext2.primary.weather.RouteWeatherClient.isFresh(routeWxRef.get())) {
             Log.i(TAG, "QEXT_WX_SKIP stationary")
+            com.qext2.primary.util.RideFileLog.append("WX_SKIP stationary")
             return
         }
         // KOKPIT: jedno zapytanie Open-Meteo (biezaca pogoda + prognoza po trasie co 15 min wg ETA)
@@ -1382,6 +1405,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         val wx = try { com.qext2.primary.weather.RouteWeatherClient.fetch(karooSystem, pts) } catch (e: Exception) {
             Log.w(TAG, "QEXT_ROUTE_WX_CRASH msg=${e.message}"); null
         }
+        com.qext2.primary.util.RideFileLog.append(if (wx == null) "WX_FAIL points=${pts.size} (proba ponowna za 1 min)" else "WX_OK points=${wx.points} sky=${wx.sky} now=${wx.nowKind} temp=${wx.tempC} event=${wx.event?.kind}@${wx.event?.minutes}min/${wx.event?.kmAhead}km p=${wx.event?.probPct}")
         if (wx != null) {
             routeWxRef.set(wx); lastWxLatRef.set(lat); lastWxLonRef.set(lon); lastWxMsRef.set(now)
             val cond = when (wx.nowKind) {
@@ -1438,6 +1462,12 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     }
 
     fun getRouteWeather(): com.qext2.primary.weather.RouteWx? = routeWxRef.get()
+
+    /** true, gdy pogoda jest swieza (do decyzji o szybkim ponowieniu pobrania). */
+    fun weatherIsFresh(): Boolean = com.qext2.primary.weather.RouteWeatherClient.isFresh(routeWxRef.get())
+
+    /** Srednia predkosc z Karoo [km/h] (0 = brak). */
+    fun getKarooAvgSpeedKmh(): Double = karooAvgSpeedKmhRef.get()
 
     fun refreshDeadlineFromStore() {
         val (h, m) = AthleteDataStore.loadDeadline()

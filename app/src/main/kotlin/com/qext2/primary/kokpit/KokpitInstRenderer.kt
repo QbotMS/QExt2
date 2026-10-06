@@ -65,7 +65,8 @@ object KokpitInstRenderer {
     private val PZ = listOf(0.00f to "#9AA3AE", 0.55f to "#6FA8FF", 0.75f to "#22C55E", 0.90f to "#EAB308", 1.05f to "#F97316", 1.20f to "#EF4444")
     private const val PMAX = 1.5f
     private const val SMAX = 45f
-    private val SZ = listOf(0f to "#4F6E80", 15f to "#5B9BE0", 25f to "#60A5FA", 35f to "#93C5FD")
+    // tlo luku predkosci w odcieniach szarosci - niebieskie wypelnienie musi sie odrozniac
+    private val SZ = listOf(0f to "#5B6573", 15f to "#6B7682", 25f to "#7C8794", 35f to "#8C97A4")
     private val HRZ = listOf("#9CA3AF", "#60A5FA", "#4ADE80", "#FACC15", "#FF8C8C")
 
     private val bold: Typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)

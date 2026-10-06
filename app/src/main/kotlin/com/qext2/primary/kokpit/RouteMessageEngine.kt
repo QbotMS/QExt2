@@ -138,10 +138,8 @@ object RouteMessageEngine {
             sc?.let { (d, s, len) -> far.add(d to surfMsg(d, s, len)) }
             far.minByOrNull { it.first }?.let { out.add(it.second) }
         }
-        if (out.isEmpty()) out.add(
-            if (i.surfaces.isEmpty()) RouteMsg(MsgKind.NONE, "brak danych o nawierzchni (QBot)", "", "#9AA5B1")
-            else RouteMsg(MsgKind.NONE, "do mety bez zmian nawierzchni i podjazdów", "", "#9AA5B1")
-        )
+        // bez zdarzen w poblizu: pusty pasek (komunikat "dalekiej" zmiany co 30 km byl tylko szumem)
+        if (out.isEmpty()) out.add(RouteMsg(MsgKind.NONE, "", "", "#9AA5B1"))
         return out
     }
 

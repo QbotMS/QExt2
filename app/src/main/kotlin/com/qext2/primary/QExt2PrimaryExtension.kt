@@ -75,6 +75,8 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         runStartupSelfCheck()
         AthleteDataStore.init(this)
         com.qext2.primary.eta.EtaFileLog.init(getExternalFilesDir(null) ?: filesDir)
+        com.qext2.primary.util.RideFileLog.init(getExternalFilesDir(null) ?: filesDir)
+        com.qext2.primary.util.RideFileLog.append("START QExt2 versionCode=${BuildConfig.VERSION_CODE}")
         val surfaceCache = SurfaceProfileCache(
             qbotBaseUrl = BuildConfig.QBOT_BASE_URL,
             qbotBearer = BuildConfig.QBOT_BEARER,
@@ -288,10 +290,11 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                         val ef = if (o.isNull("ef")) null else o.getDouble("ef").toFloat()
                         com.qext2.primary.statsv2.RideWindows.typEf = ef
                         android.util.Log.i("QExt2Primary", "QEXT_EF_TYPICAL ef=$ef n=${o.optInt("n")}")
+                        com.qext2.primary.util.RideFileLog.append("EF_TYPICAL ef=$ef n=${o.optInt("n")}")
                     } catch (e: Exception) {
                         android.util.Log.w("QExt2Primary", "QEXT_EF_TYPICAL parse_error msg=${e.message}")
                     }
-                } else android.util.Log.w("QExt2Primary", "QEXT_EF_TYPICAL failed status=$code")
+                } else { android.util.Log.w("QExt2Primary", "QEXT_EF_TYPICAL failed status=$code"); com.qext2.primary.util.RideFileLog.append("EF_TYPICAL_FAIL status=$code") }
             }
         } catch (e: Exception) {
             android.util.Log.w("QExt2Primary", "QEXT_EF_TYPICAL crash msg=${e.message}")
@@ -521,7 +524,8 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         weatherPollJob = serviceScope.launch {
             while (_aggregator != null) {
                 _aggregator?.fetchWeatherIfNeeded()
-                kotlinx.coroutines.delay(900_000L)   // 15 min = krok prognozy
+                // 15 min = krok prognozy; po nieudanym pobraniu (np. brak polaczenia z telefonem) ponow za 1 min
+                kotlinx.coroutines.delay(if (_aggregator?.weatherIsFresh() == true) 900_000L else 60_000L)
             }
         }
     }

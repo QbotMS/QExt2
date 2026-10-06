@@ -53,6 +53,7 @@ class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: 
         val w = config.viewSize.first.coerceAtLeast(120)
         val h = config.viewSize.second.coerceAtLeast(160)
         Log.i(TAG, "QEXT_STATS_V2_VIEW size=${w}x$h")
+        com.qext2.primary.util.RideFileLog.append("VIEW STATS_V2 type=$dataTypeId size=${w}x$h")
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         emitter.updateView(RemoteViews(context.packageName, R.layout.field_stats_v2))
 
@@ -63,7 +64,7 @@ class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: 
                     val bmp = try {
                         withContext(Dispatchers.Default) { StatsV2Renderer.render(w, h, StatsV2Demo.at(System.currentTimeMillis())) }
                     } catch (e: Exception) {
-                        Log.w(TAG, "QEXT_STATS_V2_RENDER_FAIL msg=${e.message}", e)
+                        Log.w(TAG, "QEXT_STATS_V2_RENDER_FAIL msg=${e.message}", e); com.qext2.primary.util.RideFileLog.append("RENDER_FAIL STATS_V2 msg=${e.message}")
                         null
                     }
                     if (bmp != null) {
@@ -94,7 +95,7 @@ class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: 
                     val bmp = try {
                         withContext(Dispatchers.Default) { StatsV2Renderer.render(w, h, data) }
                     } catch (e: Exception) {
-                        Log.w(TAG, "QEXT_STATS_V2_RENDER_FAIL msg=${e.message}", e)
+                        Log.w(TAG, "QEXT_STATS_V2_RENDER_FAIL msg=${e.message}", e); com.qext2.primary.util.RideFileLog.append("RENDER_FAIL STATS_V2 msg=${e.message}")
                         null
                     } ?: return@collect
                     val rv = RemoteViews(context.packageName, R.layout.field_stats_v2)

@@ -110,11 +110,12 @@ object RouteWeatherClient {
         else -> null
     }
 
-    fun sky(code: Int, cloudPct: Int): WxKind = when {
-        code == 45 || code == 48 -> WxKind.FOG
-        cloudPct >= 75 || code == 3 -> WxKind.OVERCAST
-        cloudPct >= 25 || code == 2 -> WxKind.PARTLY
-        else -> WxKind.CLEAR
+    /** Niebo tylko z kodu pogody WMO (0-1 bezchmurnie, 2 czesciowo, 3 pochmurno, 45/48 mgla). */
+    fun sky(code: Int, @Suppress("UNUSED_PARAMETER") cloudPct: Int): WxKind = when (code) {
+        0, 1 -> WxKind.CLEAR
+        2 -> WxKind.PARTLY
+        45, 48 -> WxKind.FOG
+        else -> WxKind.OVERCAST
     }
 
     private fun url(pts: List<WxPoint>): String {

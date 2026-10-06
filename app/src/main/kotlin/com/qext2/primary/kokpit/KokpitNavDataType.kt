@@ -42,6 +42,7 @@ private const val TAG = "QExt2KokpitNav"
 @Keep
 /** forceLive = wersja produkcyjna: zawsze dane z jazdy (bez demo). */
 class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLive: Boolean = false) : DataTypeImpl("qext2", typeId) {
+    @Volatile private var lastMsgLogged = ""
 
     override fun startStream(emitter: Emitter<StreamState>) {
         emitter.onNext(StreamState.Streaming(DataPoint(dataTypeId = dataTypeId, values = emptyMap())))
@@ -55,6 +56,7 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
         val w = config.viewSize.first.coerceAtLeast(160)
         val h = config.viewSize.second.coerceAtLeast(60)
         Log.i(TAG, "QEXT_KOKPIT_NAV_VIEW size=${w}x$h")
+        com.qext2.primary.util.RideFileLog.append("VIEW KOKPIT_NAV type=$dataTypeId size=${w}x$h")
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         emitter.updateView(RemoteViews(context.packageName, R.layout.field_stats_v2))
 
@@ -62,7 +64,7 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
 
         fun emit(data: KokpitNavData) {
             val bmp = try { KokpitNavRenderer.render(w, h, data) } catch (e: Exception) {
-                Log.w(TAG, "QEXT_KOKPIT_NAV_RENDER_FAIL msg=${e.message}", e); null
+                Log.w(TAG, "QEXT_KOKPIT_NAV_RENDER_FAIL msg=${e.message}", e); com.qext2.primary.util.RideFileLog.append("RENDER_FAIL KOKPIT_NAV msg=${e.message}"); null
             } ?: return
             val rv = RemoteViews(context.packageName, R.layout.field_stats_v2)
             rv.setImageViewBitmap(R.id.iv_stats_v2, bmp)
@@ -156,6 +158,8 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
             )
         )
         val msg = rotator.next(now, cands)
+        val key = msg.kind.name + "|" + msg.lead + "|" + msg.accent
+        if (key != lastMsgLogged) { lastMsgLogged = key; com.qext2.primary.util.RideFileLog.append("MSG ${msg.kind} ${msg.lead} ${msg.accent}") }
         val hw = agg?.getHeadwindRel()
         val ahead = if (segs.isNotEmpty() && total != null) segs.sortedBy { it.kmStart }.filter { it.kmEnd > pos }
             .map { (it.kmEnd - maxOf(it.kmStart, pos)) to RouteMessageEngine.surfColor(it.surface) } else null
