@@ -35,6 +35,8 @@ data class KokpitNavData(
     val stopsKm: List<Float> = emptyList(),
     /** niebo na najblizsza godzine bez opadu: CLEAR / PARTLY / OVERCAST / FOG (null = brak danych) */
     val sky: String? = null,
+    /** deadline jazdy (jak w ACTIVE) - kolor ETA */
+    val deadlineMs: Long? = null,
     val demo: Boolean = false,
 )
 
@@ -305,7 +307,14 @@ object KokpitNavRenderer {
             }
         }
         b.add(tg)
-        val etaCol = if (d.twilightLabel == "zmrok" && d.etaMs != null && d.duskMs != null && d.etaMs > d.duskMs) RED else WHITE
+        // kolor ETA jak DTD w ACTIVE: po deadline czerwony, zapas >= 30 min zielony, <= 10 min zolty
+        val eta0 = d.etaMs; val dl = d.deadlineMs
+        val etaCol = if (eta0 != null && dl != null) when {
+            eta0 > dl -> RED
+            dl - eta0 >= 30 * 60_000L -> Color.parseColor("#4ADE80")
+            dl - eta0 <= 10 * 60_000L -> Color.parseColor("#FACC15")
+            else -> WHITE
+        } else WHITE
         b.add(if (d.etaMs != null) listOf(Part("ETA", 0.38f, LBL, false), Part(clock(d.etaMs), 1f, etaCol, true))
               else listOf(Part("ETA brak", 0.5f, NONE, false)))
         val wm = d.windMps
@@ -331,7 +340,7 @@ object KokpitNavRenderer {
         val size = h * 0.80f
         val base = h * 0.78f
         // kolor tylko dla ostrzezen (W', zjazd, deszcz, jedzenie, zmrok); informacje (nawierzchnia, podjazd, POI) biale
-        val warn = d.msg.kind == MsgKind.WPRIME || d.msg.kind == MsgKind.DESCENT || d.msg.kind == MsgKind.RAIN ||
+        val warn = d.msg.kind == MsgKind.HUB || d.msg.kind == MsgKind.WPRIME || d.msg.kind == MsgKind.DESCENT || d.msg.kind == MsgKind.RAIN ||
             d.msg.kind == MsgKind.FUEL || d.msg.kind == MsgKind.DUSK
         val ac = if (!warn) WHITE else try { Color.parseColor(d.msg.accentColor) } catch (_: Exception) { WHITE }
         fp.color = if (warn) ac else UNIT; c.drawRect(8f, h * 0.2f, 12f, h * 0.8f, fp)

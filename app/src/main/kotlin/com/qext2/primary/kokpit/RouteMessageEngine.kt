@@ -39,7 +39,7 @@ data class RouteMsgInput(
     val wprime: WPrimeInfo? = null,
 )
 
-enum class MsgKind { WPRIME, RAIN, FUEL, DUSK, DESCENT, CLIMB, SURFACE, POI, NONE }
+enum class MsgKind { HUB, WPRIME, RAIN, FUEL, DUSK, DESCENT, CLIMB, SURFACE, POI, NONE }
 
 /** lead = zwykly tekst, accent = wyrozniony fragment w kolorze accentColor (#RRGGBB). */
 data class RouteMsg(val kind: MsgKind, val lead: String, val accent: String, val accentColor: String)

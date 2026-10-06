@@ -153,11 +153,23 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
         val cands = RouteMessageEngine.candidates(
             RouteMsgInput(
                 nowMs = now, hasRoute = s.hasRoute, posKm = pos, surfaces = segs, climbs = climbs, descent = descent,
-                rainNowMmH = rainNow, rainSoon = rainSoon, carbBalanceG = if (s.carbModelReady) s.carbBalanceG else null,
-                duskMs = dusk ?: 0L, etaMs = eta ?: 0L, pois = pois, wprime = wprimeInfo(agg, s),
+                // W', jedzenie i opad teraz - ze wspolnej kolejki (jak w ACTIVE), nie dublujemy
+                rainNowMmH = null, rainSoon = rainSoon, carbBalanceG = null,
+                duskMs = dusk ?: 0L, etaMs = eta ?: 0L, pois = pois, wprime = null,
             )
         )
-        val msg = rotator.next(now, cands)
+        // 1. komunikat ze wspolnej kolejki QExt2 (ten sam co w ACTIVE), 2. komunikaty trasy
+        val hub = com.qext2.primary.active.ActiveMessageHub.current(now)
+        val msg = if (hub != null) RouteMsg(
+            MsgKind.HUB,
+            hub.title + (if (hub.line1 != null || hub.line2 != null) ":" else ""),
+            listOfNotNull(hub.line1, hub.line2).joinToString(" "),
+            when (hub.severity) {
+                com.qext2.primary.active.ActiveMessageSeverity.CRITICAL -> "#FF8C8C"
+                com.qext2.primary.active.ActiveMessageSeverity.WARNING -> "#FB923C"
+                else -> "#FFFFFF"
+            },
+        ) else rotator.next(now, cands)
         val key = msg.kind.name + "|" + msg.lead + "|" + msg.accent
         if (key != lastMsgLogged) { lastMsgLogged = key; com.qext2.primary.util.RideFileLog.append("MSG ${msg.kind} ${msg.lead} ${msg.accent}") }
         val hw = agg?.getHeadwindRel()
@@ -170,7 +182,8 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
             gradePct = agg?.getEffectiveGrade()?.toFloat(),
             ascDone = if (s.routeClimbSourceReady) s.ascentDoneM else null,
             ascLeft = if (s.routeClimbSourceReady) s.ascentLeftM else null,
-            tempC = if (fresh) s.weatherTemperatureC else null,
+            tempC = agg?.getKarooTemperatureC() ?: (if (fresh) s.weatherTemperatureC else null),
+            deadlineMs = agg?.getDeadlineMs()?.takeIf { it > 0L },
             rainNowMmH = rainNow, rainSoon = rainSoon,
             windMps = hw?.second ?: if (fresh) s.weatherWindSpeedMps else null,
             windDirDeg = if (fresh) agg?.getWeatherWindDirDeg() else null,

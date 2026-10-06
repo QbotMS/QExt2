@@ -47,6 +47,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var windowsJob: kotlinx.coroutines.Job? = null
+    private var msgHubJob: kotlinx.coroutines.Job? = null
     private var _karooSystem: KarooSystemService? = null
     val karooSystem: KarooSystemService? get() = _karooSystem
     private var _aggregator: RideDataAggregator? = null
@@ -96,6 +97,17 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                         _aggregatorFlow.value = _aggregator
                         // STATS v2 PRZEBIEG: okna 5 min (NP, EF) karmione co ~1 s
                         com.qext2.primary.statsv2.RideWindows.reset()
+                        // wspolna kolejka komunikatow (ACTIVE + KOKPIT): producenci co 1 s
+                        com.qext2.primary.active.ActiveMessageHub.reset()
+                        msgHubJob?.cancel()
+                        _aggregator?.let { a ->
+                            msgHubJob = serviceScope.launch {
+                                while (true) {
+                                    com.qext2.primary.active.ActiveMessageHub.tick(a, System.currentTimeMillis())
+                                    kotlinx.coroutines.delay(1_000L)
+                                }
+                            }
+                        }
                         if (com.qext2.primary.statsv2.RideWindows.typEf == null) fetchTypicalEf()
                         windowsJob?.cancel()
                         _aggregator?.let { a ->

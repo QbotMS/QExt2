@@ -127,6 +127,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val headwindUpdatedMsRef = AtomicReference(0L)
     private val headwindLoggedMsRef = AtomicReference(0L)
     private val karooAvgSpeedKmhRef = AtomicReference(0.0)
+    private val temperatureUpdatedMsRef = AtomicReference(0L)
     private val maxHrRef = AtomicReference(180)
     private val todayFactorRef = AtomicReference(1.0f)
     // Surowa wartosc + znacznik pobrania: todayFactorRef jest z nich PRZELICZANY co tick
@@ -469,7 +470,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     val s = event.state
                     if (s is StreamState.Streaming) {
                         val v = s.dataPoint.singleValue
-                        if (v != null) temperatureRef.set(v.toFloat())
+                        if (v != null) { temperatureRef.set(v.toFloat()); temperatureUpdatedMsRef.set(System.currentTimeMillis()) }
                     }
                 }
             )
@@ -1468,6 +1469,10 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
 
     /** Srednia predkosc z Karoo [km/h] (0 = brak). */
     fun getKarooAvgSpeedKmh(): Double = karooAvgSpeedKmhRef.get()
+
+    /** Temperatura z czujnika Karoo (jak pole T w ACTIVE); null, gdy brak odczytu w ostatnich 2 min. */
+    fun getKarooTemperatureC(): Float? =
+        if (System.currentTimeMillis() - temperatureUpdatedMsRef.get() < 120_000L) temperatureRef.get() else null
 
     fun refreshDeadlineFromStore() {
         val (h, m) = AthleteDataStore.loadDeadline()

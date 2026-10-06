@@ -36,6 +36,10 @@ data class KokpitInstData(
     val hrShowZone: Boolean = true,
     /** bezpieczny pulap mocy z PacingEngine (null = brak); moc > pulap = czerwona, >= 95% = zolta */
     val powerCeilingW: Int? = null,
+    /** IF efektywne z 5 min (jak "CpE 5" w ACTIVE) */
+    val if5: Float? = null,
+    /** trend W' jak w ACTIVE: rising / falling / plummeting / stable */
+    val wbalTrend: String = "stable",
     /** dryf tetna: 0 brak, 1 umiarkowany (>= 6%), 2 duzy (>= 10%) - barwi ikone serca */
     val hrDriftLevel: Int = 0,
     /** trendy srednich: +1 rosnie, -1 maleje, 0 bez wyraznej zmiany */
@@ -258,9 +262,9 @@ object KokpitInstRenderer {
     private fun capBase(top: Float, size: Float) = top + size * 0.72f
 
     private fun powerCol(d: KokpitInstData): Int {
-        val pw = d.powerW ?: return NONE
-        val ceil = d.powerCeilingW?.takeIf { it in 1..5000 } ?: return WHITE
-        return when { pw > ceil -> col("#FF8C8C"); pw >= ceil * 0.95f -> col("#FACC15"); else -> WHITE }
+        // kolor mocy z oceny tempa QExt2 - ten sam co w PRIMARY
+        if (d.powerW == null) return NONE
+        return d.powerColor
     }
 
     private fun renderCompact(c: Canvas, d: KokpitInstData, W: Float, H: Float) {
@@ -314,14 +318,14 @@ object KokpitInstRenderer {
         val refSize = 32f * s
         val refBase = capBase(39f * s, refSize)
         fun trendCol(t: Int) = when { t > 0 -> GOOD; t < 0 -> col("#FF8C8C"); else -> SUB }
-        val cpTxt = d.cpe5W?.let { fmt("%.0f", it) } ?: "—"
+        val cpTxt = d.if5?.let { fmt("%.2f", it) } ?: "—"
         t(c, cpTxt, cx - g, refBase, refSize, WHITE, true, Paint.Align.RIGHT)
         val cpLX = cx - g - w(cpTxt, refSize) - 2f * s     // CP/5 blizej wartosci
         val lbl = 16f * s
-        val cpCol = trendCol(d.cpTrend)
+        val cpCol = SUB
         val capTop = refBase - refSize * 0.72f
-        t(c, "CP", cpLX, capTop + lbl * 0.72f, lbl, cpCol, false, Paint.Align.RIGHT)
-        t(c, "5", cpLX - w("CP", lbl, false) / 2f, capTop + lbl * 0.72f + lbl * 0.80f, lbl, cpCol, false, Paint.Align.CENTER)
+        t(c, "CpE", cpLX, capTop + lbl * 0.72f, lbl, cpCol, false, Paint.Align.RIGHT)
+        t(c, "5", cpLX - w("CpE", lbl, false) / 2f, capTop + lbl * 0.72f + lbl * 0.80f, lbl, cpCol, false, Paint.Align.CENTER)
         val avTxt = d.avgSpeedKmh?.let { fmt("%.1f", it) } ?: "—"
         t(c, avTxt, cx + g, refBase, refSize, WHITE, true)
         val symSz = 16f * s
@@ -379,7 +383,8 @@ object KokpitInstRenderer {
                 wSize -= 1f
             }
         }
-        val wCol = when { wb == null -> NONE; wb > 50 -> WHITE; wb >= 20 -> col("#FACC15"); else -> col("#FF8C8C") }
+        // jak w ACTIVE: rosnie zielony, spada czerwony, stabilne bialy
+        val wCol = when { wb == null -> NONE; d.wbalTrend == "rising" -> col("#4ADE80"); d.wbalTrend == "falling" || d.wbalTrend == "plummeting" -> col("#FF8C8C"); else -> WHITE }
         t(c, wTxt, leftEdge + 2f * s, base, wSize, wCol, true)
         val pctX = leftEdge + 2f * s + w(wTxt, wSize) + 3f * s
         val w3 = wTxt.length >= 3

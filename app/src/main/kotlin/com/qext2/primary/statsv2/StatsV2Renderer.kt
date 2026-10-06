@@ -274,15 +274,16 @@ object StatsV2Renderer {
         else -> WHITE
     }
 
+    // jak w starym STATS: < 1.05 bialy, 1.05-1.10 zolty, >= 1.10 czerwony
     private fun viColor(vi: Float?): Int = when {
-        vi == null || vi <= 1.05f -> WHITE
+        vi == null || vi < 1.05f -> WHITE
         vi < 1.10f -> Color.parseColor("#FACC15")
-        vi < 1.20f -> Color.parseColor("#FB923C")
         else -> Color.parseColor("#FF8C8C")
     }
 
     private fun drawNp(c: Canvas, r: RectF, d: StatsV2Data) {
-        drawValueCell(c, r, listOf(P_BAR, P_BOLT), null, "NP", "W", d.np?.toString(), 78f, zoneColor(d.npZone))
+        // liczba NP biala jak w starym STATS; strefa tylko w etykiecie
+        drawValueCell(c, r, listOf(P_BAR, P_BOLT), null, "NP", "W", d.np?.toString(), 78f, WHITE)
         if (d.np != null && d.npZone != null) rightLabel(c, r, listOf(Triple("Z${d.npZone}", 22f, zoneColor(d.npZone))))
     }
 
@@ -320,12 +321,13 @@ object StatsV2Renderer {
         val t = lb + F(6f); val b = Y(r.bottom) - F(8f)
         if (v == null) { none(c, (l + rr) / 2f, (t + b) / 2f); return }
         val pct = v.coerceIn(0, 100)
-        val col = when { pct > 50 -> Color.parseColor("#2F7D4A"); pct >= 20 -> Color.parseColor("#C9A227"); else -> Color.parseColor("#C2412D") }
+        // jak w starym STATS: >= 40 zielony, 20-40 zolty, < 20 czerwony
+        val col = when { pct >= 40 -> Color.parseColor("#2F7D4A"); pct >= 20 -> Color.parseColor("#C9A227"); else -> Color.parseColor("#C2412D") }
         fp.color = TRACK; c.drawRect(l, t, rr, b, fp)
         val fx = l + (rr - l) * pct / 100f
         fp.color = col; c.drawRect(l, t, fx, b, fp)
         val cy = (t + b) / 2f
-        if (pct > 50) barText(c, pct.toString(), l + F(4f), cy, F(44f), fx - l, col, Paint.Align.LEFT)
+        if (pct >= 40) barText(c, pct.toString(), l + F(4f), cy, F(44f), fx - l, col, Paint.Align.LEFT)
         else barText(c, pct.toString(), rr - F(4f), cy, F(44f), rr - fx, TRACK, Paint.Align.RIGHT)
     }
 

@@ -137,7 +137,10 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
         return KokpitInstData(
             powerW = power,
             cpW = cp,
-            cpe5W = s.cpEffLinW.takeIf { it > 0f },
+            // znacznik na luku = srednia moc z 5 min (IF5 x CP efektywne); liczba = IF5 jak w ACTIVE
+            cpe5W = (s.ifEff5Live * s.cpEffLinW).takeIf { it > 0f },
+            if5 = s.ifEff5Live.takeIf { it > 0f },
+            wbalTrend = s.wBalanceTrend,
             powerColor = p.powerColor,
             speedKmh = speed,
             avgSpeedKmh = (agg?.getKarooAvgSpeedKmh()?.toFloat()?.takeIf { it > 0f }

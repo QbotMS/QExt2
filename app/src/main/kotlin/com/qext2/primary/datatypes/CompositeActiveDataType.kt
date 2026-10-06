@@ -113,9 +113,8 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
 
     private var athleteData = AthleteDataStore.load()
     private val if10Calc = IF10Calculator(ftp = athleteData.ftp)
-    private val messageManager = ActiveMessageManager(logger = { msg ->
-        Log.i("QEXT_ACTIVE_ENGINE", msg)
-    }).also { ActiveMessageBus.manager = it }
+    // wspolna kolejka komunikatow QExt2 (producenci dzialaja w ActiveMessageHub, niezaleznie od pola)
+    private val messageManager: ActiveMessageManager get() = com.qext2.primary.active.ActiveMessageHub.manager
 
     private fun attachMsgDismissIntent(views: RemoteViews, context: Context) {
         val intent = Intent(context, ActiveMsgActionReceiver::class.java)
@@ -294,26 +293,17 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
 
         scope.launch {
             Log.d(TAG, "QEXT_ACTIVE_EXPIRY_JOB_START")
+            var seenHubVersion = -1L
             // Bateria (NAPRAWA Etap 1): 1 s zamiast 250 ms = 4x mniej wybudzen
             // najczestszej petli. Precyzja wygasniecia 1 s wystarcza (TTL 4-10 s),
             // a show/dismiss wymuszaja render osobna sciezka (force).
             while (isActive) {
                 kotlinx.coroutines.delay(1_000L)
                 if (!isActive) break
-                val now = System.currentTimeMillis()
-                val result = messageManager.hideExpired(now)
-                when (result) {
-                    is ExpiryResult.Expired -> {
-                        Log.d(TAG, "QEXT_ACTIVE_MSG_HIDE id=${result.message.id} reason=expired")
-                        emitUpdate(emitter, context, force = true)
-                    }
-                    is ExpiryResult.Resumed -> {
-                        Log.d(TAG, "QEXT_ACTIVE_MSG_RESUME id=${result.message.id}")
-                        if (QExt2DebugConfig.DEBUG_ACTIVE_PRODUCER_DIAG)
-                            beepForMessage(result.message, "resume")
-                        emitUpdate(emitter, context, force = true)
-                    }
-                    is ExpiryResult.None -> Unit
+                // odswiez, gdy wspolna kolejka zmienila biezacy komunikat
+                if (com.qext2.primary.active.ActiveMessageHub.version != seenHubVersion) {
+                    seenHubVersion = com.qext2.primary.active.ActiveMessageHub.version
+                    emitUpdate(emitter, context, force = true)
                 }
             }
         }
@@ -321,9 +311,6 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
         emitter.setCancellable {
             Log.d(TAG, "QEXT_ACTIVE_STOP")
             QExt2PrimaryExtension.instance?.onFieldHidden()
-            messageManager.clear()
-            climbProducer.reset()
-            climbPacingProducer.reset()
             currentSystem?.let { s -> consumerIds.forEach { id -> s.removeConsumer(id) } }
             consumerIds.clear()
             scope.cancel()
@@ -535,93 +522,7 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
         ).joinToString("|")
         if (!force && signature == lastRenderSignature && now - lastRenderMs < 1_500L) return
 
-        if (agg != null) {
-            val sensorState = SensorState(
-                speedKmh = agg.getEffectiveSpeedKmh(),
-                cadence = agg.getEffectiveCadence(),
-                hr = agg.getEffectiveHr(),
-                power = agg.getEffectivePower(),
-                powerFreshnessMs = agg.getPowerFreshnessMs(),
-                cadenceFreshnessMs = agg.getCadenceFreshnessMs(),
-                hrFreshnessMs = agg.getHrFreshnessMs(),
-                hasRoute = agg.getEffectiveRoute(),
-                elapsedSec = agg.getElapsedSec(),
-                nowMs = now,
-                athleteDataAgeH = agg.getAthleteDataAgeHours(now),
-                effectiveTodayFactor = agg.statsSnapshot.value.readiness,
-            )
-            val shouldClear = sensorState.speedKmh > 2.0 ||
-                (sensorState.cadence > 0 && sensorState.cadenceFreshnessMs < 8_000L) ||
-                (sensorState.power > 0 && sensorState.powerFreshnessMs < 8_000L)
-            if (shouldClear) {
-                val cur = messageManager.getCurrent(now)
-                if (cur?.id == "pre_ride_calibration") messageManager.clear()
-            }
-            val sensorMsg = sensorProducer.checkAndProduce(sensorState)
-            if (sensorMsg != null) {
-                if (messageManager.show(sensorMsg)) beepForMessage(sensorMsg, "show")
-            }
-
-            val climbResolution = ActiveClimbResolver.resolve(
-                nowMs = now,
-                fakeMode = QExt2DebugConfig.DEBUG_FAKE_RIDE_MODE,
-                hasRoute = agg.getEffectiveRoute(),
-                navClimbs = agg.getNavClimbs(),
-                distanceMeters = agg.getDistanceMeters(),
-                distanceToDestinationMeters = agg.getDistanceToDestinationMeters(),
-                ascentLeftM = agg.getAscentLeftM(),
-                effectiveGrade = agg.getEffectiveGrade(),
-            )
-            val routeKey = agg.getRouteKey().ifBlank { "route:unknown" }
-            if (agg.getNavClimbs().isNotEmpty()) {
-                noSdkClimbLogGate.onSdkClimbsAvailable(routeKey)
-            }
-            if (climbResolution.reason == "no_sdk_climbs") {
-                maybeLogNoSdkClimbs(routeKey)
-            }
-            val climbMsg = climbResolution.state?.let { climbProducer.checkAndProduce(it) }
-            if (climbMsg != null) {
-                if (messageManager.show(climbMsg)) beepForMessage(climbMsg, "show")
-            }
-            // Pacing działa zawsze gdy mamy LTP — nie tylko na podjeździe
-            val climbState = climbResolution.state
-            val climbPacingMsg = climbPacingProducer.checkAndProduce(
-                power = agg.snapshot.value.power3s,
-                wBalancePct = agg.statsSnapshot.value.wBalancePercent,
-                effectiveLtpW = agg.getEffectiveLtpWatts(),
-                cpEffW = agg.statsSnapshot.value.cpEffW,
-                wPrimeEffKj = agg.statsSnapshot.value.wPrimeEffKj,
-                isWithinBounds = climbState?.isWithinClimbBounds == true,
-                ascentLeftM = climbState?.climbElevationM ?: 0,
-                grade = climbState?.avgGradePercent ?: agg.getEffectiveGrade(),
-                climbIndex = climbState?.climbIndex ?: -1,
-                modeFactor = agg.getModeFactor(),
-                nowMs = now,
-            )
-            if (climbPacingMsg != null && messageManager.show(climbPacingMsg)) beepForMessage(climbPacingMsg, "pacing")
-            agg.consumePendingReadinessMessage()?.let { readyMsg ->
-                if (messageManager.show(readyMsg)) beepForMessage(readyMsg, "readiness")
-            }
-            agg.consumePendingFuelMessage()?.let { fuelMsg ->
-                if (messageManager.show(fuelMsg)) beepForMessage(fuelMsg, "fuel")
-            }
-
-            val weatherMsg = weatherProducer.checkAndProduce(WeatherMsgState(
-                weatherFresh = agg.statsSnapshot.value.weatherFresh,
-                temperatureC = agg.statsSnapshot.value.weatherTemperatureC,
-                windSpeedMps = agg.statsSnapshot.value.weatherWindSpeedMps,
-                rain1hMm = agg.statsSnapshot.value.weatherRain1hMm,
-                condition = agg.statsSnapshot.value.weatherCondition,
-                nowMs = now,
-            ))
-            if (weatherMsg != null) {
-                if (messageManager.show(weatherMsg)) beepForMessage(weatherMsg, "weather")
-            }
-
-            if (QExt2DebugConfig.DEBUG_ACTIVE_PRODUCER_DIAG) {
-                logProducerDiag(now, agg, sensorMsg, climbMsg)
-            }
-        }
+        // komunikaty: ActiveMessageHub (wspolny dla ACTIVE i KOKPIT)
 
         val views = RemoteViews(context.packageName, R.layout.field_active_4x2).also { attachMsgDismissIntent(it, context) }
         applyTypography(views)
