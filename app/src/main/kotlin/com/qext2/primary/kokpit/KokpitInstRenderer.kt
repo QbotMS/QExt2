@@ -371,8 +371,8 @@ object KokpitInstRenderer {
         run {
             val rOut = r + sw / 2f
             while (wSize > 20f) {
-                val yTop = base - wSize * 0.72f
-                val dyA = (cy - yTop).coerceIn(0f, rOut)
+                // lewy luk jest najszerszy na dole - sprawdzamy na linii dolu cyfr, nie na ich gorze
+                val dyA = (cy - base).coerceIn(0f, rOut)
                 val arcX = lox - kotlin.math.sqrt(rOut * rOut - dyA * dyA)
                 if (leftEdge + 2f * s + w(wTxt, wSize) + 6f * s <= arcX) break
                 wSize -= 1f
