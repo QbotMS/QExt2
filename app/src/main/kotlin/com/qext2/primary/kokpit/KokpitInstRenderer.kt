@@ -361,7 +361,10 @@ object KokpitInstRenderer {
         val wCol = when { wb == null -> NONE; wb > 50 -> WHITE; wb >= 20 -> col("#FACC15"); else -> col("#FF8C8C") }
         t(c, wTxt, leftEdge + 2f * s, base, wSize, wCol, true)
         val pctX = leftEdge + 2f * s + w(wTxt, wSize) + 3f * s
-        t(c, "%", pctX, base, 17f * s, UNIT, false)
+        val w3 = wTxt.length >= 3
+        // 3 cyfry (100): bez "%", male "W'" nad liczba - nic nie stoi przy luku
+        if (w3) t(c, "W′", leftEdge + 2f * s, base - wSize * 0.72f - 5f * s, 16f * s, UNIT, false)
+        else t(c, "%", pctX, base, 17f * s, UNIT, false)
         // etykieta nad "%": nie moze wejsc na luk mocy - zmniejsz czcionke, jesli trzeba
         val lblBase = base - 17f * s * 0.72f - 3f * s
         var lblSize = 16f * s
@@ -370,7 +373,7 @@ object KokpitInstRenderer {
         val dyA = (cy - yTop).coerceAtMost(rOut)
         val arcX = lox - kotlin.math.sqrt(rOut * rOut - dyA * dyA) - 3f * s
         while (lblSize > 10f && pctX + w("W′", lblSize, false) > arcX) lblSize -= 0.5f
-        t(c, "W′", pctX, lblBase, lblSize, UNIT, false)
+        if (!w3) t(c, "W′", pctX, lblBase, lblSize, UNIT, false)
 
         // --- prawy brzeg: KAD + kadencja, srednia kadencja z trendem, BIEG + bieg na cala szerokosc
         val rightEdge = W - 4f * s

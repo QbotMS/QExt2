@@ -280,7 +280,7 @@ object KokpitNavRenderer {
         val a = ArrayList<List<Part>>()
         a.add(listOf(Part(fmt("%.0f", d.doneKm), 1f, WHITE, true), Part(d.totalKm?.let { "/" + fmt("%.0f", it) } ?: "km", 0.55f, UNIT, false)))
         a.add(d.leftKm?.let { listOf(Part("", 0.26f, LBL, false, IC_DTD), Part(fmt("%.0f", it), 1f, WHITE, true), Part("km", 0.42f, UNIT, false)) }
-              ?: listOf(Part("↓ —", 0.7f, NONE, false)))
+              ?: listOf(Part("", 0.26f, NONE, false, IC_DTD), Part("—", 0.8f, NONE, true)))
         val gr = d.gradePct
         a.add(if (gr == null) listOf(Part("", 0.9f, NONE, false, IC_TRI, 3f), Part("—", 0.8f, NONE, true))
               else listOf(Part("", 0.9f, gradeColor(gr), false, IC_TRI, gr), Part(fmt("%.0f", gr), 1f, WHITE, true), Part("%", 0.45f, UNIT, false)))
