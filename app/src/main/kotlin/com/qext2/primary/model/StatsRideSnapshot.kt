@@ -34,7 +34,8 @@ data class StatsRideSnapshot(
     val fluidModelReady: Boolean = false,
     val weatherFresh: Boolean = false,
     val weatherTemperatureC: Float? = null,
-    val weatherWindSpeedMps: Float? = null,
+    /** wiatr m/s z rozszerzenia karoo-headwind (jedyne zrodlo wiatru); null = brak danych */
+    val windSpeedMps: Float? = null,
     val weatherRain1hMm: Float? = null,
     val weatherCondition: String? = null,
     val batterySource: String? = null,

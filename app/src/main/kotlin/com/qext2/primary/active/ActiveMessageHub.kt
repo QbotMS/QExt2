@@ -98,7 +98,7 @@ object ActiveMessageHub {
             weatherProducer.checkAndProduce(WeatherMsgState(
                 weatherFresh = agg.statsSnapshot.value.weatherFresh,
                 temperatureC = agg.statsSnapshot.value.weatherTemperatureC,
-                windSpeedMps = agg.statsSnapshot.value.weatherWindSpeedMps,
+                windSpeedMps = agg.statsSnapshot.value.windSpeedMps,   // karoo-headwind
                 rain1hMm = agg.statsSnapshot.value.weatherRain1hMm,
                 condition = agg.statsSnapshot.value.weatherCondition,
                 nowMs = now,

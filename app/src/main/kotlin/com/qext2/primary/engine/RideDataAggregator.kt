@@ -90,7 +90,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val weatherSourceReadyRef = AtomicReference(false)
     private val weatherFreshRef = AtomicReference(false)
     private val weatherTemperatureCRef = AtomicReference<Float?>(null)
-    private val weatherWindSpeedMpsRef = AtomicReference<Float?>(null)
     private val weatherWindDirectionDegRef = AtomicReference<Int?>(null)
     private val weatherHumidityPctRef = AtomicReference<Int?>(null)
     private val weatherRain1hMmRef = AtomicReference<Float?>(null)
@@ -123,7 +122,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val lastWxMsRef = AtomicReference(0L)
     private val hrDecouplingPctRef = AtomicReference(0f)   // dryf tetna (HrStrainAdvisor), 0 = brak/nieaktywny
     private val headwindDirDegRef = AtomicReference<Double?>(null)
-    private val headwindSpeedMpsRef = AtomicReference<Double?>(null)
+    private val windSpeedMpsRef = AtomicReference<Double?>(null)
     private val headwindUpdatedMsRef = AtomicReference(0L)
     private val headwindLoggedMsRef = AtomicReference(0L)
     private val karooAvgSpeedKmhRef = AtomicReference(0.0)
@@ -705,9 +704,11 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
             )
         )
 
-        // KOKPIT: wiatr wzgledem jazdy z rozszerzenia karoo-headwind (jak pole DYN/ACTIVE)
-        // typy karoo-headwind: "headwind" = kierunek wzgledem jazdy (stopnie), "headwindSpeed" = m/s
-        for ((field, ref) in listOf("headwind" to headwindDirDegRef, "headwindSpeed" to headwindSpeedMpsRef)) {
+        // WIATR: JEDYNE zrodlo = rozszerzenie karoo-headwind, jak pole ACTIVE (decyzja Michala 2026-10-08).
+        // "headwind" = kierunek wzgledem jazdy (stopnie), "windSpeed" = predkosc wiatru (jednostka z ustawien
+        // karoo-headwind = m/s). NIE "headwindSpeed" -- to tylko skladowa wzdluz jazdy (cos kata x wiatr),
+        // zmienia sie przy kazdym skrecie (skoki 8 <-> 4 m/s na jezdzie 2026-10-08).
+        for ((field, ref) in listOf("headwind" to headwindDirDegRef, "windSpeed" to windSpeedMpsRef)) {
             try {
                 consumerIds.add(
                     karooSystem.addConsumer<OnStreamState>(
@@ -1191,7 +1192,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     wBalancePct = statsCalc.wBalancePercent(now).toFloat(),
                     reservePct = _statsSnapshot.value.rideReservePercent.toFloat(),
                     decouplingPct = statsCalc.decouplingPercent(),
-                    windSpeedMps = weatherWindSpeedMpsRef.get() ?: 0f,
+                    windSpeedMps = getKarooWindMps() ?: 0f,
                     isClimbing = gradeRef.get() > 2.5,
                     gradePercent = gradeRef.get(),
                     surface = currentSurfaceRef.get(),
@@ -1316,7 +1317,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     fluidModelReady = fluidModelReady,
                     weatherFresh = weatherFreshRef.get(),
                     weatherTemperatureC = weatherTemperatureCRef.get(),
-                    weatherWindSpeedMps = weatherWindSpeedMpsRef.get(),
+                    windSpeedMps = getKarooWindMps(),
                     weatherRain1hMm = weatherRain1hMmRef.get(),
                     weatherCondition = weatherConditionRef.get(),
                     batterySource = if (batterySourceReady) "headunit_polling" else null,
@@ -1418,7 +1419,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         weatherSourceReadyRef.set(true)
         weatherFreshRef.set(WeatherClient.isFresh(data))
         weatherTemperatureCRef.set(data.temperatureC)
-        weatherWindSpeedMpsRef.set(data.windSpeedMps)
         weatherWindDirectionDegRef.set(data.windDirectionDeg)
         weatherHumidityPctRef.set(data.humidityPct)
         weatherRain1hMmRef.set(data.rain1hMm)
@@ -1628,17 +1628,23 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     /** Dryf tetna w % (jak w HrStrainAdvisor: baza 8-18 min vs ostatnie 8 min); 0 gdy jeszcze nie liczony. */
     fun getHrDecouplingPct(): Float = hrDecouplingPctRef.get()
 
-    /** (kierunek wzgledny stopnie, predkosc m/s) z karoo-headwind, gdy swieze (<= 15 s); inaczej null */
-    fun getHeadwindRel(): Pair<Int, Float>? {
+    /** Predkosc wiatru (m/s) z karoo-headwind: ostatnia wartosc, gdy rozszerzenie zyje (probka <= 15 s,
+     *  kierunek odswieza sie co chwile, predkosc tylko gdy sie zmieni -- jak ACTIVE); inaczej null. */
+    fun getKarooWindMps(): Float? {
         if (System.currentTimeMillis() - headwindUpdatedMsRef.get() > 15_000L) return null
+        val sp = windSpeedMpsRef.get() ?: return null
+        return if (sp.isFinite() && kotlin.math.abs(sp) <= 60.0) kotlin.math.abs(sp).toFloat() else null
+    }
+
+    /** (kierunek wzgledny stopnie, predkosc wiatru m/s) z karoo-headwind; null = brak danych z rozszerzenia */
+    fun getHeadwindRel(): Pair<Int, Float>? {
+        val sp = getKarooWindMps() ?: return null
         val d = headwindDirDegRef.get() ?: return null
-        val sp = headwindSpeedMpsRef.get() ?: return null
-        return (((d % 360.0) + 360.0) % 360.0).toInt() to kotlin.math.abs(sp).toFloat()
+        return (((d % 360.0) + 360.0) % 360.0).toInt() to sp
     }
 
     fun getLongStopsKm(): List<Double> = try { etaEngine.longStopsKm() } catch (_: Exception) { emptyList() }
 
-    fun getWeatherWindDirDeg(): Int? = weatherWindDirectionDegRef.get()
 
     fun getSteepDescentAhead(): Pair<Double, Double>? =
         try { etaEngine.steepDescentAhead(distanceToDestinationMetersRef.get()) } catch (_: Exception) { null }

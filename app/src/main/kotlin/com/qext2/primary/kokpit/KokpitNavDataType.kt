@@ -185,8 +185,8 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
             tempC = agg?.getKarooTemperatureC(),   // tylko czujnik Karoo (2026-10-08)
             deadlineMs = agg?.getDeadlineMs()?.takeIf { it > 0L },
             rainNowMmH = rainNow, rainSoon = rainSoon,
-            windMps = hw?.second ?: if (fresh) s.weatherWindSpeedMps else null,
-            windDirDeg = if (fresh) agg?.getWeatherWindDirDeg() else null,
+            windMps = hw?.second ?: agg?.getKarooWindMps(),   // tylko karoo-headwind (2026-10-08)
+            windDirDeg = null,
             windRelDeg = hw?.first,
             sky = rw?.sky?.name,
         )
