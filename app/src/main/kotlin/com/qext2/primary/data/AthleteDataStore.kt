@@ -150,7 +150,8 @@ private const val KEY_PARTIAL = "partial"
 private const val KEY_WARNINGS = "warnings"
 private const val KEY_SLEEP_DATA_DATE_MARKER = "sleep_data_date_marker"
 private const val KEY_SLEEP_REFRESH_PENDING = "sleep_refresh_pending"
-private const val KEY_RESERVE_DAILY_XSS_BASE = "reserve_daily_xss_base"
+// RSRV v2: dzienna baza = ulamek zapasu zuzyty we wczesniejszych jazdach dzis (nowy klucz -- stary byl w XSS).
+private const val KEY_RESERVE_DAILY_LOAD = "reserve_daily_load_v2"
 
 object AthleteDataStore {
     private var prefs: SharedPreferences? = null
@@ -327,24 +328,24 @@ object AthleteDataStore {
 
     // RSRV: jedyna waluta obciazenia to XSS (ModelQ). Ksiega TSS usunieta 2026-07-24 --
     // nie byla przez nikogo czytana, a jej istnienie grozilo rozjechaniem sie z ksiega XSS.
-    fun saveReserveDailyXssBase(value: Float) {
-        val safe = if (value.isNaN() || value.isInfinite()) 0f else value.coerceIn(0f, 9999f)
-        prefs?.edit()?.putFloat(KEY_RESERVE_DAILY_XSS_BASE, safe)?.apply()
+    fun saveReserveDailyLoad(value: Float) {
+        val safe = if (value.isNaN() || value.isInfinite()) 0f else value.coerceIn(0f, 5f)
+        prefs?.edit()?.putFloat(KEY_RESERVE_DAILY_LOAD, safe)?.apply()
     }
 
-    fun loadReserveDailyXssBase(): Float {
-        val v = prefs?.getFloat(KEY_RESERVE_DAILY_XSS_BASE, 0f) ?: 0f
-        return if (v.isNaN() || v.isInfinite()) 0f else v.coerceIn(0f, 9999f)
+    fun loadReserveDailyLoad(): Float {
+        val v = prefs?.getFloat(KEY_RESERVE_DAILY_LOAD, 0f) ?: 0f
+        return if (v.isNaN() || v.isInfinite()) 0f else v.coerceIn(0f, 5f)
     }
 
-    private const val KEY_RESERVE_BASE_XSS_DATE = "reserve_base_xss_date"
+    private const val KEY_RESERVE_DAILY_LOAD_DATE = "reserve_daily_load_v2_date"
 
-    fun saveReserveDailyXssBaseDate(date: String) {
-        prefs?.edit()?.putString(KEY_RESERVE_BASE_XSS_DATE, date)?.apply()
+    fun saveReserveDailyLoadDate(date: String) {
+        prefs?.edit()?.putString(KEY_RESERVE_DAILY_LOAD_DATE, date)?.apply()
     }
 
-    fun loadReserveDailyXssBaseDate(): String {
-        return prefs?.getString(KEY_RESERVE_BASE_XSS_DATE, "") ?: ""
+    fun loadReserveDailyLoadDate(): String {
+        return prefs?.getString(KEY_RESERVE_DAILY_LOAD_DATE, "") ?: ""
     }
 
     fun saveCarbPacketSize(grams: Int) {

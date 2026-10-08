@@ -220,59 +220,15 @@ class StatsCalculatorTest {
     }
 
     @Test
-    fun `reserve decreases with load accumulation`() {
-        val calc = StatsCalculator()
-        calc.todayFactor = 1.0f
-        calc.captureStartReserve()
-        val reserve = calc.rideReservePercent(30f, 0.8f, 0f, 100L)
-        assertTrue("Reserve should decrease with load (reserve=$reserve)", reserve < 100)
-    }
-
-    @Test
-    fun `reserve decreases more with higher decoupling`() {
-        val calc = StatsCalculator()
-        calc.todayFactor = 1.0f
-        calc.captureStartReserve()
-        val tss = 80f
-        val reserveNoDecouple = calc.rideReservePercent(tss, 0.8f, 0f, 3600L)
+    fun `reserve v2 starts at 100 and drains only while moving with power`() {
+        val calc = StatsCalculator(ftpWatts = 240)
+        assertEquals(100, calc.rideReservePercentV2(0.0))
+        for (t in 1..3600) calc.update(192, 0, t.toLong(), t.toLong())   // 1 h @ 0,8 CP
+        assertEquals(75, calc.rideReservePercentV2(0.0))
+        for (t in 3601..5400) calc.update(0, 0, 3600L, t.toLong())       // postoj: czas ruchu stoi
+        assertEquals(75, calc.rideReservePercentV2(0.0))
+        assertTrue(calc.reserveReady())
         calc.reset()
-        calc.todayFactor = 1.0f
-        calc.captureStartReserve()
-        repeat(200) {
-            val hr = if (it < 100) 140 else 160
-            calc.update(200, hr, it.toLong(), it.toLong())
-        }
-        val reserveWithDecouple = calc.rideReservePercent(tss, 0.8f, calc.decouplingPercent(), 3600L)
-        assertTrue(
-            "Decoupling should lower reserve (noDecouple=$reserveNoDecouple withDecouple=$reserveWithDecouple decouple=${calc.decouplingPercent()}%)",
-            reserveWithDecouple <= reserveNoDecouple
-        )
-    }
-
-    @Test
-    fun `reserve linear XSS at 48 gives ~90`() {
-        val calc = StatsCalculator()
-        calc.todayFactor = 1.0f
-        calc.captureStartReserve()
-        val reserve = calc.rideReservePercent(48f, 0f, 0f, 3600L)
-        assertTrue("XSS=48 → ~90 (got $reserve)", reserve in 88..92)
-    }
-
-    @Test
-    fun `reserve linear XSS at 204 gives ~57`() {
-        val calc = StatsCalculator()
-        calc.todayFactor = 1.0f
-        calc.captureStartReserve()
-        val reserve = calc.rideReservePercent(204f, 0f, 0f, 3600L)
-        assertTrue("XSS=204 → ~57 (got $reserve)", reserve in 55..59)
-    }
-
-    @Test
-    fun `reserve linear XSS at 280 gives ~40`() {
-        val calc = StatsCalculator()
-        calc.todayFactor = 1.0f
-        calc.captureStartReserve()
-        val reserve = calc.rideReservePercent(280f, 0f, 0f, 3600L)
-        assertTrue("XSS=280 → ~40 (got $reserve)", reserve in 38..42)
+        assertEquals(100, calc.rideReservePercentV2(0.0))
     }
 }

@@ -29,8 +29,10 @@ class StatsCalculator(var ftpWatts: Int = 200) {
 
     private var lastMovingSec: Long = 0L
 
-    private var lastReserve: Float = 100f
-    private var startReserve: Float = 100f
+    // RSRV v2 (ReserveModelV2): stan biezacej jazdy; LTHR i HRmax z /ride-readiness (applyAthleteData).
+    private val reserveV2 = ReserveModelV2.State()
+    var lthrBpm: Float = 148f
+    var maxHrBpm: Int = 184
 
     private var wPrimeKj: Float = 0f
     private var ltpWatts: Float = 0f
@@ -49,11 +51,6 @@ class StatsCalculator(var ftpWatts: Int = 200) {
     private var lastCpEffLinW: Float = 0f
 
     private val wBalHistory = ArrayDeque<Pair<Long, Int>>()
-
-    fun captureStartReserve() {
-        startReserve = safetyFloat(todayFactor) * 100f
-        lastReserve = startReserve
-    }
 
     fun wBalanceTrend(): String {
         if (wBalHistory.size < 3) return "stable"
@@ -140,6 +137,17 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         val movingAdvanced = movingSec > lastMovingSec
         val hasPower = powerWatts > 0
         val activeSample = movingAdvanced && hasPower && powerFresh
+
+        // RSRV v2: kazda sekunda ruchu ze swieza moca (0 W na zjezdzie tez); postoj sie nie liczy.
+        if (movingAdvanced) {
+            val dt = (movingSec - lastMovingSec).coerceIn(1L, 5L).toDouble()
+            if (powerFresh) {
+                ReserveModelV2.tick(reserveV2, powerWatts, heartRate, ftpWatts.toDouble(), lthrBpm.toDouble(), maxHrBpm, dt)
+                reserveV2.noPowerMovingS = 0L
+            } else {
+                reserveV2.noPowerMovingS += dt.toLong()
+            }
+        }
 
         if (activeSample) {
             powerBuffer30s.addLast(powerWatts)
@@ -282,43 +290,14 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         return ((base * tm * hm * (bodyWeightKg / 70f) / 0.05f).roundToInt() * 0.05f).coerceIn(0.30f, 1.50f)
     }
 
-    fun rideReservePercent(loadXss: Float, intensityFactor: Float, decoupling: Float, elapsedSec: Long): Int {
-        val loadSafe = safetyFloat(loadXss)
-        val decoupleSafe = safetyFloat(decoupling)
-        val baseReserve = safetyFloat(todayFactor) * 100f
-        var reserve = baseReserve
+    /** RSRV v2: ulamek zapasu zuzyty w tej jezdzie (1.0 = pusty bak). */
+    fun reserveSessionLoad(): Double = reserveV2.load
 
-        // BUDZET W XSS (2026-07-24, audyt pkt C1). Wczesniej obciazano XSS budzetem
-        // wyrazonym w TSS -- inna skala (XSS/TSS = 1.21 mediana na 41 jazdach z ModelQ2).
-        // Zrodlo: fitmodel_daily.ctl_xss (pokrycie ModelQ2 dla ostatnich 42 dni = 100%).
-        // Fallback 470 = dawne 390 przeskalowane o 1.21, gdy serwer nie przysyla ctlXss.
-        // Widelki: dol 300 XSS (~3 h przy CP) zostawiony nieprzeskalowany, zeby realne
-        // ctlXss faktycznie sterowalo budzetem; gora 720 XSS (~7 h przy CP).
-        val dailyBudgetXss = if (ctlXssForBudget > 0f) {
-            (ctlXssForBudget * 5.4f).coerceIn(300f, 720f)
-        } else {
-            470f
-        }
-        val loadPenalty = if (loadSafe > 0f) loadSafe * (100f / dailyBudgetXss) else 0f
-        reserve -= loadPenalty
+    /** RSRV v2 w % (dzienna baza = wczesniejsze jazdy dzis). Start zawsze 100 %. */
+    fun rideReservePercentV2(dailyBaseLoad: Double): Int = ReserveModelV2.percent(dailyBaseLoad, reserveV2.load)
 
-        if (hasDecouplingData() && decoupleSafe > 3f) {
-            // kara na PRAWDZIWYM dryfie (DECISIONS 2026-07-18): prog 3%, x3, limit 18 pkt
-            reserve -= ((decoupleSafe - 3f) * 3f).coerceAtMost(18f)
-        }
-
-        val stopSec = (elapsedSec - lastMovingSec).coerceAtLeast(0L)
-        val recoveryPotential = (startReserve - lastReserve).coerceAtLeast(0f)
-        val recoveryTau = 1800.0
-        val recoveryAmount = recoveryPotential * (1.0 - kotlin.math.exp(-stopSec / recoveryTau)).toFloat()
-        val raw = reserve.coerceIn(0f, startReserve)
-        lastReserve = if (raw < lastReserve || recoveryAmount > 0f) {
-            (raw + recoveryAmount).coerceIn(raw, startReserve)
-        } else {
-            (lastReserve + (raw - lastReserve) * 0.03f).coerceAtMost(startReserve)
-        }
-        return lastReserve.roundToInt().coerceIn(0, 100)
-    }
+    /** false = brak danych (zero sekund z moca albo >5 min jazdy bez mocy) -> pole RSRV "czekam". */
+    fun reserveReady(): Boolean = reserveV2.nP > 0 && reserveV2.noPowerMovingS < ReserveModelV2.NO_POWER_LIMIT_S
 
     fun updateBattery(currentPct: Int?, charging: Boolean?, nowMs: Long) {
         if (charging != null) batteryIsCharging = charging
@@ -376,8 +355,12 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         countEff = 0L
         lastCpEffLinW = 0f
         lastMovingSec = 0L
-        lastReserve = 100f
-        startReserve = 100f
+        reserveV2.emaP = 0.0
+        reserveV2.emaH = 0.0
+        reserveV2.nP = 0L
+        reserveV2.nH = 0L
+        reserveV2.load = 0.0
+        reserveV2.noPowerMovingS = 0L
         wBalHistory.clear()
         batteryPctStart = null
         batteryPctCurrent = null
@@ -393,8 +376,11 @@ class StatsCalculator(var ftpWatts: Int = 200) {
             totalPowerCount = totalPowerCount,
             totalEnergyKj = totalEnergyKj,
             lastMovingSec = lastMovingSec,
-            lastReserve = lastReserve,
-            startReserve = startReserve,
+            reserveLoad = reserveV2.load,
+            reserveEmaP = reserveV2.emaP,
+            reserveEmaH = reserveV2.emaH,
+            reserveNP = reserveV2.nP,
+            reserveNH = reserveV2.nH,
             wBalKj = wBalKj,
             xssAccum = xssAccum,
             batteryPctStart = batteryPctStart,
@@ -411,8 +397,11 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         totalPowerCount = snap.totalPowerCount
         totalEnergyKj = snap.totalEnergyKj
         lastMovingSec = snap.lastMovingSec
-        lastReserve = snap.lastReserve
-        startReserve = snap.startReserve
+        reserveV2.load = snap.reserveLoad
+        reserveV2.emaP = snap.reserveEmaP
+        reserveV2.emaH = snap.reserveEmaH
+        reserveV2.nP = snap.reserveNP
+        reserveV2.nH = snap.reserveNH
         wBalKj = snap.wBalKj
         xssAccum = snap.xssAccum
         batteryPctStart = snap.batteryPctStart
@@ -428,8 +417,11 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         val totalPowerCount: Long,
         val totalEnergyKj: Double,
         val lastMovingSec: Long,
-        val lastReserve: Float,
-        val startReserve: Float,
+        val reserveLoad: Double = 0.0,
+        val reserveEmaP: Double = 0.0,
+        val reserveEmaH: Double = 0.0,
+        val reserveNP: Long = 0L,
+        val reserveNH: Long = 0L,
         val wBalKj: Float,
         val xssAccum: Float = 0f,
         val batteryPctStart: Int? = null,
