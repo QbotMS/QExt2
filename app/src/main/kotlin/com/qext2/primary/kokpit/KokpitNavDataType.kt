@@ -182,7 +182,7 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
             gradePct = agg?.getEffectiveGrade()?.toFloat(),
             ascDone = if (s.routeClimbSourceReady) s.ascentDoneM else null,
             ascLeft = if (s.routeClimbSourceReady) s.ascentLeftM else null,
-            tempC = agg?.getKarooTemperatureC() ?: (if (fresh) s.weatherTemperatureC else null),
+            tempC = agg?.getKarooTemperatureC(),   // tylko czujnik Karoo (2026-10-08)
             deadlineMs = agg?.getDeadlineMs()?.takeIf { it > 0L },
             rainNowMmH = rainNow, rainSoon = rainSoon,
             windMps = hw?.second ?: if (fresh) s.weatherWindSpeedMps else null,

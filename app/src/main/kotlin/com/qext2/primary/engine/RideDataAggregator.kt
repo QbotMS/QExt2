@@ -1509,9 +1509,10 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     /** Srednia predkosc z Karoo [km/h] (0 = brak). */
     fun getKarooAvgSpeedKmh(): Double = karooAvgSpeedKmhRef.get()
 
-    /** Temperatura z czujnika Karoo (jak pole T w ACTIVE); null, gdy brak odczytu w ostatnich 2 min. */
+    /** Temperatura z czujnika Karoo (jak pole T w ACTIVE): ostatni odczyt; null tylko przed pierwszym odczytem.
+     *  Bez limitu wieku -- Karoo moze nie wysylac nowej wartosci, gdy temperatura stoi. */
     fun getKarooTemperatureC(): Float? =
-        if (System.currentTimeMillis() - temperatureUpdatedMsRef.get() < 120_000L) temperatureRef.get() else null
+        if (temperatureUpdatedMsRef.get() > 0L) temperatureRef.get() else null
 
     fun refreshDeadlineFromStore() {
         val (h, m) = AthleteDataStore.loadDeadline()
@@ -1812,6 +1813,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         elevationGainReceivedRef.set(true)
         elevationRemainingReceivedRef.set(true)
         temperatureRef.set(18f)
+        temperatureUpdatedMsRef.set(nowMs)
 
         if (nowMs - fakeRideLogLastMs > 15_000L) {
             fakeRideLogLastMs = nowMs
@@ -1895,12 +1897,10 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     fun consumePendingReadinessMessage(): com.qext2.primary.active.ActiveMessage? =
         pendingReadinessMsgRef.getAndSet(null)
 
-    /** Physiological ambient temperature: weather API when fresh (sensor reads low
-     *  in airflow while moving); falls back to device sensor when weather stale. */
-    private fun physioTempC(): Float {
-        val w = weatherTemperatureCRef.get()
-        return if (w != null && weatherFreshRef.get()) w else temperatureRef.get()
-    }
+    /** Temperatura do jedzenia/picia/elektrolitow: WYLACZNIE czujnik Karoo (decyzja Michala 2026-10-08).
+     *  Prognoza nie zna miejsca jazdy (siatka km, odswiezanie co kilkanascie min). Przed pierwszym odczytem
+     *  czujnika -> null (wspolczynniki neutralne), nigdy wymyslona wartosc. */
+    private fun physioTempC(): Float? = getKarooTemperatureC()
 
     private fun tempFactor(tempC: Float?): Float {
         if (tempC == null) return 1.0f
