@@ -5,7 +5,7 @@ import java.util.Locale
 data class WeatherMsgState(
     val weatherFresh: Boolean,
     val temperatureC: Float?,
-    val windSpeedMps: Float?, // WX/forecast wind context — NOT live wind (live wind = karoo-headwind)
+    val windSpeedMps: Float?, // PORYWY wiatru m/s z karoo-headwind (jedyne zrodlo wiatru, 2026-10-08)
     val rain1hMm: Float?,
     val condition: String?,
     val nowMs: Long,
@@ -188,12 +188,12 @@ class WeatherMessageProducer(private val logger: (String) -> Unit = {}) {
         val wind = state.windSpeedMps ?: return null
         if (wind < STRONG_WIND_MPS) return null
         if (!useCooldown("strong_wind", state.nowMs, 600_000L)) return null
-        logger("WEATHER_TRIGGER type=strong_wind wind=${String.format(Locale.US, "%.1f", wind)}m/s")
+        logger("WEATHER_TRIGGER type=strong_wind gusts=${String.format(Locale.US, "%.1f", wind)}m/s")
         return ActiveMessage(
             id = "weather_strong_wind_${state.nowMs}",
             title = "WX SILNY WIATR",
-            line1 = "${String.format(Locale.US, "%.1f", wind)} m/s",
-            line2 = "LIVE=HEADWIND",
+            line1 = "porywy ${String.format(Locale.US, "%.0f", wind)} m/s",
+            line2 = null,
             severity = ActiveMessageSeverity.WARNING,
             priority = ActiveMessagePriority.WARNING,
             resumePolicy = ActiveMessageResumePolicy.DROP_ON_INTERRUPT,

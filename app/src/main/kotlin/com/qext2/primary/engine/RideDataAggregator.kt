@@ -124,6 +124,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val headwindDirDegRef = AtomicReference<Double?>(null)
     private val windSpeedMpsRef = AtomicReference<Double?>(null)
     private val headwindSpeedMpsRef = AtomicReference<Double?>(null)
+    private val windGustsMpsRef = AtomicReference<Double?>(null)
     private val headwindUpdatedMsRef = AtomicReference(0L)
     private val headwindLoggedMsRef = AtomicReference(0L)
     private val karooAvgSpeedKmhRef = AtomicReference(0.0)
@@ -708,9 +709,10 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         // WIATR: JEDYNE zrodlo = rozszerzenie karoo-headwind (decyzja Michala 2026-10-08), jednostka z jego
         // ustawien = m/s. "headwind" = kierunek wzgledem jazdy (stopnie); "headwindSpeed" = wiatr czolowy
         // (skladowa wzdluz jazdy, zmienia sie przy skretach) -> KOKPIT, jak pole headwind rozszerzenia;
-        // "windSpeed" = predkosc wiatru -> kalkulator tempa i komunikat SILNY WIATR.
+        // ze znakiem: + w twarz, - w plecy (cos((kat+180)) x wiatr) -> tez sufit mocy (tylko czesc w twarz);
+        // "windSpeed" = predkosc wiatru; "windGusts" = porywy -> komunikat SILNY WIATR.
         for ((field, ref) in listOf("headwind" to headwindDirDegRef, "headwindSpeed" to headwindSpeedMpsRef,
-                                    "windSpeed" to windSpeedMpsRef)) {
+                                    "windSpeed" to windSpeedMpsRef, "windGusts" to windGustsMpsRef)) {
             try {
                 consumerIds.add(
                     karooSystem.addConsumer<OnStreamState>(
@@ -1194,7 +1196,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     wBalancePct = statsCalc.wBalancePercent(now).toFloat(),
                     reservePct = _statsSnapshot.value.rideReservePercent.toFloat(),
                     decouplingPct = statsCalc.decouplingPercent(),
-                    windSpeedMps = getKarooWindMps() ?: 0f,
+                    headwindMps = (getHeadwindSignedMps() ?: 0f).coerceAtLeast(0f),   // tylko wiatr w twarz
                     isClimbing = gradeRef.get() > 2.5,
                     gradePercent = gradeRef.get(),
                     surface = currentSurfaceRef.get(),
@@ -1636,6 +1638,20 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         if (System.currentTimeMillis() - headwindUpdatedMsRef.get() > 15_000L) return null
         val sp = windSpeedMpsRef.get() ?: return null
         return if (sp.isFinite() && kotlin.math.abs(sp) <= 60.0) kotlin.math.abs(sp).toFloat() else null
+    }
+
+    /** Wiatr czolowy ze znakiem (m/s) z karoo-headwind: + w twarz, - w plecy; null = brak swiezych danych. */
+    fun getHeadwindSignedMps(): Float? {
+        if (System.currentTimeMillis() - headwindUpdatedMsRef.get() > 15_000L) return null
+        val sp = headwindSpeedMpsRef.get() ?: return null
+        return if (sp.isFinite() && kotlin.math.abs(sp) <= 60.0) sp.toFloat() else null
+    }
+
+    /** Porywy wiatru (m/s) z karoo-headwind; null = brak swiezych danych. */
+    fun getKarooWindGustsMps(): Float? {
+        if (System.currentTimeMillis() - headwindUpdatedMsRef.get() > 15_000L) return null
+        val g = windGustsMpsRef.get() ?: return null
+        return if (g.isFinite() && g in 0.0..80.0) g.toFloat() else null
     }
 
     /** KOKPIT: (kierunek wzgledny stopnie, wiatr czolowy m/s) z karoo-headwind, gdy swieze (<= 15 s); inaczej null */

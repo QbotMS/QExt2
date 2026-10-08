@@ -29,7 +29,7 @@ data class PacingContext(
  *
  * Nawierzchnia koryguje oba progi (większy wysiłek metaboliczny poza pedałami).
  * Decoupling HR/moc = sygnał przegrzania → obniż ceiling.
- * Wiatr (headwind) = dodatkowy koszt niewidoczny w mocy chwilowej.
+ * Wiatr czolowy (karoo-headwind, tylko czesc w twarz; w plecy/z boku = 0) = dodatkowy koszt niewidoczny w mocy chwilowej.
  * Rezerwa dzienna (reserve%) = ile energii zostało na resztę jazdy.
  */
 object PacingEngine {
@@ -41,7 +41,7 @@ object PacingEngine {
         wBalancePct: Float,       // 0..100
         reservePct: Float,        // 0..100; -1 gdy brak danych
         decouplingPct: Float,
-        windSpeedMps: Float,      // prędkość wiatru m/s (proxy headwind)
+        headwindMps: Float,       // wiatr czołowy m/s z karoo-headwind, >= 0 (wiatr w plecy = 0)
         isClimbing: Boolean,
         gradePercent: Double,
         surface: SurfaceType,
@@ -91,9 +91,9 @@ object PacingEngine {
 
         // Wind factor: silny wiatr = dodatkowy koszt metaboliczny
         val windFactor = when {
-            windSpeedMps > 8f -> 0.94f
-            windSpeedMps > 5f -> 0.96f
-            windSpeedMps > 3f -> 0.98f
+            headwindMps > 8f -> 0.94f
+            headwindMps > 5f -> 0.96f
+            headwindMps > 3f -> 0.98f
             else              -> 1.00f
         }
 
