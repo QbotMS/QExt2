@@ -123,6 +123,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val hrDecouplingPctRef = AtomicReference(0f)   // dryf tetna (HrStrainAdvisor), 0 = brak/nieaktywny
     private val headwindDirDegRef = AtomicReference<Double?>(null)
     private val windSpeedMpsRef = AtomicReference<Double?>(null)
+    private val headwindSpeedMpsRef = AtomicReference<Double?>(null)
     private val headwindUpdatedMsRef = AtomicReference(0L)
     private val headwindLoggedMsRef = AtomicReference(0L)
     private val karooAvgSpeedKmhRef = AtomicReference(0.0)
@@ -704,11 +705,12 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
             )
         )
 
-        // WIATR: JEDYNE zrodlo = rozszerzenie karoo-headwind, jak pole ACTIVE (decyzja Michala 2026-10-08).
-        // "headwind" = kierunek wzgledem jazdy (stopnie), "windSpeed" = predkosc wiatru (jednostka z ustawien
-        // karoo-headwind = m/s). NIE "headwindSpeed" -- to tylko skladowa wzdluz jazdy (cos kata x wiatr),
-        // zmienia sie przy kazdym skrecie (skoki 8 <-> 4 m/s na jezdzie 2026-10-08).
-        for ((field, ref) in listOf("headwind" to headwindDirDegRef, "windSpeed" to windSpeedMpsRef)) {
+        // WIATR: JEDYNE zrodlo = rozszerzenie karoo-headwind (decyzja Michala 2026-10-08), jednostka z jego
+        // ustawien = m/s. "headwind" = kierunek wzgledem jazdy (stopnie); "headwindSpeed" = wiatr czolowy
+        // (skladowa wzdluz jazdy, zmienia sie przy skretach) -> KOKPIT, jak pole headwind rozszerzenia;
+        // "windSpeed" = predkosc wiatru -> kalkulator tempa i komunikat SILNY WIATR.
+        for ((field, ref) in listOf("headwind" to headwindDirDegRef, "headwindSpeed" to headwindSpeedMpsRef,
+                                    "windSpeed" to windSpeedMpsRef)) {
             try {
                 consumerIds.add(
                     karooSystem.addConsumer<OnStreamState>(
@@ -1636,11 +1638,13 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         return if (sp.isFinite() && kotlin.math.abs(sp) <= 60.0) kotlin.math.abs(sp).toFloat() else null
     }
 
-    /** (kierunek wzgledny stopnie, predkosc wiatru m/s) z karoo-headwind; null = brak danych z rozszerzenia */
+    /** KOKPIT: (kierunek wzgledny stopnie, wiatr czolowy m/s) z karoo-headwind, gdy swieze (<= 15 s); inaczej null */
     fun getHeadwindRel(): Pair<Int, Float>? {
-        val sp = getKarooWindMps() ?: return null
+        if (System.currentTimeMillis() - headwindUpdatedMsRef.get() > 15_000L) return null
         val d = headwindDirDegRef.get() ?: return null
-        return (((d % 360.0) + 360.0) % 360.0).toInt() to sp
+        val sp = headwindSpeedMpsRef.get() ?: return null
+        if (!sp.isFinite() || kotlin.math.abs(sp) > 60.0) return null
+        return (((d % 360.0) + 360.0) % 360.0).toInt() to kotlin.math.abs(sp).toFloat()
     }
 
     fun getLongStopsKm(): List<Double> = try { etaEngine.longStopsKm() } catch (_: Exception) { emptyList() }
