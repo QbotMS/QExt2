@@ -547,6 +547,9 @@ object AthleteDataStore {
     fun saveHeadwindUnit(u: Int) { prefs?.edit()?.putInt("headwind_unit", u.coerceIn(0, 3))?.apply() }
     fun loadHeadwindUnit(): Int = prefs?.getInt("headwind_unit", 0) ?: 0
 
+    fun saveCadenceModel(json: String) { prefs?.edit()?.putString("cadence_model", json)?.apply() }
+    fun loadCadenceModel(): String? = prefs?.getString("cadence_model", null)
+
     fun loadEtaPriorKmh(): Double =
         (prefs?.getFloat("eta_prior_kmh", 0f) ?: 0f).toDouble()
 

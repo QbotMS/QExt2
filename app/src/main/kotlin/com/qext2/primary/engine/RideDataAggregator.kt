@@ -203,6 +203,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val navRouteNameRef = AtomicReference("")
     private val navRouteKeyRef = AtomicReference("")
     private val navClimbsRef = AtomicReference<List<KarooClimb>>(emptyList())
+    private val axsSourceIdRef = AtomicReference<String?>(null)   // E6.4/D11: identyfikator przerzutki AXS ze strumienia Karoo
     private val routeLengthMRef = AtomicReference<Double?>(null)   // E4.1: dlugosc aktywnej trasy (Karoo)
     private val routeReversedRef = AtomicReference(false)          // E4.1: trasa jechana odwrotnie
     private val movingElapsedSecRef = AtomicReference(0L)
@@ -641,6 +642,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                         lastRearPosRef.set(rearPos)
                         lastReportedTeethRef.set(rearTeethReported)
                         axsLastMsRef.set(System.currentTimeMillis())
+                        s.dataPoint.sourceId?.let { sid -> if (axsSourceIdRef.getAndSet(sid) != sid) com.qext2.primary.util.RideFileLog.append("AXS_SOURCE sourceId=$sid") }
                         val rearBattery = listOf(
                             "FIELD_REAR_DERAILLEUR_BATTERY_ID",
                             "FIELD_SHIFTING_REAR_BATTERY_ID",
@@ -1058,11 +1060,11 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                         nowMs = now,
                     ).first,
                     hrColor = hrZoneColor(fHr),
-                    cadenceColor = cadOut?.color.toAndroidColor(),
+                    cadenceColor = 0xFFFFFFFF.toInt(),   // E6.4: porada tylko na polu biegu
                     speedColor = speedOut?.color.toAndroidColor(),
                     gradeColor = PrimaryRideSnapshot.contrastText(gradeBg),
                     gradeBgColor = gradeBg,
-                    gearColor = gearOut?.color.toAndroidColor(),
+                    gearColor = com.qext2.primary.engine.CadenceAdvisor.color(bikeKey(now), fPower, statsCalc.ftpWatts.toFloat(), getEffectiveGrade(), fCad) ?: 0xFFFFFFFF.toInt(),   // E6.4
                     powerBgColor = lastUnifiedPowerBg,
                     speedValue = speedOut?.value ?: "WAIT",
                     powerValue = powerOut?.value ?: "WAIT",
@@ -1777,6 +1779,14 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     }
 
     fun getNavClimbs(): List<KarooClimb> = navClimbsRef.get()
+
+    /** D11: AXS 10625 = Grizl, AXS 27856 = Grail, brak AXS = Monster ("none"); nieznany AXS -> null (bez porady). */
+    fun bikeKey(now: Long = System.currentTimeMillis()): String? {
+        val axsFresh = axsLastMsRef.get() > 0L && now - axsLastMsRef.get() < 45_000L
+        if (!axsFresh) return if (getElapsedSec() > 60L) "none" else null
+        val sid = axsSourceIdRef.get() ?: return null
+        return when { sid.contains("10625") -> "10625"; sid.contains("27856") -> "27856"; else -> null }
+    }
 
     /** E4.1: pozycja na aktywnej trasie [m] = dlugosc trasy - dystans do mety (oba z Karoo, ten sam kierunek);
      *  null, gdy brak trasy z dlugoscia albo dystans do mety nie pasuje do trasy (objazd poza trasa). */

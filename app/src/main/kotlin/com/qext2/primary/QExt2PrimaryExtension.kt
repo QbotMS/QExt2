@@ -81,6 +81,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         runStartupSelfCheck()
         AthleteDataStore.init(this)
         com.qext2.primary.util.WindUnits.sourceUnit = AthleteDataStore.loadHeadwindUnit()
+        com.qext2.primary.engine.CadenceAdvisor.load(AthleteDataStore.loadCadenceModel())
         com.qext2.primary.eta.EtaSpeedTable.historyMinPerKm = AthleteDataStore.loadEtaStopsMinPerKm()
         com.qext2.primary.eta.EtaFileLog.init(getExternalFilesDir(null) ?: filesDir)
         com.qext2.primary.util.RideFileLog.init(getExternalFilesDir(null) ?: filesDir)
@@ -498,6 +499,9 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                                 fetchTimestamp = System.currentTimeMillis()
                             )
                             AthleteDataStore.save(data)
+                            json.optJSONObject("cadenceModel")?.toString()?.let {
+                                AthleteDataStore.saveCadenceModel(it); com.qext2.primary.engine.CadenceAdvisor.load(it)   // E6.4
+                            }
                             json.optDouble("shortStopsMinPerKm", 0.0).takeIf { it > 0.0 && it < 5.0 }?.let {
                                 AthleteDataStore.saveEtaStopsMinPerKm(it)
                                 com.qext2.primary.eta.EtaSpeedTable.historyMinPerKm = it   // E4.4
