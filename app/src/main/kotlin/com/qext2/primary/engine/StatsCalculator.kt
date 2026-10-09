@@ -110,17 +110,17 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         return (sumOf4thPowersEff / countEff).pow(0.25).toFloat().coerceIn(0f, 2.5f)
     }
 
-    private fun updateWBalance(powerWatts: Int) {
+    private fun updateWBalance(powerWatts: Int, dt: Float) {
         if (ltpWatts <= 0f || wPrimeKj <= 0f) return
         // XSS: zmeczenie liczone ze stanu W'bal PRZED zuzyciem tej sekundy (spojnie z ModelQ).
         val fatigue = (1f - (wBalKj / wPrimeKj)).coerceIn(0f, 1f)
-        xssAccum += (powerWatts / ltpWatts) * (1f + XSS_BETA * fatigue) * (100f / 3600f)
+        xssAccum += (powerWatts / ltpWatts) * (1f + XSS_BETA * fatigue) * (100f / 3600f) * dt
         if (powerWatts > ltpWatts) {
-            wBalKj -= (powerWatts - ltpWatts) * 1f / 1000f
+            wBalKj -= (powerWatts - ltpWatts) * dt / 1000f
         } else {
             val dcp = (ltpWatts - powerWatts).coerceAtLeast(0f)
             val tauRec = 546f * exp(-0.01f * dcp) + 316f
-            wBalKj += (wPrimeKj - wBalKj) * (1f - exp(-1f / tauRec))
+            wBalKj += (wPrimeKj - wBalKj) * (1f - exp(-dt / tauRec))
         }
         wBalKj = wBalKj.coerceIn(0f, wPrimeKj)
     }
@@ -135,8 +135,10 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         return pct
     }
 
-    fun update(powerWatts: Int, heartRate: Int, movingSec: Long, elapsedSec: Long, powerFresh: Boolean = true) {
+    /** dtSec = rzeczywisty czas od poprzedniej probki (E1.5); 0 = luka w danych (bez zmian modeli czasowych). */
+    fun update(powerWatts: Int, heartRate: Int, movingSec: Long, elapsedSec: Long, powerFresh: Boolean = true, dtSec: Double = 1.0) {
         if (elapsedSec <= 0L) return
+        val dtf = dtSec.coerceIn(0.0, 5.0).toFloat()
         val movingAdvanced = movingSec > lastMovingSec
         val hasPower = powerWatts > 0
         val activeSample = movingAdvanced && hasPower && powerFresh
@@ -162,7 +164,7 @@ class StatsCalculator(var ftpWatts: Int = 200) {
             }
             totalPowerSum += powerWatts
             totalPowerCount++
-            totalEnergyKj += powerWatts / 1000.0
+            totalEnergyKj += powerWatts * dtf / 1000.0
             powerBuffer300s.addLast(powerWatts)
             if (powerBuffer300s.size > 300) powerBuffer300s.removeFirst()
         }
@@ -176,7 +178,7 @@ class StatsCalculator(var ftpWatts: Int = 200) {
             }
         }
 
-        if (powerFresh) updateWBalance(powerWatts)
+        if (powerFresh && dtf > 0f) updateWBalance(powerWatts, dtf)
         lastCpEffLinW = cpEffLinNow()
         if (activeSample && powerBuffer30s.size == 30 && lastCpEffLinW > 0f) {
             val avg30sEff = powerBuffer30s.average()

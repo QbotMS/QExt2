@@ -247,6 +247,10 @@ class EtaEngine(
         )
     }
 
+    /** E1.7: nowa jazda (trasa zostaje, kalibracja i postoje od zera). */
+    @Synchronized
+    fun resetSession() { resetRide(); lastRideDistanceM = 0.0; lastTickMs = 0L }
+
     private fun resetRide() {
         rideStarted = false; movingSec = 0.0; movingDistM = 0.0
         curStopSec = 0.0; shortStopSec = 0.0; longStopSec = 0.0

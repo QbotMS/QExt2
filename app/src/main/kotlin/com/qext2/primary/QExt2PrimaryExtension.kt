@@ -64,6 +64,9 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
     private var visibleFieldCount = 0
     private var aggregatorStreaming = false
     private var stopJob: Job? = null
+    // E1.1 (plan v2): obliczenia zyja od START do KONIEC nagrywania jazdy, niezaleznie od widocznosci pol.
+    @Volatile private var rideRecording = false
+    private var rideStateConsumerId: String? = null
 
     companion object {
         var instance: QExt2PrimaryExtension? = null
@@ -132,6 +135,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                     }
                     ensureDefaultLocation()
                     fetchAthleteData(system)
+                    subscribeRideState(system)
                 } else {
                     batteryPollJob?.cancel()
                     batteryPollJob = null
@@ -142,6 +146,42 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                     _aggregator?.stopStreamingSoft()
                     aggregatorStreaming = false
                 }
+            }
+        }
+    }
+
+    /** E1.1: stan nagrywania z Karoo. Recording/Paused -> licz; Idle po jezdzie -> zamknij jazde. */
+    private fun subscribeRideState(system: KarooSystemService) {
+        if (rideStateConsumerId != null) return
+        rideStateConsumerId = try {
+            system.addConsumer<io.hammerhead.karooext.models.RideState> { st -> serviceScope.launch { onRideState(st) } }
+        } catch (e: Exception) {
+            Log.w(TAG, "QEXT_RIDE_STATE_SUB_FAIL msg=${e.message}"); null
+        }
+    }
+
+    private fun onRideState(st: io.hammerhead.karooext.models.RideState) {
+        val recordingNow = st !is io.hammerhead.karooext.models.RideState.Idle
+        com.qext2.primary.util.RideFileLog.append("RIDE_STATE ${st::class.simpleName} recording=$recordingNow visible=$visibleFieldCount running=$aggregatorStreaming")
+        if (recordingNow) {
+            rideRecording = true
+            stopJob?.cancel(); stopJob = null
+            if (_aggregator != null && !aggregatorStreaming) {
+                _aggregator?.startStreaming()
+                aggregatorStreaming = true
+                startBatteryPolling(); startWeatherPolling()
+            }
+        } else if (rideRecording) {
+            // KONIEC jazdy: zamknij sesje (baza RSRV dnia, reset licznikow); pola widoczne -> czysty start na podglad.
+            rideRecording = false
+            _aggregator?.stopStreaming()
+            aggregatorStreaming = false
+            batteryPollJob?.cancel(); batteryPollJob = null
+            weatherPollJob?.cancel(); weatherPollJob = null
+            if (visibleFieldCount > 0 && _aggregator != null) {
+                _aggregator?.startStreaming()
+                aggregatorStreaming = true
+                startBatteryPolling(); startWeatherPolling()
             }
         }
     }
@@ -168,11 +208,11 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
 
     fun onFieldHidden() {
         if (visibleFieldCount > 0) visibleFieldCount--
-        if (visibleFieldCount == 0 && aggregatorStreaming) {
+        if (visibleFieldCount == 0 && aggregatorStreaming && !rideRecording) {
             stopJob?.cancel()
             stopJob = serviceScope.launch {
                 delay(20_000L)
-                if (visibleFieldCount == 0 && aggregatorStreaming) {
+                if (visibleFieldCount == 0 && aggregatorStreaming && !rideRecording) {
                     _aggregator?.stopStreamingSoft()
                     aggregatorStreaming = false
                     batteryPollJob?.cancel(); batteryPollJob = null
@@ -236,7 +276,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         val job = serviceScope.launch {
             while (true) {
                 val agg = _aggregator
-                if (agg != null) {
+                if (agg != null && aggregatorStreaming) {
                     val s = agg.statsSnapshot.value
                     if (s.wBalancePercent >= 0) {
                         val zero = if (s.wBalancePercent <= 0) 1.0 else 0.0

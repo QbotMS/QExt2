@@ -27,6 +27,8 @@ class WeatherMessageProducer(private val logger: (String) -> Unit = {}) {
         private const val STRONG_WIND_MPS = 12.0
     }
 
+    fun reset() { cooldowns.clear(); weatherWasFresh = true }
+
     fun checkAndProduce(state: WeatherMsgState): ActiveMessage? {
         if (!state.weatherFresh) {
             if (weatherWasFresh) {

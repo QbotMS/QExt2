@@ -19,8 +19,8 @@ data class RideContext(
 
 object LabRideStateRepository {
     private val lock = Any()
-    private val rideState = RideState()
-    private val computers = FieldComputers()
+    private var rideState = RideState()
+    private var computers = FieldComputers()
     private var mvpOutputs: Map<String, FieldOutput> = emptyMap()
 
     fun update(sample: RideSample, context: RideContext = RideContext()): Map<String, FieldOutput> {
@@ -37,6 +37,15 @@ object LabRideStateRepository {
                 }
             }
             return mvpOutputs
+        }
+    }
+
+    /** E1.7: nowa jazda = nowy stan (dystans, czasy, histereza biegu). */
+    fun reset() {
+        synchronized(lock) {
+            rideState = RideState()
+            computers = FieldComputers()
+            mvpOutputs = emptyMap()
         }
     }
 }

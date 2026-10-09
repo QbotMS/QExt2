@@ -246,4 +246,24 @@ class StatsCalculatorTest {
         calc.setWPrimeParams(22f, 245f)
         assertEquals(0, calc.wBalancePercent(3L))
     }
+
+    @Test
+    fun `E1_5 wynik nie zalezy od czestosci probek`() {
+        val a = StatsCalculator(ftpWatts = 240); a.setWPrimeParams(20f, 240f)
+        val b = StatsCalculator(ftpWatts = 240); b.setWPrimeParams(20f, 240f)
+        for (sec in 1..600L) a.update(if (sec % 120 < 60) 320 else 150, 150, sec, sec, dtSec = 1.0)
+        for (sec in 2..600L step 2) b.update(if (sec % 120 < 60) 320 else 150, 150, sec, sec, dtSec = 2.0)
+        assertTrue("XSS ${a.xssValue()} vs ${b.xssValue()}", kotlin.math.abs(a.xssValue() - b.xssValue()) < 0.5f)
+        assertTrue("W'bal ${a.wBalancePercent(0L)} vs ${b.wBalancePercent(0L)}", kotlin.math.abs(a.wBalancePercent(0L) - b.wBalancePercent(0L)) <= 2)
+    }
+
+    @Test
+    fun `E1_5 luka w danych nie zmienia W'bal ani XSS`() {
+        val c = StatsCalculator(ftpWatts = 240); c.setWPrimeParams(20f, 240f)
+        for (sec in 1..60L) c.update(400, 160, sec, sec)
+        val x = c.xssValue(); val w = c.wBalancePercent(0L)
+        c.update(400, 160, 61, 61, dtSec = 0.0)
+        assertEquals(x, c.xssValue(), 0.0001f)
+        assertEquals(w, c.wBalancePercent(1L))
+    }
 }

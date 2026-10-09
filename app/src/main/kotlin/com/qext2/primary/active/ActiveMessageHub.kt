@@ -35,6 +35,8 @@ object ActiveMessageHub {
         manager.clear()
         climbProducer.reset()
         climbPacingProducer.reset()
+        sensorProducer.reset()
+        weatherProducer.reset()
         lastCurId = null
         version++
     }
