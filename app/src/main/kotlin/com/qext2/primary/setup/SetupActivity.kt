@@ -2,441 +2,242 @@ package com.qext2.primary.setup
 
 import android.app.Activity
 import android.app.AlertDialog
-import android.app.TimePickerDialog
 import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.widget.CheckBox
+import android.os.Handler
+import android.os.Looper
+import android.text.InputType
+import android.view.Gravity
+import android.view.View
+import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
-import android.widget.NumberPicker
+import android.widget.ScrollView
 import android.widget.TextView
 import com.qext2.primary.BuildConfig
 import com.qext2.primary.QExt2PrimaryExtension
-import com.qext2.primary.R
 import com.qext2.primary.data.AthleteDataStore
-import com.qext2.primary.engine.BikeDetector
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
+/**
+ * SETUP v3 (projekt zaakceptowany 2026-10-09, kanwa "QExt2 SETUP – nowy projekt").
+ * Jeden ekran, zagladany rzadko: stan danych, forma dnia z QBota, koniec jazdy (automatycznie zmrok,
+ * reczna godzina tylko na dzis), kaseta. Wszystko inne ma stale wartosci (AthleteDataStore).
+ */
 class SetupActivity : Activity() {
+
+    private val bg = Color.parseColor("#0B1018")
+    private val card = Color.parseColor("#151D29")
+    private val btn = Color.parseColor("#243145")
+    private val txt = Color.parseColor("#EEF2F6")
+    private val sub = Color.parseColor("#A9B4C2")
+    private val green = Color.parseColor("#4ADE80")
+    private val amber = Color.parseColor("#FBBF24")
+    private val orange = Color.parseColor("#F59E0B")
+    private val red = Color.parseColor("#FF8A8A")
+    private val hm = DateTimeFormatter.ofPattern("HH:mm")
+    private lateinit var root: LinearLayout
+    private val ui = Handler(Looper.getMainLooper())
+
+    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_setup)
         AthleteDataStore.init(this)
-        findViewById<TextView>(R.id.tv_version)?.text = "v${BuildConfig.VERSION_NAME}"
-        showStoredData()
-        bindDeadline()
-        bindCarbPacket()
-        bindCheckboxes()
-        setupTabs()
-        bindBikeSelect()
-        bindWindUnit()
-        hideRetiredRows()
-
-        findViewById<TextView>(R.id.tv_deadline)?.setOnClickListener {
-            android.util.Log.e("QExt2Setup", "DEADLINE CLICKED!")
-            val (h, m) = AthleteDataStore.loadDeadline()
-            TimePickerDialog(this, { _, hour, minute ->
-                AthleteDataStore.saveDeadline(hour, minute)
-                QExt2PrimaryExtension.instance?.refreshDeadlineConfig()
-                bindDeadline()
-                showSunsetData()
-                setStatus("Deadline: %02d:%02d".format(hour, minute))
-            }, h, m, true).show()
-        }
-
-
-        findViewById<TextView>(R.id.tv_carb_packet)?.setOnClickListener {
-            val picker = NumberPicker(this).apply {
-                minValue = 15
-                maxValue = 60
-                value = AthleteDataStore.loadCarbPacketSize().coerceIn(15, 60)
-                wrapSelectorWheel = false
-            }
-            val container = LinearLayout(this).apply {
-                setPadding(32, 24, 32, 8)
-                addView(picker)
-            }
-            AlertDialog.Builder(this)
-                .setTitle("Carb porcja (g)")
-                .setView(container)
-                .setPositiveButton("OK") { _, _ ->
-                    val grams = picker.value
-                    AthleteDataStore.saveCarbPacketSize(grams)
-                    bindCarbPacket()
-                    setStatus("Carb porcja: ${grams}g")
-                }
-                .setNegativeButton("Anuluj", null)
-                .show()
-        }
-
-        val btn = findViewById<TextView>(R.id.btn_refetch)
-        btn?.setOnClickListener {
-            android.util.Log.i("QExt2Setup", "QEXT_READINESS_FETCH_START")
-            setStatus("Odswiezanie...")
-            btn.alpha = 0.4f
-            btn.isEnabled = false
-            QExt2PrimaryExtension.instance?.refetchAthleteData()
-            btn.postDelayed({
-                showStoredData()
-                showSunsetData()
-                setStatus("Gotowe!")
-                btn.alpha = 1.0f
-                btn.isEnabled = true
-            }, 5000L)
-        }
-
+        root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(14), dp(14), dp(14), dp(14)) }
+        setContentView(ScrollView(this).apply { setBackgroundColor(bg); addView(root) })
+        render()
     }
 
-    override fun onResume() {
-        super.onResume()
-        showStoredData()
-    }
-
-    private fun showStoredData() {
-        val raw = AthleteDataStore.load()
-        val baroSens = AthleteDataStore.loadBaroSensitive()
-        val data = raw.applyBaroAdjustment(false)
-
-        findViewById<TextView>(R.id.tv_ftp)?.text = if (data.ftp > 0) "${data.ftp} W" else "—"
-        findViewById<TextView>(R.id.tv_wmax)?.text = "%.1f kJ".format(data.wPrimeJoules / 1000.0)
-        findViewById<TextView>(R.id.tv_pp)?.text = if (data.ltpWatts > 0) "${data.ltpWatts} W" else "—"
-
-        findViewById<TextView>(R.id.tv_hrv)?.apply {
-            text = if (data.hrvToday > 0 && data.hrvBaseline30d > 0f)
-                "${data.hrvToday} / ${data.hrvBaseline30d.toInt()} (±${data.hrvDeviation30d.toInt()})"
-            else "—"
-            val color = when {
-                data.hrvDeviation30d >= -3f -> Color.parseColor("#4ADE80")
-                data.hrvDeviation30d >= -8f -> Color.parseColor("#FACC15")
-                else -> Color.parseColor("#FF5252")
-            }
-            setTextColor(color)
-        }
-
-        findViewById<TextView>(R.id.tv_sleep)?.apply {
-            text = if (data.sleepTodayH > 0f && data.sleepBaseline30d > 0f)
-                "%.1fh / %.1fh (±%.1fh)".format(data.sleepTodayH, data.sleepBaseline30d, data.sleepDev)
-            else "—"
-            val color = when {
-                data.sleepDev >= -0.5f -> Color.parseColor("#4ADE80")
-                data.sleepDev >= -1.5f -> Color.parseColor("#FACC15")
-                else -> Color.parseColor("#FF5252")
-            }
-            setTextColor(color)
-        }
-
-        findViewById<TextView>(R.id.tv_pressure)?.text = if (data.pressureHpa > 0f)
-            "%.0f hPa / %+.0f hPa/24h".format(data.pressureHpa, data.pressureChange24h)
-        else "—"
-
-        findViewById<TextView>(R.id.tv_baro_info)?.apply {
-            val pct = data.baroAdjustPercent
-            text = if (pct <= 0) "brak korekty" else "korekta −${pct}%"
-            setTextColor(if (pct <= 0) Color.parseColor("#4ADE80") else Color.parseColor("#FACC15"))
-        }
-
-        val sdf = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
-        val lastRefresh = AthleteDataStore.loadLastRefresh()
-        val dateStr = if (data.fetchTimestamp > 0) {
-            val ageH = (System.currentTimeMillis() - data.fetchTimestamp) / 3_600_000L
-            val staleTag = if (ageH > 12) " ⚠️ dane stare (${ageH}h)" else ""
-            "Dane z API: ${sdf.format(Date(data.fetchTimestamp))}$staleTag"
-        } else {
-            "Brak danych — poczekaj na synchronizację"
-        }
-        val refreshStr = if (lastRefresh > 0) {
-            " / odswiezone: ${SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(lastRefresh))}"
-        } else ""
-        findViewById<TextView>(R.id.tv_fetch_date)?.text = dateStr + refreshStr
-
-        findViewById<TextView>(R.id.tv_today_factor)?.text = data.todayFactorDisplay
-
-        findViewById<TextView>(R.id.tv_pi_status)?.apply {
-            text = if (data.profileComplete) "QBOT profile OK" else data.warningReasons.replace("|", ", ")
-            setTextColor(if (data.profileComplete) Color.parseColor("#4ADE80") else Color.parseColor("#FACC15"))
-        }
-
-        updateBikeStatus()
-        findViewById<TextView>(R.id.tv_status)?.text = ""
-    }
-
-    private fun bindDeadline() {
-        val (hour, min) = AthleteDataStore.loadDeadline()
-        findViewById<TextView>(R.id.tv_deadline)?.text = "%02d:%02d".format(hour, min)
-    }
-
-
-    private fun bindCheckboxes() {
-        val cbBaro = findViewById<CheckBox>(R.id.cb_baro)
-        val cbHrZone = findViewById<CheckBox>(R.id.cb_hr_zone)
-        val cbCapTwilight = findViewById<CheckBox>(R.id.cb_cap_twilight)
-        cbBaro?.isChecked = AthleteDataStore.loadBaroSensitive()
-        cbHrZone?.isChecked = AthleteDataStore.loadHrZoneMode()
-        cbCapTwilight?.isChecked = AthleteDataStore.loadCapTwilight()
-        // TodayFactor: przelacznik SESYJNY (bez preferencji) -- reset na ON po restarcie Karoo.
-        val cbTf = findViewById<CheckBox>(R.id.cb_tf)
-        cbTf?.isChecked = com.qext2.primary.data.TodayFactorSession.enabled
-        cbTf?.setOnCheckedChangeListener { _, checked ->
-            com.qext2.primary.data.TodayFactorSession.enabled = checked
-        }
-        cbBaro?.setOnCheckedChangeListener { _, checked ->
-            AthleteDataStore.saveBaroSensitive(checked)
-            showStoredData()
-            QExt2PrimaryExtension.instance?.refreshBaroSensitive(checked)
-        }
-        cbHrZone?.setOnCheckedChangeListener { _, checked ->
-            AthleteDataStore.saveHrZoneMode(checked)
-        }
-        cbCapTwilight?.setOnCheckedChangeListener { _, checked ->
-            AthleteDataStore.saveCapTwilight(checked)
-            showSunsetData()
-            QExt2PrimaryExtension.instance?.refreshCapTwilight(checked)
-        }
-        bindRidingMode()
-        bindCassetteOverride()
-        showSunsetData()
-    }
-
-    private fun bindCassetteOverride() {
-        val cb = findViewById<CheckBox>(R.id.cb_cassette_override)
-        val tvCogs = findViewById<TextView>(R.id.tv_cassette_cogs)
-
-        fun renderCogs() {
-            val raw = AthleteDataStore.loadCassetteCogsRaw()
-            val cogs = AthleteDataStore.parseCogs(raw)
-            tvCogs?.text = if (cogs.isEmpty()) "— (dotknij, wpisz np. 10,12,14,...,52)"
-            else cogs.joinToString(",") + "  (${cogs.size} biegów)"
-        }
-
-        cb?.isChecked = AthleteDataStore.loadCassetteOverrideEnabled()
-        renderCogs()
-
-        cb?.setOnCheckedChangeListener { _, checked ->
-            AthleteDataStore.saveCassetteOverrideEnabled(checked)
-            QExt2PrimaryExtension.instance?.refreshCassetteOverride()
-            setStatus(if (checked) "Override kasety: ON" else "Override kasety: OFF")
-        }
-
-        val cbEdge = findViewById<CheckBox>(R.id.cb_gear_edge_beep)
-        cbEdge?.isChecked = AthleteDataStore.loadGearEdgeBeepEnabled()
-        cbEdge?.setOnCheckedChangeListener { _, checked ->
-            AthleteDataStore.saveGearEdgeBeepEnabled(checked)
-            setStatus(if (checked) "Dzwiek skrajnych koronek: ON" else "Dzwiek skrajnych koronek: OFF")
-        }
-
-        val cbEtaV2 = findViewById<CheckBox>(R.id.cb_eta_v2)
-        cbEtaV2?.isChecked = AthleteDataStore.loadEtaV2Enabled()
-        cbEtaV2?.setOnCheckedChangeListener { _, checked ->
-            AthleteDataStore.saveEtaV2Enabled(checked)
-            setStatus(if (checked) "ETA: nowe (v2)" else "ETA: stare")
-        }
-
-        val cbStatsDemo = findViewById<CheckBox>(R.id.cb_stats_v2_demo)
-        cbStatsDemo?.isChecked = AthleteDataStore.loadStatsV2Demo()
-        cbStatsDemo?.setOnCheckedChangeListener { _, checked ->
-            AthleteDataStore.saveStatsV2Demo(checked)
-            setStatus(if (checked) "STATS v2: dane demo ON" else "STATS v2: dane z jazdy")
-        }
-
-        tvCogs?.setOnClickListener {
-            val input = EditText(this).apply {
-                setText(AthleteDataStore.loadCassetteCogsRaw())
-                hint = "10,12,14,16,18,21,24,28,32,36,42,52"
-                setSingleLine(true)
-            }
-            val container = LinearLayout(this).apply {
-                setPadding(32, 24, 32, 8)
-                addView(input)
-            }
-            AlertDialog.Builder(this)
-                .setTitle("Kaseta custom (od najmniejszej koronki)")
-                .setMessage("Wpisz koronki po przecinku, od najmniejszej (10T) do największej. Bieg 1 (AXS) = największa koronka.")
-                .setView(container)
-                .setPositiveButton("Zapisz") { _, _ ->
-                    val raw = input.text.toString()
-                    val cogs = AthleteDataStore.parseCogs(raw)
-                    AthleteDataStore.saveCassetteCogsRaw(cogs.joinToString(","))
-                    QExt2PrimaryExtension.instance?.refreshCassetteOverride()
-                    renderCogs()
-                    setStatus("Kaseta: ${cogs.size} koronek")
-                }
-                .setNegativeButton("Anuluj", null)
-                .show()
-        }
-    }
-
-    private fun bindRidingMode() {
-        val btnDef = findViewById<android.widget.TextView>(R.id.btn_mode_defensive)
-        val btnNorm = findViewById<android.widget.TextView>(R.id.btn_mode_normal)
-        val btnOff = findViewById<android.widget.TextView>(R.id.btn_mode_offensive)
-        val btnAuto = findViewById<android.widget.TextView>(R.id.btn_mode_auto)
-        val buttons = listOf(btnDef, btnNorm, btnOff, btnAuto)
-
-        fun highlight(selected: Int) {
-            buttons.forEachIndexed { idx, btn ->
-                btn?.setBackgroundColor(
-                    if (idx == selected) 0xFF1D4ED8.toInt() else 0xFF1E2A3A.toInt()
-                )
-                btn?.setTextColor(
-                    if (idx == selected) 0xFFFFFFFF.toInt() else 0xFF9CA3AF.toInt()
-                )
-            }
-        }
-
-        highlight(AthleteDataStore.loadRidingMode())
-
-        buttons.forEachIndexed { idx, btn ->
-            btn?.setOnClickListener {
-                AthleteDataStore.saveRidingMode(idx)
-                QExt2PrimaryExtension.instance?.refreshModeFactor()
-                highlight(idx)
-            }
-        }
-    }
-
-    private fun bikeName(idx: Int): String = when (idx) {
-        1 -> "Grizl"
-        2 -> "Monster"
-        3 -> "Grail"
-        else -> "Auto"
-    }
-
-    private fun bikeName(b: BikeDetector.Bike): String = when (b) {
-        BikeDetector.Bike.GRIZL -> "Grizl"
-        BikeDetector.Bike.GRAIL -> "Grail"
-        BikeDetector.Bike.MONSTER -> "Monster"
-        BikeDetector.Bike.UNKNOWN -> "\u2014"
-    }
-
-    private fun updateBikeStatus() {
-        val detected = QExt2PrimaryExtension.instance?.aggregator?.detectedBike()
-        val manualIdx = AthleteDataStore.loadManualBike()
-        val label = when {
-            manualIdx != 0 -> bikeName(manualIdx) + " (reczny)"
-            detected != null && detected != BikeDetector.Bike.UNKNOWN -> bikeName(detected)
-            else -> "\u2014 (czekam na sensory)"
-        }
-        findViewById<TextView>(R.id.tv_bike)?.text = label
-    }
-
-    private fun bindBikeSelect() {
-        val btnAuto = findViewById<TextView>(R.id.btn_bike_auto)
-        val btnGrizl = findViewById<TextView>(R.id.btn_bike_grizl)
-        val btnMonster = findViewById<TextView>(R.id.btn_bike_monster)
-        val btnGrail = findViewById<TextView>(R.id.btn_bike_grail)
-        val buttons = listOf(btnAuto, btnGrizl, btnMonster, btnGrail)
-
-        fun highlight(selected: Int) {
-            buttons.forEachIndexed { idx, btn ->
-                btn?.setBackgroundColor(if (idx == selected) 0xFF1D4ED8.toInt() else 0xFF1E2A3A.toInt())
-                btn?.setTextColor(if (idx == selected) 0xFFFFFFFF.toInt() else 0xFF9CA3AF.toInt())
-            }
-        }
-        highlight(AthleteDataStore.loadManualBike())
-
-        buttons.forEachIndexed { idx, btn ->
-            btn?.setOnClickListener {
-                AthleteDataStore.saveManualBike(idx)
-                val bike = when (idx) {
-                    1 -> BikeDetector.Bike.GRIZL
-                    2 -> BikeDetector.Bike.MONSTER
-                    3 -> BikeDetector.Bike.GRAIL
-                    else -> null
-                }
-                QExt2PrimaryExtension.instance?.aggregator?.setManualBike(bike)
-                highlight(idx)
-                updateBikeStatus()
-            }
-        }
-    }
-
-    private fun showSunsetData() {
-        val civilDuskMs = QExt2PrimaryExtension.instance?.aggregator?.getCivilDuskMs() ?: 0L
-        val apiSunsetMs = AthleteDataStore.load().sunsetTimestampMs
-        val twilightMs = if (civilDuskMs > 0L) civilDuskMs else apiSunsetMs
-        val capTwilight = AthleteDataStore.loadCapTwilight()
-        val (hour, min) = AthleteDataStore.loadDeadline()
-
-        val sunsetStr = if (twilightMs > 0L) {
-            val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
-            sdf.format(Date(twilightMs))
-        } else "—"
-        findViewById<TextView>(R.id.tv_sunset)?.text = sunsetStr
-
-        val activeDeadline = if (capTwilight && twilightMs > 0L) {
-            val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
-            val twilightTime = sdf.format(Date(twilightMs))
-            "Aktywny deadline: min(%02d:%02d, $twilightTime)".format(hour, min)
-        } else {
-            "Aktywny deadline: %02d:%02d".format(hour, min)
-        }
-        findViewById<TextView>(R.id.tv_active_deadline)?.text = activeDeadline
-    }
+    override fun onResume() { super.onResume(); render() }
 
     override fun onPause() {
         super.onPause()
         QExt2PrimaryExtension.instance?.pushSettings()   // E7.1: kopia ustawien na serwer
     }
 
-    /** E7.2: HRV, sen, cisnienie, korekta baro i reczny TF wycofane z modeli -- ukryte. */
-    private fun hideRetiredRows() {
-        for (id in listOf(R.id.tv_hrv, R.id.tv_sleep, R.id.tv_pressure, R.id.tv_baro_info)) {
-            (findViewById<android.view.View>(id)?.parent as? android.view.View)?.visibility = android.view.View.GONE
-        }
-        for (id in listOf(R.id.cb_baro, R.id.cb_tf)) findViewById<android.view.View>(id)?.visibility = android.view.View.GONE
+    private fun render() {
+        root.removeAllViews()
+        root.addView(label("QEXT2", 26, txt, bold = true).apply { setPadding(dp(4), 0, 0, dp(10)) })
+        root.addView(statusCard())
+        root.addView(formCard())
+        root.addView(deadlineCard())
+        root.addView(cassetteCard())
+        root.addView(label("Wersja ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) · ustawienia zapisywane na serwerze", 13, sub).apply {
+            setPadding(dp(4), dp(14), 0, 0)
+        })
     }
 
-    /** E5.1: jednostka, w ktorej nadaje karoo-headwind; QExt2 przelicza na m/s. */
-    private fun bindWindUnit() {
-        val ids = listOf(R.id.btn_wu_kmh, R.id.btn_wu_ms, R.id.btn_wu_mph, R.id.btn_wu_kn)
-        val btns = ids.map { findViewById<TextView>(it) }
-        fun hl(sel: Int) = btns.forEachIndexed { i, b ->
-            b?.setBackgroundColor(if (i == sel) 0xFF1D4ED8.toInt() else 0xFF1E2A3A.toInt())
-            b?.setTextColor(if (i == sel) 0xFFFFFFFF.toInt() else 0xFF9CA3AF.toInt())
+    // ---------- bloki ----------
+    private fun dataFresh(): Boolean {
+        val ts = AthleteDataStore.load().fetchTimestamp
+        return ts > 0L && Instant.ofEpochMilli(ts).atZone(ZoneId.systemDefault()).toLocalDate() == LocalDate.now()
+    }
+
+    private fun statusCard(): View {
+        val a = AthleteDataStore.load()
+        val fresh = dataFresh()
+        val when_ = if (a.fetchTimestamp > 0L) Instant.ofEpochMilli(a.fetchTimestamp).atZone(ZoneId.systemDefault()) else null
+        val bike = when (QExt2PrimaryExtension.instance?.aggregator?.bikeKey()) {
+            "10625" -> "Grizl"; "27856" -> "Grail"; "none" -> "Monster"; else -> "rozpozna się po starcie jazdy"
         }
-        hl(AthleteDataStore.loadHeadwindUnit())
-        btns.forEachIndexed { i, b ->
-            b?.setOnClickListener {
-                AthleteDataStore.saveHeadwindUnit(i)
-                com.qext2.primary.util.WindUnits.sourceUnit = i
-                hl(i)
-                setStatus("Wiatr z karoo-headwind: " + com.qext2.primary.util.WindUnits.LABELS[i])
+        val c = box(if (fresh) Color.parseColor("#0F2A1C") else Color.parseColor("#3A1416"))
+        if (fresh) {
+            c.addView(label("Wszystko działa", 22, green, bold = true))
+            c.addView(label("Dane z QBota: dziś ${when_?.format(hm)}\nRower: $bike", 15, Color.parseColor("#C7F0D8")))
+        } else {
+            val day = when_?.toLocalDate()
+            val ago = when { when_ == null -> "brak danych"; day == LocalDate.now().minusDays(1) -> "z wczoraj ${when_.format(hm)}"; else -> "z ${day}" }
+            c.addView(label("Dane z QBota $ago", 22, red, bold = true))
+            c.addView(label("QExt2 liczy na ostatnim profilu, forma dnia = 1,00. Dane pobiorą się same, gdy będzie sieć.", 15, Color.parseColor("#FECACA")))
+            c.addView(button("Pobierz teraz", Color.parseColor("#DC2626")) {
+                QExt2PrimaryExtension.instance?.refetchAthleteData()
+                ui.postDelayed({ render() }, 4000)
+            })
+        }
+        return c
+    }
+
+    private fun formCard(): View {
+        val c = box(card)
+        c.addView(label("Forma dnia z QBota", 14, sub))
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.BOTTOM }
+        if (dataFresh()) {
+            val f = AthleteDataStore.load().todayFactor
+            val (desc, col) = when {
+                f < 0.95f -> "słabiej niż zwykle" to orange
+                f < 0.995f -> "trochę słabiej niż zwykle" to amber
+                f <= 1.02f -> "normalnie" to txt
+                else -> "lepiej niż zwykle" to green
             }
+            row.addView(label("%.2f".format(f).replace('.', ','), 44, col, bold = true))
+            row.addView(label("  $desc", 16, txt).apply { setPadding(0, 0, 0, dp(8)) })
+            c.addView(row)
+            c.addView(label(when {
+                f < 0.995f -> "Rezerwa (RSRV) spada dziś szybciej niż zwykle."
+                f > 1.005f -> "Rezerwa (RSRV) spada dziś wolniej niż zwykle."
+                else -> "Rezerwa (RSRV) liczona normalnie."
+            }, 14, sub))
+        } else {
+            row.addView(label("1,00", 44, sub, bold = true))
+            row.addView(label("  brak dzisiejszej, liczę neutralnie", 15, orange).apply { setPadding(0, 0, 0, dp(8)) })
+            c.addView(row)
         }
+        return c
     }
 
-    private fun setStatus(msg: String) {
-        findViewById<TextView>(R.id.tv_status)?.text = msg
+    private fun deadlineCard(): View {
+        val c = box(card)
+        val agg = QExt2PrimaryExtension.instance?.aggregator
+        val today = AthleteDataStore.loadDeadlineToday()
+        val effMs = agg?.getDeadlineMs()?.takeIf { it > 0L }
+        val eff = effMs?.let { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).format(hm) }
+        if (today == null) {
+            c.addView(label("Koniec jazdy", 14, sub))
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.BOTTOM }
+            row.addView(label(eff ?: "zmrok", 44, txt, bold = true))
+            row.addView(label("  o zmroku, automatycznie", 16, orange).apply { setPadding(0, 0, 0, dp(8)) })
+            c.addView(row)
+            c.addView(button("Dziś muszę skończyć wcześniej", btn) {
+                val start = effMs?.let { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()) }
+                val h = start?.hour ?: 17; val m = (start?.minute ?: 0) / 15 * 15
+                AthleteDataStore.saveDeadlineToday(h, m); applyDeadline()
+            })
+        } else {
+            c.addView(label("Koniec jazdy – tylko dziś", 14, sub))
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+            row.addView(squareButton("−15") { shiftToday(-15) })
+            row.addView(label("%02d:%02d".format(today.first, today.second), 56, txt, bold = true).apply {
+                gravity = Gravity.CENTER; layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            })
+            row.addView(squareButton("+15") { shiftToday(15) })
+            c.addView(row)
+            c.addView(label("Jutro wraca automatycznie zmrok. Później niż zmrok się nie da.", 14, sub))
+            c.addView(button("Wróć do zmroku", btn) { AthleteDataStore.clearDeadlineToday(); applyDeadline() })
+        }
+        return c
     }
 
-    private fun setupTabs() {
-        val tabs = listOf(
-            Pair(R.id.tab_dane, R.id.ll_tab_dane),
-            Pair(R.id.tab_jazda, R.id.ll_tab_jazda),
-            Pair(R.id.tab_paliwo, R.id.ll_tab_paliwo),
-            Pair(R.id.tab_naw, R.id.ll_tab_naw)
-        )
-        fun select(idx: Int) {
-            tabs.forEachIndexed { i, pair ->
-                findViewById<TextView>(pair.first)?.apply {
-                    setTextColor(if (i == idx) 0xFFFFFFFF.toInt() else 0xFF9CA3AF.toInt())
-                    setBackgroundColor(if (i == idx) 0xFF131C2E.toInt() else 0)
-                }
-                findViewById<LinearLayout>(pair.second)?.visibility =
-                    if (i == idx) android.view.View.VISIBLE else android.view.View.GONE
+    private fun shiftToday(min: Int) {
+        val (h, m) = AthleteDataStore.loadDeadlineToday() ?: return
+        val t = (h * 60 + m + min).coerceIn(6 * 60, 23 * 60 + 45)
+        AthleteDataStore.saveDeadlineToday(t / 60, t % 60); applyDeadline()
+    }
+
+    private fun applyDeadline() {
+        QExt2PrimaryExtension.instance?.refreshDeadlineConfig()
+        render()
+    }
+
+    private fun cassetteCard(): View {
+        val c = box(card)
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) }
+        col.addView(label("Kaseta", 14, sub))
+        val custom = AthleteDataStore.loadCassetteOverrideEnabled()
+        col.addView(label(if (custom) AthleteDataStore.loadCassetteCogsRaw() else "z przerzutki AXS", 17, txt, bold = true))
+        row.addView(col)
+        row.addView(Button(this).apply {
+            text = "Zmień"; setTextColor(txt); textSize = 16f; isAllCaps = false; background = round(btn, 12)
+            layoutParams = LinearLayout.LayoutParams(dp(110), dp(54))
+            setOnClickListener { cassetteDialog() }
+        })
+        c.addView(row)
+        return c
+    }
+
+    private fun cassetteDialog() {
+        val input = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_TEXT
+            hint = "np. 10-11-13-15-17-19-21-24-28-32-37-44-52"
+            setText(AthleteDataStore.loadCassetteCogsRaw())
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Zębatki kasety")
+            .setView(input)
+            .setPositiveButton("Zapisz") { _, _ ->
+                val raw = input.text.toString().trim()
+                AthleteDataStore.saveCassetteCogsRaw(raw)
+                AthleteDataStore.saveCassetteOverrideEnabled(raw.isNotEmpty())
+                QExt2PrimaryExtension.instance?.refreshCassetteOverride(); render()
             }
-        }
-        tabs.forEachIndexed { i, pair ->
-            findViewById<TextView>(pair.first)?.setOnClickListener { select(i) }
-        }
-        select(0)
+            .setNeutralButton("Z przerzutki AXS") { _, _ ->
+                AthleteDataStore.saveCassetteOverrideEnabled(false)
+                QExt2PrimaryExtension.instance?.refreshCassetteOverride(); render()
+            }
+            .setNegativeButton("Anuluj", null)
+            .show()
     }
 
-    private fun bindCarbPacket() {
-        val grams = AthleteDataStore.loadCarbPacketSize()
-        findViewById<TextView>(R.id.tv_carb_packet)?.text = "${grams} g"
+    // ---------- pomocnicze widoki ----------
+    private fun round(color: Int, r: Int) = GradientDrawable().apply { setColor(color); cornerRadius = dp(r).toFloat() }
+
+    private fun box(color: Int) = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        background = round(color, 14)
+        setPadding(dp(16), dp(14), dp(16), dp(14))
+        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(12) }
+    }
+
+    private fun label(t: String, sp: Int, color: Int, bold: Boolean = false) = TextView(this).apply {
+        text = t; textSize = sp.toFloat(); setTextColor(color)
+        if (bold) typeface = Typeface.DEFAULT_BOLD
+    }
+
+    private fun button(t: String, color: Int, onClick: () -> Unit) = Button(this).apply {
+        text = t; textSize = 17f; setTextColor(Color.WHITE); isAllCaps = false; background = round(color, 12)
+        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(58)).apply { topMargin = dp(12) }
+        setOnClickListener { onClick() }
+    }
+
+    private fun squareButton(t: String, onClick: () -> Unit) = Button(this).apply {
+        text = t; textSize = 20f; setTextColor(txt); isAllCaps = false; background = round(btn, 12)
+        layoutParams = LinearLayout.LayoutParams(dp(68), dp(68))
+        setOnClickListener { onClick() }
     }
 }

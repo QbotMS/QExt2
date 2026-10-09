@@ -243,10 +243,21 @@ object AthleteDataStore {
         }
     }
 
-    fun loadDeadline(): Pair<Int, Int> {
-        val p = prefs ?: return 21 to 0
-        return p.getInt(KEY_DEADLINE_HOUR, 21) to p.getInt(KEY_DEADLINE_MIN, 0)
+    /** SETUP v3 (2026-10-09): koniec jazdy = zmrok automatycznie; reczna godzina tylko NA DZIS (o polnocy wraca zmrok). */
+    fun loadDeadline(): Pair<Int, Int> = loadDeadlineToday() ?: (23 to 59)
+
+    fun loadDeadlineToday(): Pair<Int, Int>? {
+        val p = prefs ?: return null
+        if (p.getString("deadline_today_date", "") != java.time.LocalDate.now().toString()) return null
+        return p.getInt("deadline_today_h", 18) to p.getInt("deadline_today_m", 0)
     }
+
+    fun saveDeadlineToday(hour: Int, minute: Int) {
+        prefs?.edit()?.putString("deadline_today_date", java.time.LocalDate.now().toString())
+            ?.putInt("deadline_today_h", hour.coerceIn(0, 23))?.putInt("deadline_today_m", minute.coerceIn(0, 59))?.apply()
+    }
+
+    fun clearDeadlineToday() { prefs?.edit()?.remove("deadline_today_date")?.apply() }
 
     fun saveBaroSensitive(enabled: Boolean) {
         prefs?.edit()?.putBoolean("baro_sensitive", enabled)?.apply()
@@ -261,7 +272,7 @@ object AthleteDataStore {
     }
 
     fun loadHrZoneMode(): Boolean {
-        return prefs?.getBoolean("hr_zone_mode", false) ?: false
+        return false   // SETUP v3: tetno w bpm (kolor = strefa)
     }
 
     fun loadLthrBpm(): Int {
@@ -273,7 +284,7 @@ object AthleteDataStore {
     }
 
     fun loadCapTwilight(): Boolean {
-        return prefs?.getBoolean("cap_twilight", false) ?: false
+        return true   // SETUP v3: zawsze najpozniej o zmroku
     }
 
     // Riding mode: 0=defensive, 1=normal, 2=offensive
@@ -281,7 +292,7 @@ object AthleteDataStore {
         prefs?.edit()?.putInt("riding_mode", mode.coerceIn(0, 3))?.apply()
     }
 
-    fun loadRidingMode(): Int = prefs?.getInt("riding_mode", 3) ?: 3
+    fun loadRidingMode(): Int = 3   // SETUP v3: tylko AUTO
 
     // Reczny wybor roweru (bezpiecznik): 0=auto,1=grizl,2=monster,3=grail. Jednorazowy (konsumowany na starcie).
     fun saveManualBike(idx: Int) { prefs?.edit()?.putInt("manual_bike", idx.coerceIn(0, 3))?.apply() }
@@ -514,7 +525,7 @@ object AthleteDataStore {
     }
 
     fun loadGearEdgeBeepEnabled(): Boolean =
-        prefs?.getBoolean("gear_edge_beep", true) ?: true
+        false   // SETUP v3: bez dzwieku skrajnych zebatek
 
     /** ETA v2 (docs/ETA_V2_PLAN.md): true = nowe ETA, false = stare (srednia 30 min). */
     fun saveEtaV2Enabled(enabled: Boolean) {
@@ -530,7 +541,7 @@ object AthleteDataStore {
     }
 
     fun loadStatsV2Demo(): Boolean =
-        prefs?.getBoolean("stats_v2_demo", false) ?: false
+        false   // SETUP v3: bez trybu demo
 
     /** Typowa predkosc ruchu z poprzednich jazd (wartosc startowa ETA poziom 3), km/h; 0 = brak. */
     fun saveEtaPriorKmh(kmh: Double) {
@@ -545,15 +556,14 @@ object AthleteDataStore {
         (prefs?.getFloat("eta_stops_min_km", 0f) ?: 0f).toDouble()
 
     fun saveHeadwindUnit(u: Int) { prefs?.edit()?.putInt("headwind_unit", u.coerceIn(0, 3))?.apply() }
-    fun loadHeadwindUnit(): Int = prefs?.getInt("headwind_unit", 0) ?: 0
+    fun loadHeadwindUnit(): Int = 0   // SETUP v3: karoo-headwind w km/h (ustawienie Michala)
 
     fun saveCadenceModel(json: String) { prefs?.edit()?.putString("cadence_model", json)?.apply() }
     fun loadCadenceModel(): String? = prefs?.getString("cadence_model", null)
 
     // ---- E7.1: kopia ustawien SETUP na serwerze (odtworzenie po reinstalacji) ----
-    private val SETTINGS_KEYS = listOf("deadline_hour", "deadline_min", "carb_packet", "cassette_cogs", "cassette_override",
-        "cap_twilight", "riding_mode", "headwind_unit", "hr_zone_mode", "gear_edge_beep",
-        "reserve_daily_load_v2", "reserve_daily_load_v2_date")
+    private val SETTINGS_KEYS = listOf("cassette_cogs", "cassette_override", "deadline_today_date", "deadline_today_h",
+        "deadline_today_m", "reserve_daily_load_v2", "reserve_daily_load_v2_date")
 
     fun exportSettings(): org.json.JSONObject {
         val o = org.json.JSONObject()
