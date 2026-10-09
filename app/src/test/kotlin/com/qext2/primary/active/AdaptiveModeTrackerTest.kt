@@ -20,7 +20,7 @@ class AdaptiveModeTrackerTest {
         assertEquals(1.00f, f, 0f)
     }
 
-    @Test fun `szybki spadek i dlugo do mety -> ostrozny po histerezie`() {
+    @Test fun `szybki spadek i dlugo do mety daje ostrozny po histerezie`() {
         val t = AdaptiveModeTracker()
         var f = 0f
         // spadek 1 %/min (60 %/h), do mety 2 h -> prognoza ujemna
@@ -28,7 +28,7 @@ class AdaptiveModeTrackerTest {
         assertEquals(0.88f, f, 0f)
     }
 
-    @Test fun `wolny spadek i blisko mety -> ofensywny`() {
+    @Test fun `wolny spadek i blisko mety daje ofensywny`() {
         val t = AdaptiveModeTracker()
         var f = 0f
         for (m in 0..40) f = t.update(m * MIN, 95 - m / 10, 600.0, true)

@@ -70,6 +70,8 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
 
     companion object {
         var instance: QExt2PrimaryExtension? = null
+        /** Wersja kontraktu dev fields FIT (docs/KONTRAKT_DANYCH.md pkt 6). */
+        const val FIT_SCHEMA = 2
     }
 
     override fun onCreate() {
@@ -273,6 +275,9 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         val fRdy = DeveloperField(5.toShort(), 136.toShort(), "qext2_readiness", "factor")
         val fRsrv = DeveloperField(6.toShort(), 2.toShort(), "qext2_rsrv_pct", "%")
         val fXss = DeveloperField(7.toShort(), 136.toShort(), "qext2_xss", "pts")
+        // E-FIT schemat 2 (plan v2): wersja schematu/modelu + NP5; serwer: fit_ingest model_schema
+        val fSchema = DeveloperField(8.toShort(), 2.toShort(), "qext2_schema", "v")
+        val fNp5 = DeveloperField(9.toShort(), 132.toShort(), "qext2_np5_w", "W")
         val job = serviceScope.launch {
             while (true) {
                 val agg = _aggregator
@@ -291,6 +296,8 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                                     FieldValue(fRdy, s.readiness.toDouble()),
                                     FieldValue(fRsrv, s.rideReservePercent.toDouble()),
                                     FieldValue(fXss, s.xssValue.toDouble()),
+                                    FieldValue(fSchema, FIT_SCHEMA.toDouble()),
+                                    FieldValue(fNp5, s.np5Watts.toDouble()),
                                 )
                             )
                         )
@@ -300,7 +307,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
             }
         }
         emitter.setCancellable { job.cancel() }
-        Log.i(TAG, "QEXT_FIT_START writing 8 developer fields @1Hz")
+        Log.i(TAG, "QEXT_FIT_START writing 10 developer fields @1Hz schema=$FIT_SCHEMA")
     }
 
     fun refetchAthleteData() {

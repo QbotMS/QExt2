@@ -47,6 +47,9 @@ Limity wieku: moc 3 s, kadencja 3 s, tetno 5 s, predkosc 3 s, nachylenie 5 s od 
 ## 5. Rower
 AXS 10625 = Grizl, AXS 27856 = Grail, brak AXS = Monster.
 
-## 6. FIT (dev fields) -- wersja schematu w E-FIT
-Obecne (schemat 1): qext2_wbal_pct, qext2_cp_eff_w, qext2_wprime_eff_kj, qext2_cf, qext2_wbal_zero, qext2_readiness, qext2_rsrv_pct, qext2_xss.
-Schemat 2 (do wdrozenia): + wersja schematu/modelu, build, ID jazdy, jakosc/pokrycie; bez qext2_cf; zapis tylko z aktualnego obliczenia.
+## 6. FIT (dev fields)
+Schemat 1 (do 8db50b0): qext2_wbal_pct, qext2_cp_eff_w, qext2_wprime_eff_kj, qext2_cf, qext2_wbal_zero, qext2_readiness, qext2_rsrv_pct, qext2_xss
+  (CP z korekta formy/upalu/dryfu, stary wzor XSS).
+Schemat 2 (plan v2): jak 1 + qext2_schema (=2) + qext2_np5_w; cp_eff_w = CP ModelQ bez korekt (qext2_cf zawsze 1.0), qext2_readiness = forma
+  uzyta w RSRV, XSS wzorem ModelQ2. Zapis tylko z aktywnych obliczen jazdy.
+Serwer (fit_ingest): model_schema w fitmodel_qext2_ride (brak pola = 1); wbal_zero_seconds z timestampow. Porownania historii tylko w obrebie schematu.
