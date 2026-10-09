@@ -302,30 +302,6 @@ object AthleteDataStore {
         return prefs?.getLong("last_refresh_ts", 0L) ?: 0L
     }
 
-    fun updateSleepDataDateMarker(markerRaw: String?): Boolean {
-        val marker = markerRaw?.trim()?.takeIf { it.isNotEmpty() } ?: return false
-        val previous = loadSleepDataDateMarker()
-        if (previous == marker) return false
-        prefs?.edit()?.apply {
-            putString(KEY_SLEEP_DATA_DATE_MARKER, marker)
-            putBoolean(KEY_SLEEP_REFRESH_PENDING, previous != null)
-            apply()
-        }
-        return true
-    }
-
-    fun loadSleepDataDateMarker(): String? {
-        return prefs?.getString(KEY_SLEEP_DATA_DATE_MARKER, null)?.trim()?.takeIf { it.isNotEmpty() }
-    }
-
-    fun loadSleepRefreshPending(): Boolean {
-        return prefs?.getBoolean(KEY_SLEEP_REFRESH_PENDING, false) ?: false
-    }
-
-    fun consumeSleepRefreshPending() {
-        prefs?.edit()?.putBoolean(KEY_SLEEP_REFRESH_PENDING, false)?.apply()
-    }
-
     // RSRV: jedyna waluta obciazenia to XSS (ModelQ). Ksiega TSS usunieta 2026-07-24 --
     // nie byla przez nikogo czytana, a jej istnienie grozilo rozjechaniem sie z ksiega XSS.
     fun saveReserveDailyLoad(value: Float) {

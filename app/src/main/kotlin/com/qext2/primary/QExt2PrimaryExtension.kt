@@ -445,9 +445,6 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                                 fetchTimestamp = System.currentTimeMillis()
                             )
                             AthleteDataStore.save(data)
-                            if (AthleteDataStore.updateSleepDataDateMarker(sleepDataDate)) {
-                                Log.i(TAG, "Sleep marker updated: $sleepDataDate pending=${AthleteDataStore.loadSleepRefreshPending()}")
-                            }
                             val adjusted = data.applyBaroAdjustment(AthleteDataStore.loadBaroSensitive())
                             _aggregator?.updateAthleteData(adjusted)
                             AthleteDataStore.saveLastRefresh()

@@ -39,7 +39,6 @@ import pl.qbot.karoo.core.FieldColor
 import pl.qbot.karoo.core.RideSample
 
 private const val TAG = "QExt2Agg"
-private const val SLEEP_REFRESH_MIN_STOP_SEC = 90 * 60L
 private const val RESERVE_PERSIST_INTERVAL_MS = 15_000L
 
 data class KarooClimb(
@@ -200,7 +199,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val navClimbsRef = AtomicReference<List<KarooClimb>>(emptyList())
     private val movingElapsedSecRef = AtomicReference(0L)
     private val navLastUpdateMsRef = AtomicReference(0L)
-    private val sleepRefreshPendingRef = AtomicReference(false)
     private val stopStartedMsRef = AtomicReference(0L)
     private val wasActiveUntilMsRef = AtomicReference(0L)
     private val reservePersistLastMsRef = AtomicReference(0L)
@@ -396,7 +394,6 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
             dailyReserveLoadRef.set(fixed)
             Log.i(TAG, "QEXT_RSRV_RESUME_BASE stored=${AthleteDataStore.loadReserveDailyLoad()} session=$restored base=$fixed")
         }
-        sleepRefreshPendingRef.set(AthleteDataStore.loadSleepRefreshPending())
         stopStartedMsRef.set(0L)
         reservePersistLastMsRef.set(0L)
         consumerIds.add(
@@ -1132,23 +1129,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     ?.let { ((now - it).coerceAtLeast(0L)) / 1000L }
                     ?: 0L
 
-                if (ReservePolicy.shouldApplySleepRefresh(
-                        sleepRefreshPending = sleepRefreshPendingRef.get(),
-                        isMoving = isMoving,
-                        elapsedSec = elapsedSec,
-                        stopDurationSec = stopDurationSec,
-                        minStopForRefreshSec = SLEEP_REFRESH_MIN_STOP_SEC,
-                    )
-                ) {
-                    dailyReserveLoadRef.set(0f)
-                    AthleteDataStore.saveReserveDailyLoad(0f)
-                    sessionReserveLoadRef.set(0f)
-                    sessionReserveLoad = 0.0
-                    AthleteDataStore.consumeSleepRefreshPending()
-                    sleepRefreshPendingRef.set(false)
-                    statsCalc.reset()
-                    Log.i(TAG, "RSRV sleep refresh applied marker=${AthleteDataStore.loadSleepDataDateMarker()} stop=${stopDurationSec}s")
-                }
+                // E1.2 (plan v2): brak resetu po postoju/snie -- dzien = suma jazd, nowy dzien po dacie.
 
                 val dayReserveLoad = ReservePolicy.effectiveLoad(dailyReserveLoadRef.get(), sessionReserveLoad.toFloat())
                 maybePersistReserveBase(dayReserveLoad, now)

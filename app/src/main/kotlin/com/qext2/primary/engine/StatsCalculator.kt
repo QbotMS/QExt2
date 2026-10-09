@@ -37,6 +37,8 @@ class StatsCalculator(var ftpWatts: Int = 200) {
     private var wPrimeKj: Float = 0f
     private var ltpWatts: Float = 0f
     private var wBalKj: Float = 0f
+    // E1.4 (plan v2): 0% W' to poprawny stan; pelna rezerwa tylko przy PIERWSZYM ustawieniu W' w jezdzie.
+    private var wBalInitialized = false
 
     // XSS (odpowiednik Xert Strain Score) -- ten sam wzor co ModelQ w QBocie (DECISIONS.md 2026-07-06).
     // Rosnacy licznik przez cala jazde, 1h @ CP = 100 XSS z definicji.
@@ -68,7 +70,8 @@ class StatsCalculator(var ftpWatts: Int = 200) {
     fun setWPrimeParams(wPrime: Float, ltp: Float) {
         if (wPrime > 0f) {
             wPrimeKj = wPrime
-            if (wBalKj <= 0f || wBalKj > wPrime) wBalKj = wPrime
+            if (!wBalInitialized) { wBalKj = wPrime; wBalInitialized = true }
+            else if (wBalKj > wPrime) wBalKj = wPrime
         }
         if (ltp > 0f) ltpWatts = ltp
     }
@@ -349,6 +352,7 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         decoupleHr.clear()
         decouplePower.clear()
         wBalKj = wPrimeKj
+        wBalInitialized = wPrimeKj > 0f
         xssAccum = 0f
         powerBuffer300s.clear()
         sumOf4thPowersEff = 0.0
@@ -403,6 +407,7 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         reserveV2.nP = snap.reserveNP
         reserveV2.nH = snap.reserveNH
         wBalKj = snap.wBalKj
+        wBalInitialized = true
         xssAccum = snap.xssAccum
         batteryPctStart = snap.batteryPctStart
         batteryPctCurrent = snap.batteryPctCurrent

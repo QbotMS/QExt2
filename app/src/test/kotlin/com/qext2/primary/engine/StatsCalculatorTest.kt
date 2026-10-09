@@ -231,4 +231,19 @@ class StatsCalculatorTest {
         calc.reset()
         assertEquals(100, calc.rideReservePercentV2(0.0))
     }
+
+    @Test
+    fun `E1_4 odswiezenie profilu nie napelnia wyczerpanego W'`() {
+        val calc = StatsCalculator(ftpWatts = 240)
+        calc.setWPrimeParams(20f, 240f)
+        assertEquals(100, calc.wBalancePercent(0L))
+        // ponad CP: W' schodzi do zera
+        for (sec in 1..400L) calc.update(500, 170, sec, sec)
+        assertEquals(0, calc.wBalancePercent(1L))
+        // ten sam i zmieniony profil z serwera w trakcie jazdy
+        calc.setWPrimeParams(20f, 240f)
+        assertEquals(0, calc.wBalancePercent(2L))
+        calc.setWPrimeParams(22f, 245f)
+        assertEquals(0, calc.wBalancePercent(3L))
+    }
 }
