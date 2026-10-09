@@ -44,19 +44,18 @@ object ActiveClimbResolver {
             return ActiveClimbResolution(state = null, reason = "no_sdk_climbs")
         }
 
-        val candidate = navClimbs
-            .filter { it.startDistance + it.length >= distanceMeters - 100.0 }
-            .minByOrNull { abs(it.startDistance - distanceMeters) }
+        // E4.2: najpierw podjazd zawierajacy pozycje, potem najblizszy PRZED toba
+        val inside = navClimbs.firstOrNull { distanceMeters >= it.startDistance && distanceMeters <= it.startDistance + it.length }
+        val candidate = inside
+            ?: navClimbs.filter { it.startDistance > distanceMeters }.minByOrNull { it.startDistance }
             ?: return ActiveClimbResolution(state = null, reason = "no_active_sdk_climb")
-
-        val isWithinBounds = distanceMeters >= candidate.startDistance &&
-            distanceMeters <= candidate.startDistance + candidate.length + 200.0
+        val isWithinBounds = inside != null
 
         return ActiveClimbResolution(
             state = ClimbState(
                 hasRoute = true,
                 distanceToClimbM = (candidate.startDistance - distanceMeters).coerceAtLeast(0.0),
-                climbElevationM = if (ascentLeftM > 0) ascentLeftM else candidate.totalElevation.toInt().coerceAtLeast(0),
+                climbElevationM = candidate.totalElevation.toInt().coerceAtLeast(0),   // E4.2: przewyzszenie TEGO podjazdu
                 avgGradePercent = candidate.grade,
                 isWithinClimbBounds = isWithinBounds,
                 climbIndex = candidate.index,

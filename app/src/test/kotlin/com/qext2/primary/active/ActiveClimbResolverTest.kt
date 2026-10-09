@@ -58,9 +58,8 @@ class ActiveClimbResolverTest {
         assertNotNull(r.state)
         assertEquals("sdk_climb", r.reason)
         assertEquals(250.0, r.state!!.distanceToClimbM, 0.001)
-        // Kontrakt 2026-06: zywe ascentLeftM (aktualizuje sie w trakcie wjazdu)
-        // ma pierwszenstwo przed statycznym totalElevation z SDK.
-        assertEquals(200, r.state!!.climbElevationM)
+        // E4.2 (plan v2): przewyzszenie TEGO podjazdu z SDK, nie pozostale przewyzszenie calej trasy
+        assertEquals(180, r.state!!.climbElevationM)
     }
 
     @Test
@@ -80,5 +79,20 @@ class ActiveClimbResolverTest {
         )
         assertNotNull(r.state)
         assertEquals(180, r.state!!.climbElevationM)
+    }
+
+    @Test
+    fun `pod koniec podjazdu nie przeskakuje na nastepny`() {
+        val climbs = listOf(
+            KarooClimb(index = 0, startDistance = 0.0, length = 1_000.0, totalElevation = 80.0, grade = 8.0),
+            KarooClimb(index = 1, startDistance = 1_100.0, length = 900.0, totalElevation = 60.0, grade = 6.0),
+        )
+        val r = ActiveClimbResolver.resolve(1_000L, false, true, climbs, 900.0, 5_000.0, 0, 7.0)
+        assertEquals(0, r.state!!.climbIndex)
+        assertEquals(true, r.state!!.isWithinClimbBounds)
+        val r2 = ActiveClimbResolver.resolve(1_000L, false, true, climbs, 1_050.0, 5_000.0, 0, 1.0)
+        assertEquals(1, r2.state!!.climbIndex)
+        assertEquals(false, r2.state!!.isWithinClimbBounds)
+        assertEquals(50.0, r2.state!!.distanceToClimbM, 0.001)
     }
 }

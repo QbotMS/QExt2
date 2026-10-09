@@ -125,10 +125,10 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
 
     private fun toData(agg: RideDataAggregator?, s: StatsRideSnapshot, rotator: RouteMessageRotator): KokpitNavData {
         val now = System.currentTimeMillis()
-        val pos = s.distanceKm.coerceAtLeast(0f)
+        val pos = agg?.getRoutePositionM()?.let { (it / 1000.0).toFloat() } ?: s.distanceKm.coerceAtLeast(0f)   // E4.1
         val dtdKm = ((agg?.getDistanceToDestinationMeters() ?: 0.0) / 1000.0).toFloat()
         val total = if (s.hasRoute && dtdKm > 0.05f) pos + dtdKm else null
-        val segs = SurfaceBridge.segmentsSnapshot().map { SurfSeg(it.kmStart, it.kmEnd, cls(it.surface)) }
+        val segs = (agg?.navSurfaceSegments() ?: SurfaceBridge.segmentsSnapshot()).map { SurfSeg(it.kmStart, it.kmEnd, cls(it.surface)) }
         val climbs = (agg?.getNavClimbs() ?: emptyList()).map { ClimbInfo((it.startDistance / 1000.0).toFloat(), (it.length / 1000.0).toFloat(), it.grade.toFloat()) }
         val descent = agg?.getSteepDescentAhead()?.let { DescentInfo((it.first / 1000.0).toFloat(), it.second.toFloat()) }
         val fresh = s.weatherFresh
@@ -149,7 +149,7 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
         }
         val dusk = if (twLabel == "zmrok" && twMs > now) twMs else null
         val eta = if (s.etaModelReady && s.etaTimestamp > 0L) s.etaTimestamp else null
-        val pois = SurfaceBridge.poisSnapshot().map { PoiInfo(it.km, it.cat, it.name, it.today) }
+        val pois = (agg?.navPois() ?: SurfaceBridge.poisSnapshot()).map { PoiInfo(it.km, it.cat, it.name, it.today) }
         val cands = RouteMessageEngine.candidates(
             RouteMsgInput(
                 nowMs = now, hasRoute = s.hasRoute, posKm = pos, surfaces = segs, climbs = climbs, descent = descent,

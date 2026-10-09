@@ -58,6 +58,11 @@ class SurfaceProfileCache(
     // Fallback z RouteGraph stream (0.0/1.0/2.0)
     private var routeGraphSurface: SurfaceType = SurfaceType.PAVED
     private var hasQBotData: Boolean = false
+    // E4.3 (plan v2): generacja trasy -- spozniona odpowiedz dla poprzedniej trasy jest ignorowana
+    @Volatile private var generation = 0
+    private val retryScope = CoroutineScope(Dispatchers.Default)
+    private fun retryDelayMs(attempt: Int): Long = when (attempt) { 0 -> 30_000L; 1 -> 60_000L; 2 -> 120_000L; else -> 300_000L }
+    private val MAX_ATTEMPTS = 10
 
     // HTTP przez HttpURLConnection (jak reszta projektu)
 
@@ -87,8 +92,9 @@ class SurfaceProfileCache(
         if (routeName != null) {
             val g = httpGet
             if (g != null) {
-                fetchViaKaroo(routeName, g)
-                fetchPoisViaKaroo(routeName, g)
+                val gen = generation
+                fetchViaKaroo(routeName, g, gen, 0)
+                fetchPoisViaKaroo(routeName, g, gen, 0)
             } else {
                 fetchJob?.cancel()
                 fetchJob = CoroutineScope(Dispatchers.IO).launch {
@@ -134,11 +140,19 @@ class SurfaceProfileCache(
     private fun fetchPoisViaKaroo(
         routeName: String,
         httpGet: (String, Map<String, String>, (Int, String?) -> Unit) -> Unit,
+        gen: Int,
+        attempt: Int,
     ) {
         val url = "$qbotBaseUrl/api/poi/by-name?name=" + java.net.URLEncoder.encode(routeName, "UTF-8")
         httpGet(url, mapOf("Authorization" to "Bearer $qbotBearer")) { code, body ->
+            if (gen != generation) { Log.i(TAG, "POI_FETCH stale gen=$gen"); return@httpGet }
             if (code != 200 || body == null) {
-                Log.w(TAG, "POI_FETCH failed status=$code")
+                Log.w(TAG, "POI_FETCH failed status=$code attempt=$attempt")
+                com.qext2.primary.util.RideFileLog.append("POI_FETCH failed status=$code attempt=$attempt")
+                if (attempt + 1 < MAX_ATTEMPTS) retryScope.launch {
+                    delay(retryDelayMs(attempt))
+                    if (gen == generation) fetchPoisViaKaroo(routeName, httpGet, gen, attempt + 1)
+                }
                 return@httpGet
             }
             try {
@@ -169,6 +183,7 @@ class SurfaceProfileCache(
     }
 
     private fun clearCache() {
+        generation++
         fetchJob?.cancel()
         segments = emptyList()
         pois = emptyList()
@@ -181,11 +196,21 @@ class SurfaceProfileCache(
     private fun fetchViaKaroo(
         routeName: String,
         httpGet: (String, Map<String, String>, (Int, String?) -> Unit) -> Unit,
+        gen: Int,
+        attempt: Int,
     ) {
         val url = "$qbotBaseUrl/api/surface/by-name?name=" +
             java.net.URLEncoder.encode(routeName, "UTF-8")
         Log.i(TAG, "SURFACE_FETCH via_karoo start route='$routeName'")
         httpGet(url, mapOf("Authorization" to "Bearer $qbotBearer")) { code, body ->
+            if (gen != generation) { Log.i(TAG, "SURFACE_FETCH stale gen=$gen"); return@httpGet }
+            val ok = code == 200 && body != null && parseSurfaceJson(body).isNotEmpty()
+            com.qext2.primary.util.RideFileLog.append("SURFACE_FETCH status=$code ok=$ok attempt=$attempt route='$routeName'")
+            if (!ok && attempt + 1 < MAX_ATTEMPTS) retryScope.launch {
+                // 202 = trasa nieprzeliczona/nieznaleziona albo blad sieci -> ponow (30 s, 1, 2, potem co 5 min)
+                delay(retryDelayMs(attempt))
+                if (gen == generation) fetchViaKaroo(routeName, httpGet, gen, attempt + 1)
+            }
             if (code != 200 || body == null) {
                 Log.w(TAG, "SURFACE_FETCH via_karoo failed status=$code")
             } else {

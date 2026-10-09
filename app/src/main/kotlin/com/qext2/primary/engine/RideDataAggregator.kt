@@ -179,7 +179,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         savePriorKmh = { AthleteDataStore.saveEtaPriorKmh(it) },
     )
     private val etaSurfaceAt: (Double) -> com.qext2.primary.model.SurfaceType? =
-        { km -> com.qext2.primary.surface.SurfaceBridge.surfaceAtOrNull(km.toFloat()) }
+        { km -> navSurfaceAt(km.toFloat()) }   // E4.1: km w ukladzie aktywnej trasy
     // KOKPIT: prognoza opadu (Open-Meteo)
     private val rainForecastRef = AtomicReference<com.qext2.primary.weather.RainForecast?>(null)
     private val lastEtaMsRef = AtomicReference(0L)
@@ -201,6 +201,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val navRouteNameRef = AtomicReference("")
     private val navRouteKeyRef = AtomicReference("")
     private val navClimbsRef = AtomicReference<List<KarooClimb>>(emptyList())
+    private val routeLengthMRef = AtomicReference<Double?>(null)   // E4.1: dlugosc aktywnej trasy (Karoo)
+    private val routeReversedRef = AtomicReference(false)          // E4.1: trasa jechana odwrotnie
     private val movingElapsedSecRef = AtomicReference(0L)
     private val navLastUpdateMsRef = AtomicReference(0L)
     private val stopStartedMsRef = AtomicReference(0L)
@@ -822,6 +824,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                             navRouteNameRef.set("")
                             navRouteKeyRef.set("")
                             navClimbsRef.set(emptyList())
+                            routeLengthMRef.set(null); routeReversedRef.set(false)
                             currentSurfaceRef.set(com.qext2.primary.model.SurfaceType.PAVED)
                             com.qext2.primary.surface.SurfaceBridge.onNavigationState(event, null)
                             etaEngine.clearRoute()
@@ -832,6 +835,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                             navRouteActiveRef.set(true)
                             navRouteNameRef.set(ns.name ?: "")
                             val routeKey = "route:${ns.name ?: ""}|dist=${"%.0f".format(ns.routeDistance)}"
+                            routeLengthMRef.set(ns.routeDistance.takeIf { it > 0.0 }); routeReversedRef.set(ns.reversed)
                             navRouteKeyRef.set(routeKey)
                             val parsed = ns.climbs.mapIndexed { idx, c ->
                                 KarooClimb(
@@ -856,6 +860,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                             val destName = ns.destination.name ?: ""
                             navRouteNameRef.set(destName)
                             val routeKey = "destination:${ns.destination.id}|name=$destName"
+                            routeLengthMRef.set(null); routeReversedRef.set(false)   // cel bez profilu QBota
                             navRouteKeyRef.set(routeKey)
                             val parsed = ns.climbs.mapIndexed { idx, c ->
                                 KarooClimb(
@@ -1164,9 +1169,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val remainingMeters = distanceToDestinationMetersRef.get().coerceAtLeast(0.0)
                 val hasRoute = resolveHasRoute(getEffectiveRoute(), remainingMeters)
                 // Aktualizacja nawierzchni z cache (pozycja km wzdłuż trasy)
-                val kmAlongRoute = (distanceMetersRef.get() / 1000.0).toFloat().coerceAtLeast(0f)
-                val freshSurface = com.qext2.primary.surface.SurfaceBridge.currentSurface(kmAlongRoute)
-                    ?: com.qext2.primary.model.SurfaceType.PAVED
+                val routePosKm = getRoutePositionM()?.let { (it / 1000.0).toFloat() }   // E4.1
+                val freshSurface = routePosKm?.let { navSurfaceAt(it) } ?: com.qext2.primary.model.SurfaceType.PAVED
                 currentSurfaceRef.set(freshSurface)
                 fuelProducer.tick(carbs, fluid, isMoving)
                 // Fuel reminders (jedz/pij/sod) tylko przy aktywnej trasie.
@@ -1272,14 +1276,13 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val rsrvModelReady = hasActivity && reserve >= 0 && reserve <= 100 && statsCalc.reserveReady()
                 val carbModelReady = npRef.get() > 0 && elapsedSec > 60L
                 val fluidModelReady = elapsedSec > 60L && hasActivity
-                val kmAlongForSurface = (distanceMetersRef.get() / 1000.0).toFloat().coerceAtLeast(0f)
-                val surfaceLeft = com.qext2.primary.surface.SurfaceBridge.remainingByType(kmAlongForSurface)
+                val surfaceLeft = routePosKm?.let { navRemainingByType(it) } ?: emptyMap()
                 val surfPavedLeft = if (surfaceLeft.isEmpty()) -1f else
                     (surfaceLeft[com.qext2.primary.model.SurfaceType.PAVED] ?: 0f)
                 val surfOffLeft = if (surfaceLeft.isEmpty()) -1f else
                     ((surfaceLeft[com.qext2.primary.model.SurfaceType.GRAVEL] ?: 0f) +
                         (surfaceLeft[com.qext2.primary.model.SurfaceType.LOOSE] ?: 0f))
-                val surfaceInit = com.qext2.primary.surface.SurfaceBridge.initialByType()
+                val surfaceInit = navRemainingByType(0f)
                 val surfPavedInit = if (surfaceInit.isEmpty()) -1f else
                     (surfaceInit[com.qext2.primary.model.SurfaceType.PAVED] ?: 0f)
                 val surfOffInit = if (surfaceInit.isEmpty()) -1f else
@@ -1768,6 +1771,42 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     }
 
     fun getNavClimbs(): List<KarooClimb> = navClimbsRef.get()
+
+    /** E4.1: pozycja na aktywnej trasie [m] = dlugosc trasy - dystans do mety (oba z Karoo, ten sam kierunek);
+     *  null, gdy brak trasy z dlugoscia albo dystans do mety nie pasuje do trasy (objazd poza trasa). */
+    fun getRoutePositionM(): Double? {
+        val len = routeLengthMRef.get() ?: return null
+        val dtd = distanceToDestinationMetersRef.get()
+        if (len <= 0.0 || dtd <= 0.0 || dtd > len * 1.05) return null
+        return (len - dtd).coerceIn(0.0, len)
+    }
+
+    /** E4.1: profil nawierzchni QBota (km od startu trasy w kierunku zapisu) w ukladzie aktywnej trasy. */
+    fun navSurfaceSegments(): List<com.qext2.primary.surface.SurfaceSegment> {
+        val segs = com.qext2.primary.surface.SurfaceBridge.segmentsSnapshot()
+        val lenKm = routeLengthMRef.get()?.let { (it / 1000.0).toFloat() }
+        if (!routeReversedRef.get() || lenKm == null) return segs
+        return segs.map { com.qext2.primary.surface.SurfaceSegment((lenKm - it.kmEnd).coerceAtLeast(0f), (lenKm - it.kmStart).coerceAtLeast(0f), it.surface) }
+            .sortedBy { it.kmStart }
+    }
+
+    fun navPois(): List<com.qext2.primary.surface.PoiPoint> {
+        val pois = com.qext2.primary.surface.SurfaceBridge.poisSnapshot()
+        val lenKm = routeLengthMRef.get()?.let { (it / 1000.0).toFloat() }
+        if (!routeReversedRef.get() || lenKm == null) return pois
+        return pois.map { it.copy(km = (lenKm - it.km).coerceAtLeast(0f)) }.sortedBy { it.km }
+    }
+
+    fun navSurfaceAt(km: Float): SurfaceType? =
+        navSurfaceSegments().firstOrNull { km >= it.kmStart && km <= it.kmEnd }?.surface
+
+    fun navRemainingByType(km: Float): Map<SurfaceType, Float> {
+        val rest = navSurfaceSegments().filter { it.kmEnd > km }
+        if (rest.isEmpty()) return emptyMap()
+        return SurfaceType.values().associateWith { t ->
+            rest.filter { it.surface == t }.sumOf { (it.kmEnd - maxOf(it.kmStart, km)).toDouble() }.toFloat()
+        }
+    }
     fun getRouteKey(): String = navRouteKeyRef.get()
 
     fun getRouteDiag(): String {

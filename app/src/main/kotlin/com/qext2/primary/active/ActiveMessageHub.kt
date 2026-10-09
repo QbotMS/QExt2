@@ -65,9 +65,9 @@ object ActiveMessageHub {
             val climbResolution = ActiveClimbResolver.resolve(
                 nowMs = now,
                 fakeMode = QExt2DebugConfig.DEBUG_FAKE_RIDE_MODE,
-                hasRoute = agg.getEffectiveRoute(),
+                hasRoute = agg.getEffectiveRoute() && agg.getRoutePositionM() != null,
                 navClimbs = agg.getNavClimbs(),
-                distanceMeters = agg.getDistanceMeters(),
+                distanceMeters = agg.getRoutePositionM() ?: 0.0,   // E4.1: pozycja na trasie
                 distanceToDestinationMeters = agg.getDistanceToDestinationMeters(),
                 ascentLeftM = agg.getAscentLeftM(),
                 effectiveGrade = agg.getEffectiveGrade(),

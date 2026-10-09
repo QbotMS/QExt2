@@ -138,8 +138,9 @@ class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: 
 
     private fun toData(agg: RideDataAggregator?, s: StatsRideSnapshot): StatsV2Data {
         val dtdKm = (agg?.getDistanceToDestinationMeters() ?: 0.0) / 1000.0
-        val total = if (s.hasRoute && dtdKm > 0.05) s.distanceKm + dtdKm.toFloat() else null
-        val surf = if (SurfaceBridge.hasProfile()) SurfaceBridge.remainingByType(s.distanceKm.coerceAtLeast(0f)) else null
+        val pos = agg?.getRoutePositionM()?.let { (it / 1000.0).toFloat() } ?: s.distanceKm   // E4.1
+        val total = if (s.hasRoute && dtdKm > 0.05) pos + dtdKm.toFloat() else null
+        val surf = if (SurfaceBridge.hasProfile()) agg?.navRemainingByType(pos.coerceAtLeast(0f)) else null
         return StatsV2Data(
             np = s.npWholeWatts.takeIf { it > 0 },
             npZone = npZone(s.npWholeWatts, s.cpEffW),
@@ -149,7 +150,7 @@ class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: 
             xss = s.xssValue.takeIf { it > 0f },
             kcal = s.caloriesKcal.takeIf { it > 0 },
             hasRoute = s.hasRoute,
-            doneKm = s.distanceKm,
+            doneKm = pos,
             totalKm = total,
             etaMs = if (s.etaModelReady && s.etaTimestamp > 0L) s.etaTimestamp else null,
             avgGrossKmh = if (s.grossElapsedSec > 60L) s.distanceKm / (s.grossElapsedSec / 3600f) else null,
@@ -173,9 +174,9 @@ class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: 
             winPartial = RideWindows.snapshot().second,
             typEf = RideWindows.typEf,
             cpW = s.cpEffW.takeIf { it > 0f },
-            ahead = if (s.hasRoute && SurfaceBridge.hasProfile()) SurfaceBridge.segmentsSnapshot().sortedBy { it.kmStart }
-                .filter { it.kmEnd > s.distanceKm }
-                .map { (it.kmEnd - maxOf(it.kmStart, s.distanceKm)) to android.graphics.Color.parseColor(when (it.surface) { SurfaceType.PAVED -> "#C9D2DC"; SurfaceType.GRAVEL -> "#D9A04E"; SurfaceType.LOOSE -> "#E0563B" }) }
+            ahead = if (s.hasRoute && SurfaceBridge.hasProfile()) (agg?.navSurfaceSegments() ?: emptyList()).sortedBy { it.kmStart }
+                .filter { it.kmEnd > pos }
+                .map { (it.kmEnd - maxOf(it.kmStart, pos)) to android.graphics.Color.parseColor(when (it.surface) { SurfaceType.PAVED -> "#C9D2DC"; SurfaceType.GRAVEL -> "#D9A04E"; SurfaceType.LOOSE -> "#E0563B" }) }
                 else null,
             stopsKm = agg?.getLongStopsKm()?.map { it.toFloat() } ?: emptyList(),
         )

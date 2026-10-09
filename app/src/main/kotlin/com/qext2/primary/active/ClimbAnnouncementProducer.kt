@@ -20,6 +20,7 @@ class ClimbAnnouncementProducer(private val logger: (String) -> Unit = {}) {
     private var onClimb = false
     private var lastResolvedIndex: Int = -1
     private var lastRejectMs = 0L
+    private var activeClimbElevM = 0   // E4.2: przewyzszenie podjazdu, na ktory wjechales (do PODJAZD DONE)
 
     private companion object {
         const val CLIMB_GRADE_THRESHOLD = 2.0
@@ -66,6 +67,7 @@ class ClimbAnnouncementProducer(private val logger: (String) -> Unit = {}) {
         }
         if (!onClimb) {
             onClimb = true
+            activeClimbElevM = s.climbElevationM
             announcedActive = false
             announcedFinish = false
         }
@@ -83,7 +85,7 @@ class ClimbAnnouncementProducer(private val logger: (String) -> Unit = {}) {
         return ActiveMessage(
             id = "climb_finish_${s.nowMs}",
             title = "PODJAZD DONE",
-            line1 = "↑${s.climbElevationM}m",
+            line1 = "↑${activeClimbElevM}m",
             line2 = null,
             severity = ActiveMessageSeverity.INFO,
             priority = ActiveMessagePriority.INFO,

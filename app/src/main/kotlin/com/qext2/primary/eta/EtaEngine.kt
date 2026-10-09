@@ -226,6 +226,7 @@ class EtaEngine(
         if (newRoute) {
             routePoints = ElevationPolyline.decode(encoded)
             prevPos = null
+            aF = 0.0; pF = 0.0; aS = 0.0; pS = 0.0   // E4.4: nowa trasa = kalibracja od zera
         }
         rebuild(surfaceKnown, surfaceAtKm)
     }
@@ -249,7 +250,14 @@ class EtaEngine(
 
     /** E1.7: nowa jazda (trasa zostaje, kalibracja i postoje od zera). */
     @Synchronized
-    fun resetSession() { resetRide(); lastRideDistanceM = 0.0; lastTickMs = 0L }
+    fun resetSession() {
+        // E4.4: koniec jazdy bez dojazdu pod mete -- zapisz rzeczywisty koniec (samokontrola prognoz)
+        if (!arrivalLogged && checkpointPreds.isNotEmpty() && lastTickMs > 0L) {
+            val parts = checkpointPreds.joinToString(" ") { (cp, n, o) -> "f$cp:new=${errMin(n, lastTickMs)}min,old=${errMin(o, lastTickMs)}min" }
+            log("QEXT_ETA_ARRIVAL reason=ride_end actual=${hhmm(lastTickMs)} $parts")
+        }
+        resetRide(); lastRideDistanceM = 0.0; lastTickMs = 0L
+    }
 
     private fun resetRide() {
         rideStarted = false; movingSec = 0.0; movingDistM = 0.0
@@ -317,7 +325,8 @@ class EtaEngine(
             val prev = prevPos
             if (isMoving && prev != null) {
                 val dPos = pos - prev
-                if (dPos >= 0.0 && dPos <= 25.0 * dt + 5.0) {
+                // E4.4: ucz sie tylko przy realnym postepie po trasie (poza trasa pozycja stoi -> bez kalibracji)
+                if (dPos > 0.5 && dPos <= 25.0 * dt + 5.0) {
                     val dPlan = p.timeAt(pos) - p.timeAt(prev)
                     val kF = exp(-dt / TAU_FAST_SEC)
                     val kS = exp(-dt / TAU_SLOW_SEC)
@@ -384,7 +393,7 @@ class EtaEngine(
                 )
             }
         }
-        if (hasRoute && remainingM in 0.0..150.0 && !arrivalLogged && checkpointPreds.isNotEmpty()) {
+        if (hasRoute && remainingM in 0.0..500.0 && !arrivalLogged && checkpointPreds.isNotEmpty()) {
             arrivalLogged = true
             val parts = checkpointPreds.joinToString(" ") { (cp, n, o) ->
                 "f$cp:new=${errMin(n, nowMs)}min,old=${errMin(o, nowMs)}min"
