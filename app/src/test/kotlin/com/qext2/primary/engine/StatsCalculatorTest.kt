@@ -266,4 +266,33 @@ class StatsCalculatorTest {
         assertEquals(x, c.xssValue(), 0.0001f)
         assertEquals(w, c.wBalancePercent(1L))
     }
+
+    @Test
+    fun `E2_2 XSS wzor ModelQ - godzina przy CP = 100, ponizej CP proporcjonalnie`() {
+        val a = StatsCalculator(ftpWatts = 240); a.setWPrimeParams(20f, 240f)
+        for (sec in 1..3600L) a.update(240, 150, sec, sec)
+        assertEquals(100f, a.xssValue(), 0.5f)
+        val b = StatsCalculator(ftpWatts = 240); b.setWPrimeParams(20f, 240f)
+        for (sec in 1..3600L) b.update(180, 140, sec, sec)
+        assertEquals(75f, b.xssValue(), 0.5f)
+    }
+
+    @Test
+    fun `E2_2 XSS nadwyzka nad CP wazona zmeczeniem`() {
+        val c = StatsCalculator(ftpWatts = 240); c.setWPrimeParams(20f, 240f)
+        for (sec in 1..60L) c.update(360, 170, sec, sec)
+        // 60 s: praca do CP = 60/3600*100 = 1.667; nadwyzka 120/240 * (1 + zmeczenie 0..0.36) * 1.667
+        val x = c.xssValue()
+        assertTrue("XSS $x", x > 1.667f + 0.833f && x < 1.667f + 0.833f * 1.4f)
+    }
+
+    @Test
+    fun `D6 slabsza forma szybciej zuzywa RSRV, start 100`() {
+        val a = StatsCalculator(ftpWatts = 240); a.todayFactor = 1.0f
+        val b = StatsCalculator(ftpWatts = 240); b.todayFactor = 0.9f
+        assertEquals(100, a.rideReservePercentV2(0.0)); assertEquals(100, b.rideReservePercentV2(0.0))
+        for (sec in 1..3600L) { a.update(180, 0, sec, sec); b.update(180, 0, sec, sec) }
+        assertTrue("forma 0.9 ${b.rideReservePercentV2(0.0)} < forma 1.0 ${a.rideReservePercentV2(0.0)}",
+            b.rideReservePercentV2(0.0) < a.rideReservePercentV2(0.0))
+    }
 }

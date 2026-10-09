@@ -84,7 +84,7 @@ class StatsDataType : DataTypeImpl("qext2", "qext2-stats") {
         v.setTextViewText(R.id.tv_btn_gate, AthleteDataStore.loadGateUiState())
 
         setValue(v, R.id.tv_np, StatsValueFormatter.npW(snap.npWholeWatts).main)
-        setValue(v, R.id.tv_ifeff, StatsValueFormatter.ifEff(snap.ifEffWholeRide).main)
+        setValue(v, R.id.tv_ifeff, StatsValueFormatter.ifEff(snap.ifWholeRide).main)
         setValue(v, R.id.tv_vi, StatsValueFormatter.vi(snap.viValue).main)
         v.setTextColor(R.id.tv_vi, viColor(snap.viValue))
         Log.d(TAG, "QEXT_STATS_ADV field=np value=${snap.npWholeWatts} status=OK reason=sdk_or_local")

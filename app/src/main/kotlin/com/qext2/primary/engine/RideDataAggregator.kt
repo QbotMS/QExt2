@@ -978,9 +978,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
 
                 val rideCtx = RideContext(
                     surface = currentSurfaceRef.get(),
-                    decouplingPct = statsCalc.decouplingPercent(),
+                    decouplingPct = 0f,   // E2.7: dryf poza obliczeniami
                     effectiveLtp = getEffectiveLtpWatts(),
-                    todayFactor = todayFactorRef.get(),
+                    todayFactor = 1.0f,   // E2.1: forma tylko w RSRV
                 )
                 val outputs = LabRideStateRepository.update(
                     RideSample(
@@ -1029,12 +1029,12 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                         reserve = _statsSnapshot.value.rideReservePercent,
                         elapsedHours = elapsedSec.toFloat() / 3600f,
                         remainingHours = remainingHoursColor,
-                        decouplingPct = statsCalc.decouplingPercent(),
-                        hasDecoupling = statsCalc.hasDecouplingData(),
+                        decouplingPct = 0f,   // E2.7: dryf poza obliczeniami
+                        hasDecoupling = false,
                         powerAgeMs = now - powerFreshnessRef.get(),
                         nowMs = now,
                     ).first,
-                    hrColor = hrResult.color.hex,
+                    hrColor = hrZoneColor(fHr),
                     cadenceColor = cadOut?.color.toAndroidColor(),
                     speedColor = speedOut?.color.toAndroidColor(),
                     gradeColor = PrimaryRideSnapshot.contrastText(gradeBg),
@@ -1074,17 +1074,14 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     todayFactorRef.set(if (readinessFresh) tfRamped else 1.0f)
                     readinessStaleRef.set(!readinessFresh)
                 }
+                statsCalc.todayFactor = todayFactorRef.get()   // E2 / D6: forma = tempo spadku RSRV
                 // W' physics: CP anchored on FTP, modulated each tick by readiness
                 // (todayFactor), heat (tempFactor) and in-ride cardiac drift (decoupling).
                 run {
                     val baseWp = baseWPrimeKjRef.get()
                     val baseCp = statsCalc.ftpWatts.toFloat()
                     if (baseWp > 0f && baseCp > 0f) {
-                        val readiness = todayFactorRef.get()
-                        val heat = tempFactor(weatherTemperatureCRef.get())
-                        val drift = (statsCalc.decouplingPercent() - 5f).coerceIn(0f, 15f) * 0.0027f
-                        val acute = (1f - drift).coerceIn(0.96f, 1f)
-                        val cf = (readiness * heat * acute).coerceIn(0.88f, 1.06f)
+                        val cf = 1.0f   // E2.1 (plan v2): CP = ModelQ bez korekt; forma dziala tylko w RSRV
                         cfRef.set(cf)
                         // W' ZAMROZONE (2026-07-24): cf dziala WYLACZNIE na CP. Powody:
                         // (1) W' to pojemnosc strukturalna, duzo stabilniejsza niz CP;
@@ -1106,9 +1103,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 } else {
                     statsCalc.ifValue()
                 }
-                val adjFtp = (statsCalc.ftpWatts * todayFactorRef.get()).toInt().coerceAtLeast(50)
-                val adjIf = if (adjFtp > 0 && npWhole > 0) (npWhole.toFloat() / adjFtp).coerceAtMost(2.0f) else 0f
-                val vi = statsCalc.viValue()
+                val adjIf = ifWhole   // E2.4: NP Karoo / CP
+                                val vi = viRef.get().takeIf { it > 0f } ?: 1.0f   // E2.4: VI z Karoo
                 var sessionReserveLoad = statsCalc.reserveSessionLoad()
                 sessionReserveLoadRef.set(sessionReserveLoad.toFloat())
                 val decoupling = statsCalc.decouplingPercent()
@@ -1187,15 +1183,15 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val pacingCtx = PacingEngine.compute(
                     powerW = powerRef.get(),
                     effectiveLtp = getEffectiveLtpWatts(),
-                    effectiveFtp = (athleteData.ftp * todayFactorRef.get()).coerceAtLeast(50f),
+                    effectiveFtp = statsCalc.ftpWatts.toFloat(),
                     wBalancePct = statsCalc.wBalancePercent(now).toFloat(),
                     reservePct = _statsSnapshot.value.rideReservePercent.toFloat(),
-                    decouplingPct = statsCalc.decouplingPercent(),
+                    decouplingPct = 0f,   // E2.7: dryf poza obliczeniami
                     headwindMps = (getHeadwindSignedMps() ?: 0f).coerceAtLeast(0f),   // tylko wiatr w twarz
                     isClimbing = gradeRef.get() > 2.5,
                     gradePercent = gradeRef.get(),
                     surface = currentSurfaceRef.get(),
-                    todayFactor = todayFactorRef.get(),
+                    todayFactor = 1.0f,   // E2.1: forma tylko w RSRV
                     modeFactor = effectiveModeFactor,
                 )
                 pacingContextRef.set(pacingCtx)
@@ -1325,7 +1321,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     grossElapsedSec = rideTimeSecRef.get().takeIf { it > 0L } ?: elapsedSec,
                     distanceKm = (distanceMetersRef.get() / 1000.0).toFloat(),
                 )
-                hrDecouplingPctRef.set(hrResult.decouplingPct)
+                hrDecouplingPctRef.set(0f)   // E2.7: dryf nie jest pokazywany
                 if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "HR_DECOUPLING reason=${hrResult.reasonCode} decouplingPct=${hrResult.decouplingPct} color=${hrResult.color}")
                 } catch (e: Exception) {
                     Log.w(TAG, "QEXT_TICK_CRASH msg=${e.message}", e)
@@ -1379,6 +1375,20 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     }
 
     /** E1.7: jeden reset stanu jazdy -- okna, ETA, warstwa pol, komunikaty, czas. */
+    /** E2.7 (D3): kolor tetna ze stref od LTHR (te same co Z1-Z5 w trybie stref). */
+    private fun hrZoneColor(hr: Int?): Int {
+        val lthr = statsCalc.lthrBpm
+        if (hr == null || lthr <= 0f) return 0xFF9CA3AF.toInt()
+        val pct = hr / lthr
+        return when {
+            pct < 0.81f -> 0xFFFFFFFF.toInt()        // Z1
+            pct < 0.90f -> 0xFF4ADE80.toInt()        // Z2
+            pct < 0.95f -> 0xFFFFFFFF.toInt()        // Z3
+            pct < 1.06f -> 0xFFFB923C.toInt()        // Z4
+            else -> 0xFFFF5252.toInt()               // Z5
+        }
+    }
+
     private fun resetPerRideState(reason: String) {
         LabRideStateRepository.reset()
         etaEngine.resetSession()
@@ -1726,9 +1736,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         if (base <= 0f) return 0f
         // Klamra na ILOCZYNIE (dyspozycja x upal), nie na samym todayFactor --
         // ten jest juz kanoniczny (0.70-1.10) u zrodla.
-        val cf = (todayFactorRef.get() * tempFactor(weatherTemperatureCRef.get()))
-            .coerceIn(0.75f, 1.10f)
-        return (base * cf).coerceAtLeast(50f)
+        return base   // E2.1 (plan v2): LTP z ModelQ bez formy i upalu
     }
 
     fun getModeFactor(): Float = modeFactorRef.get()

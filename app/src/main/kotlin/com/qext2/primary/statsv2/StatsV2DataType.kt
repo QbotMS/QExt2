@@ -143,7 +143,7 @@ class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: 
         return StatsV2Data(
             np = s.npWholeWatts.takeIf { it > 0 },
             npZone = npZone(s.npWholeWatts, s.cpEffW),
-            ifv = s.ifEffWholeRide.takeIf { it > 0f },
+            ifv = s.ifWholeRide.takeIf { it > 0f },
             vi = s.viValue.takeIf { it > 0f },
             rsrv = if (s.rsrvModelReady) s.rideReservePercent else null,
             xss = s.xssValue.takeIf { it > 0f },

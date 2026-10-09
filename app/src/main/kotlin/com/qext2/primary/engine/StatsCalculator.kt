@@ -114,7 +114,8 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         if (ltpWatts <= 0f || wPrimeKj <= 0f) return
         // XSS: zmeczenie liczone ze stanu W'bal PRZED zuzyciem tej sekundy (spojnie z ModelQ).
         val fatigue = (1f - (wBalKj / wPrimeKj)).coerceIn(0f, 1f)
-        xssAccum += (powerWatts / ltpWatts) * (1f + XSS_BETA * fatigue) * (100f / 3600f) * dt
+        val pw = powerWatts.toFloat()
+        xssAccum += (minOf(pw, ltpWatts) / ltpWatts + (pw - ltpWatts).coerceAtLeast(0f) / ltpWatts * (1f + XSS_BETA * fatigue)) * (100f / 3600f) * dt
         if (powerWatts > ltpWatts) {
             wBalKj -= (powerWatts - ltpWatts) * dt / 1000f
         } else {
@@ -147,7 +148,7 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         if (movingAdvanced) {
             val dt = (movingSec - lastMovingSec).coerceIn(1L, 5L).toDouble()
             if (powerFresh) {
-                ReserveModelV2.tick(reserveV2, powerWatts, heartRate, ftpWatts.toDouble(), lthrBpm.toDouble(), maxHrBpm, dt)
+                ReserveModelV2.tick(reserveV2, powerWatts, heartRate, ftpWatts * todayFactor.coerceIn(0.70f, 1.10f).toDouble(), lthrBpm.toDouble(), maxHrBpm, dt)
                 reserveV2.noPowerMovingS = 0L
             } else {
                 reserveV2.noPowerMovingS += dt.toLong()
