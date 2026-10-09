@@ -99,4 +99,6 @@ dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     testImplementation("junit:junit:4.13.2")
+    // org.json w testach JVM (w Androidzie to atrapa) -- CadenceAdvisorTest
+    testImplementation("org.json:json:20240303")
 }
