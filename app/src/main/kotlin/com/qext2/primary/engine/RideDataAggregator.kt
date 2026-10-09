@@ -706,8 +706,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
             )
         )
 
-        // WIATR: JEDYNE zrodlo = rozszerzenie karoo-headwind (decyzja Michala 2026-10-08), jednostka z jego
-        // ustawien = m/s. "headwind" = kierunek wzgledem jazdy (stopnie); "headwindSpeed" = wiatr czolowy
+        // WIATR: JEDYNE zrodlo = rozszerzenie karoo-headwind (decyzja Michala 2026-10-08); predkosci przychodza
+        // w km/h (ustawienia rozszerzenia) i sa zamieniane na m/s przy odbiorze. "headwind" = kierunek wzgledem jazdy (stopnie); "headwindSpeed" = wiatr czolowy
         // (skladowa wzdluz jazdy, zmienia sie przy skretach) -> KOKPIT, jak pole headwind rozszerzenia;
         // ze znakiem: + w twarz, - w plecy (cos((kat+180)) x wiatr) -> tez sufit mocy (tylko czesc w twarz);
         // "windSpeed" = predkosc wiatru; "windGusts" = porywy -> komunikat SILNY WIATR.
@@ -722,7 +722,10 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                             if (s is StreamState.Streaming) {
                                 val v = s.dataPoint.singleValue ?: s.dataPoint.values.values.firstOrNull() as? Double
                                 if (v != null && v.isFinite()) {
-                                    ref.set(v)
+                                    // karoo-headwind nadaje predkosci w jednostce ze SWOICH ustawien = km/h
+                                    // (sprawdzone 2026-10-09: log 08.10 headwindSpeed 7.87 vs Open-Meteo 2.0 m/s;
+                                    // pole ACTIVE od zawsze dzieli przez 3.6). Tu zamiana na m/s; kierunek bez zmian.
+                                    ref.set(if (field == "headwind") v else v / 3.6)
                                     val nowHw = System.currentTimeMillis()
                                     if (nowHw - headwindLoggedMsRef.get() > 300_000L) { headwindLoggedMsRef.set(nowHw); com.qext2.primary.util.RideFileLog.append("HEADWIND field=$field v=$v") }
                                     headwindUpdatedMsRef.set(nowHw)
