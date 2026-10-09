@@ -91,7 +91,7 @@ class SensorMessageProducer(private val logger: (String) -> Unit = {}) {
         return ActiveMessage(
             id = "sensor_hr_${s.nowMs}",
             title = "BRAK HR",
-            line1 = "PACING OGRANICZONY",
+            line1 = "SPRAWDŹ PAS HR",
             line2 = null,
             severity = ActiveMessageSeverity.INFO,
             priority = ActiveMessagePriority.INFO,

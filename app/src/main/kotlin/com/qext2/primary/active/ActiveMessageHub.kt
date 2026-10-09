@@ -26,6 +26,9 @@ object ActiveMessageHub {
     private val noSdkClimbLogGate = NoSdkClimbLogGate()
 
     /** Rosnie przy kazdej zmianie biezacego komunikatu - pola odswiezaja sie wtedy natychmiast. */
+    /** E6.3: komunikaty tylko w trakcie nagrywania jazdy (ustawia QExt2PrimaryExtension z RideState Karoo). */
+    @Volatile var recording: Boolean = false
+
     @Volatile var version: Long = 0L
         private set
     private var lastCurId: String? = null
@@ -45,6 +48,10 @@ object ActiveMessageHub {
 
     @Synchronized
     fun tick(agg: RideDataAggregator, now: Long) {
+        if (!recording) {
+            if (manager.getCurrent(now) != null) { manager.clear(); version++ }
+            return
+        }
         try {
             val sensorState = SensorState(
                 speedKmh = agg.getEffectiveSpeedKmh(),

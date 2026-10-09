@@ -169,7 +169,7 @@ class ClimbPacingProducer(private val logger: (String) -> Unit = {}) {
             // Odbudowa
             diff < -DEAD_ZONE_W -> Plan(
                 state = "ODBUDOWA ${formatMmSs(recoverySeconds(balFraction, cpEffW, power.toFloat()))}",
-                severity = ActiveMessageSeverity.WARNING,
+                severity = ActiveMessageSeverity.INFO   // E6.3/D7: bez pisku,
                 priority = ActiveMessagePriority.WARNING,
                 cooldownMs = CALM_COOLDOWN_MS,
                 ttlMs = CALM_TTL_MS,
@@ -178,7 +178,7 @@ class ClimbPacingProducer(private val logger: (String) -> Unit = {}) {
             // Ani nie nurkuje, ani nie odbudowuje
             else -> Plan(
                 state = "TRZYMASZ!",
-                severity = ActiveMessageSeverity.WARNING,
+                severity = ActiveMessageSeverity.INFO   // E6.3/D7: bez pisku,
                 priority = ActiveMessagePriority.WARNING,
                 cooldownMs = CALM_COOLDOWN_MS,
                 ttlMs = CALM_TTL_MS,

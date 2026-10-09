@@ -162,7 +162,7 @@ class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: 
             ascDone = if (s.routeClimbSourceReady) s.ascentDoneM else null,
             ascLeft = if (s.routeClimbSourceReady) s.ascentLeftM else null,
             carbRate = if (s.carbModelReady) s.carbsGPerH else null,
-            carbSpent = if (s.carbModelReady) s.carbNeededG else null,
+            carbSpent = if (s.carbModelReady) s.choBurnedG else null,   // E6.1: "spal." = faktycznie spalone CHO
             fluidRate = if (s.fluidModelReady) s.fluidLPerH else null,
             cadAvg = s.cadenceAvg.takeIf { it > 0 },
             batDrain = if (s.batteryDrainReady) s.batteryDrainPctPerHour else null,

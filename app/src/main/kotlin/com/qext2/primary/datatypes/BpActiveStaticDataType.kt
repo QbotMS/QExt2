@@ -340,7 +340,7 @@ class BpActiveStaticDataType : DataTypeImpl("qext2", "qext2-active-static") {
         }
         views.setTextViewText(R.id.tv_active_if10, styleIf10Value(if10Text))
         views.setTextViewText(R.id.tv_active_vsr, vsrText)
-        views.setTextViewText(R.id.tv_active_null, formatCarbBalance(QExt2PrimaryExtension.instance?.aggregator?.getCarbBalanceG() ?: 0))
+        views.setTextViewText(R.id.tv_active_null, "${QExt2PrimaryExtension.instance?.aggregator?.getCarbNeededG() ?: 0}g")
         views.setTextViewText(R.id.tv_active_temp, tempText)
         views.setViewVisibility(R.id.tv_active_temp_unit, if (tempText == "NO") android.view.View.GONE else android.view.View.VISIBLE)
         views.setTextViewText(R.id.tv_active_wbal, wbalText)

@@ -166,6 +166,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
 
     private fun onRideState(st: io.hammerhead.karooext.models.RideState) {
         val recordingNow = st !is io.hammerhead.karooext.models.RideState.Idle
+        com.qext2.primary.active.ActiveMessageHub.recording = recordingNow
         com.qext2.primary.util.RideFileLog.append("RIDE_STATE ${st::class.simpleName} recording=$recordingNow visible=$visibleFieldCount running=$aggregatorStreaming")
         if (recordingNow) {
             rideRecording = true

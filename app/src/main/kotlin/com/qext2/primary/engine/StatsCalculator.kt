@@ -54,6 +54,14 @@ class StatsCalculator(var ftpWatts: Int = 200) {
 
     private val wBalHistory = ArrayDeque<Pair<Long, Int>>()
 
+    // E6.1 (plan v2): spalanie CHO jak QBot fitmodel/glycogen.py (sprawnosc 0.23, frakcja CHO wg %CP);
+    // zalecenie = 70% spalania (EMA 20 min, nie spada do zera na zjezdzie), max 90 g/h (decyzja 09.10).
+    private var choBurnG = 0.0
+    private var choEmaGph = 0.0
+    private var choN = 0L
+    fun choBurnedG(): Int = choBurnG.roundToInt()
+    fun choRecommendedGPerH(): Int = if (choN < 60L) 0 else (CHO_INTAKE_SHARE * choEmaGph).coerceAtMost(CHO_INTAKE_MAX_GPH).roundToInt()
+
     // E2.3 (plan v2): NP z ostatnich 5 min CZASU RUCHU. Zero (toczenie) liczone, brak pomiaru (null) nie.
     private val np5Window = ArrayDeque<Int?>(NP5_WINDOW_S)
 
@@ -161,6 +169,12 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         val hasPower = powerWatts > 0
         val activeSample = movingAdvanced && hasPower && powerFresh
 
+        if (movingAdvanced && powerFresh && dtf > 0f) {
+            val g = choGPerSec(powerWatts.toDouble(), ftpWatts.toDouble()) * dtf
+            choBurnG += g
+            choN++
+            choEmaGph += (g / dtf * 3600.0 - choEmaGph) * (if (choN >= 1200L) 1.0 / 1200.0 else 1.0 / choN)
+        }
         if (movingAdvanced) {
             np5Window.addLast(if (powerFresh) powerWatts.coerceAtLeast(0) else null)
             while (np5Window.size > NP5_WINDOW_S) np5Window.removeFirst()
@@ -381,6 +395,7 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         xssAccum = 0f
         powerBuffer300s.clear()
         np5Window.clear()
+        choBurnG = 0.0; choEmaGph = 0.0; choN = 0L
         sumOf4thPowersEff = 0.0
         countEff = 0L
         lastCpEffLinW = 0f
@@ -467,6 +482,20 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         // Skalibrowane do Xert training_load (EWMA-CTL 59.6 vs 62.4) -- DECISIONS.md 2026-07-06.
         const val XSS_BETA = 1.0f
         const val NP5_WINDOW_S = 300
+        const val CHO_INTAKE_SHARE = 0.70
+        const val CHO_INTAKE_MAX_GPH = 90.0
+        /** g CHO / s przy mocy p i CP (kopia glycogen._compute_cho_burn_rows: p/0.23/4184 x frakcja / 4). */
+        fun choGPerSec(p: Double, cp: Double): Double {
+            if (p <= 0.0 || cp <= 0.0) return 0.0
+            val pct = p / cp
+            val frac = when {
+                pct <= 0.55 -> 0.50
+                pct <= 0.75 -> 0.50 + (pct - 0.55) * (0.75 - 0.50) / (0.75 - 0.55)
+                pct <= 1.00 -> 0.75 + (pct - 0.75) * (0.95 - 0.75) / (1.00 - 0.75)
+                else -> 0.95
+            }
+            return p / 0.23 / 4184.0 * frac / 4.0
+        }
 
         @JvmStatic
         fun safetyFloat(v: Float): Float = if (v.isNaN() || v.isInfinite()) 0f else v.coerceAtLeast(0f)

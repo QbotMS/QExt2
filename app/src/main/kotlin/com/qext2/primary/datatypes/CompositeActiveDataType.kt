@@ -544,8 +544,8 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
         }
         views.setTextViewText(R.id.tv_active_if10, styleIf10Value(if10Text))
         views.setTextViewText(R.id.tv_active_vsr, vsrText)
-        val carbBalance = QExt2PrimaryExtension.instance?.aggregator?.getCarbBalanceG() ?: 0
-        views.setTextViewText(R.id.tv_active_null, formatCarbBalance(carbBalance))
+        // E6.1: bez bilansu "zjedzone" (brak recznych wpisow) -- zalecone lacznie od startu
+        views.setTextViewText(R.id.tv_active_null, "${QExt2PrimaryExtension.instance?.aggregator?.getCarbNeededG() ?: 0}g")
         views.setTextViewText(R.id.tv_active_temp, tempText)
         views.setViewVisibility(
             R.id.tv_active_temp_unit,

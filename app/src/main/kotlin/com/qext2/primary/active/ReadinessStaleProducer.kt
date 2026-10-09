@@ -33,16 +33,16 @@ class ReadinessStaleProducer(private val logger: (String) -> Unit = {}) {
             return null
         }
         // grace = 0: pierwszy tick ze stanem "nieswieze" pokazuje od razu.
-        if (lastShownMs != 0L && nowMs - lastShownMs < REPEAT_MS) return null
+        if (lastShownMs != 0L) return null   // E6.3: raz na jazde (reset w ActiveMessageHub/aggregatorze)
         lastShownMs = nowMs
         logger("READINESS_STALE_ALERT nowMs=$nowMs")
         return ActiveMessage(
             id = "readiness_stale_$nowMs",
-            title = "GOTOWOSC NIESWIEZA",
-            line1 = "Dane starsze niz dzis",
-            line2 = "SETUP: wylacz TF",
-            severity = ActiveMessageSeverity.WARNING,
-            priority = ActiveMessagePriority.WARNING,
+            title = "FORMA NIEŚWIEŻA",
+            line1 = "RSRV bez formy dnia",
+            line2 = null,
+            severity = ActiveMessageSeverity.INFO,
+            priority = ActiveMessagePriority.INFO,
             resumePolicy = ActiveMessageResumePolicy.DROP_ON_INTERRUPT,
             createdAtMs = nowMs,
             expiresAtMs = nowMs + MSG_TTL_MS,

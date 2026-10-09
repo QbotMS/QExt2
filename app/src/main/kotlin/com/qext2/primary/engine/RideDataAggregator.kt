@@ -1132,7 +1132,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 sessionReserveLoadRef.set(sessionReserveLoad.toFloat())
                 val decoupling = statsCalc.decouplingPercent()
                 val wBalance = statsCalc.wBalancePercent(now)
-                val carbs = statsCalc.carbsGPerH(adjIf, movingElapsedSec, vi, physioTempC(), statsCalc.bodyWeightKg)
+                val carbs = statsCalc.choRecommendedGPerH()   // E6.1: 70% spalania CHO (model QBota), max 90 g/h
                 val fluid = statsCalc.fluidLPerH(adjIf, physioTempC())
                 initCarbSession(elapsedSec)
                 val dtSec = computeCarbDtSec(elapsedSec)
@@ -1300,6 +1300,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     carbNeededG = getCarbNeededG(),
                     cadenceAvg = karooAvgCadRef.get().takeIf { it > 0 } ?: if (cadSamples > 0L) (cadenceSumRef.get() / cadSamples).toInt() else 0,
                     np5Watts = statsCalc.np5Watts() ?: 0,
+                    choBurnedG = statsCalc.choBurnedG(),
                     avgHrBpm = karooAvgHrRef.get(),
                     movingElapsedSec = elapsedSec.takeIf { it > 0L } ?: movingElapsedSecRef.get(),   // E2.5: czas ruchu = Karoo (autopauza)
                     surfacePavedKmLeft = surfPavedLeft,
