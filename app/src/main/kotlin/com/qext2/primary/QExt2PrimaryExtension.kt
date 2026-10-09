@@ -170,6 +170,10 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         com.qext2.primary.active.ActiveMessageHub.recording = recordingNow
         com.qext2.primary.util.RideFileLog.append("RIDE_STATE ${st::class.simpleName} recording=$recordingNow visible=$visibleFieldCount running=$aggregatorStreaming")
         if (recordingNow) {
+            if (!rideRecording) {
+                val a = AthleteDataStore.load()
+                com.qext2.primary.util.RideFileLog.append("RIDE_START schema=$FIT_SCHEMA build=${BuildConfig.VERSION_CODE} cp=${a.ftp} ltp=${a.ltpWatts} wp=${a.wPrimeKj} form=${a.todayFactor} profileTs=${a.fetchTimestamp} bike=${_aggregator?.bikeKey()} windUnit=${com.qext2.primary.util.WindUnits.LABELS[com.qext2.primary.util.WindUnits.sourceUnit]}")
+            }
             rideRecording = true
             stopJob?.cancel(); stopJob = null
             if (_aggregator != null && !aggregatorStreaming) {
@@ -499,6 +503,11 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                                 fetchTimestamp = System.currentTimeMillis()
                             )
                             AthleteDataStore.save(data)
+                            if (AthleteDataStore.importSettingsOnce(json.optJSONObject("deviceSettings"))) {
+                                com.qext2.primary.util.RideFileLog.append("SETTINGS_RESTORED z serwera")
+                                com.qext2.primary.util.WindUnits.sourceUnit = AthleteDataStore.loadHeadwindUnit()
+                                refreshDeadlineConfig()
+                            } else pushSettings()
                             json.optJSONObject("cadenceModel")?.toString()?.let {
                                 AthleteDataStore.saveCadenceModel(it); com.qext2.primary.engine.CadenceAdvisor.load(it)   // E6.4
                             }
@@ -506,7 +515,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                                 AthleteDataStore.saveEtaStopsMinPerKm(it)
                                 com.qext2.primary.eta.EtaSpeedTable.historyMinPerKm = it   // E4.4
                             }
-                            val adjusted = data.applyBaroAdjustment(AthleteDataStore.loadBaroSensitive())
+                            val adjusted = data.applyBaroAdjustment(false)
                             _aggregator?.updateAthleteData(adjusted)
                             AthleteDataStore.saveLastRefresh()
                             Log.i(TAG, "QEXT_READINESS_FETCH_SAVED source=$url wPrimeKj=${data.wPrimeKj} ltpWatts=${data.ltpWatts} ftpWatts=${data.ftp} factor=${adjusted.todayFactor}")
@@ -530,6 +539,23 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         val waitMs = 120_000L * fetchAttempts
         com.qext2.primary.util.RideFileLog.append("READINESS_RETRY n=$fetchAttempts in=${waitMs / 1000}s reason=$reason")
         serviceScope.launch { delay(waitMs); fetchAthleteData(system, isRetry = true) }
+    }
+
+    /** E7.1: wyslij kopie ustawien SETUP na serwer (po zmianie w SETUP i po kazdym pobraniu danych). */
+    fun pushSettings() {
+        val system = karooSystem ?: return
+        val url = BuildConfig.QEXT_READINESS_URL.ifBlank { "https://qbot.cytr.us/ride-readiness" }
+        val tok = BuildConfig.QEXT_READINESS_TOKEN.takeIf { it.isNotBlank() } ?: return
+        try {
+            val body = org.json.JSONObject().put("settings", AthleteDataStore.exportSettings()).toString().toByteArray()
+            var id: String? = null
+            id = system.addConsumer<OnHttpResponse>(
+                params = OnHttpResponse.MakeHttpRequest(method = "POST", url = url,
+                    headers = mapOf("Authorization" to "Bearer $tok", "Content-Type" to "application/json"), body = body, waitForConnection = true),
+                onError = { id?.let { system.removeConsumer(it) } },
+                onEvent = { r -> if (r.state is HttpResponseState.Complete) id?.let { system.removeConsumer(it) } },
+            )
+        } catch (e: Exception) { Log.w(TAG, "QEXT_SETTINGS_PUSH_FAIL msg=${e.message}") }
     }
 
     /** E3.3: zgloszenie kasety (stan przelacznika + koronki) jako POST, z tokenem; bledy nie wplywaja na odczyt. */

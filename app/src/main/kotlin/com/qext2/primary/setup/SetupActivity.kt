@@ -33,6 +33,7 @@ class SetupActivity : Activity() {
         setupTabs()
         bindBikeSelect()
         bindWindUnit()
+        hideRetiredRows()
 
         findViewById<TextView>(R.id.tv_deadline)?.setOnClickListener {
             android.util.Log.e("QExt2Setup", "DEADLINE CLICKED!")
@@ -97,10 +98,10 @@ class SetupActivity : Activity() {
     private fun showStoredData() {
         val raw = AthleteDataStore.load()
         val baroSens = AthleteDataStore.loadBaroSensitive()
-        val data = raw.applyBaroAdjustment(baroSens)
+        val data = raw.applyBaroAdjustment(false)
 
         findViewById<TextView>(R.id.tv_ftp)?.text = if (data.ftp > 0) "${data.ftp} W" else "—"
-        findViewById<TextView>(R.id.tv_wmax)?.text = "${data.wPrimeJoules.toInt()} J"
+        findViewById<TextView>(R.id.tv_wmax)?.text = "%.1f kJ".format(data.wPrimeJoules / 1000.0)
         findViewById<TextView>(R.id.tv_pp)?.text = if (data.ltpWatts > 0) "${data.ltpWatts} W" else "—"
 
         findViewById<TextView>(R.id.tv_hrv)?.apply {
@@ -373,6 +374,19 @@ class SetupActivity : Activity() {
             "Aktywny deadline: %02d:%02d".format(hour, min)
         }
         findViewById<TextView>(R.id.tv_active_deadline)?.text = activeDeadline
+    }
+
+    override fun onPause() {
+        super.onPause()
+        QExt2PrimaryExtension.instance?.pushSettings()   // E7.1: kopia ustawien na serwer
+    }
+
+    /** E7.2: HRV, sen, cisnienie, korekta baro i reczny TF wycofane z modeli -- ukryte. */
+    private fun hideRetiredRows() {
+        for (id in listOf(R.id.tv_hrv, R.id.tv_sleep, R.id.tv_pressure, R.id.tv_baro_info)) {
+            (findViewById<android.view.View>(id)?.parent as? android.view.View)?.visibility = android.view.View.GONE
+        }
+        for (id in listOf(R.id.cb_baro, R.id.cb_tf)) findViewById<android.view.View>(id)?.visibility = android.view.View.GONE
     }
 
     /** E5.1: jednostka, w ktorej nadaje karoo-headwind; QExt2 przelicza na m/s. */

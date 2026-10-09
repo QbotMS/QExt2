@@ -124,7 +124,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="FTP"
+                android:text="CP (ModelQ)"
                 android:textColor="#9CA3AF"
                 android:textSize="14sp" />
 
@@ -148,7 +148,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="W' max (HIE)"
+                android:text="W′"
                 android:textColor="#9CA3AF"
                 android:textSize="14sp" />
 
@@ -172,7 +172,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="PP"
+                android:text="LTP"
                 android:textColor="#9CA3AF"
                 android:textSize="14sp" />
 
@@ -244,7 +244,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Korekta dnia (todayFactor)"
+                android:text="Forma dnia (RSRV)"
                 android:textColor="#9CA3AF"
                 android:textSize="14sp" />
 

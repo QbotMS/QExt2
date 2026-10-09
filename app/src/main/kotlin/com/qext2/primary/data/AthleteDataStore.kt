@@ -550,6 +550,42 @@ object AthleteDataStore {
     fun saveCadenceModel(json: String) { prefs?.edit()?.putString("cadence_model", json)?.apply() }
     fun loadCadenceModel(): String? = prefs?.getString("cadence_model", null)
 
+    // ---- E7.1: kopia ustawien SETUP na serwerze (odtworzenie po reinstalacji) ----
+    private val SETTINGS_KEYS = listOf("deadline_hour", "deadline_min", "carb_packet", "cassette_cogs", "cassette_override",
+        "cap_twilight", "riding_mode", "headwind_unit", "hr_zone_mode", "gear_edge_beep",
+        "reserve_daily_load_v2", "reserve_daily_load_v2_date")
+
+    fun exportSettings(): org.json.JSONObject {
+        val o = org.json.JSONObject()
+        val all = prefs?.all ?: return o
+        for (k in SETTINGS_KEYS) all[k]?.let { v ->
+            o.put(k, org.json.JSONObject().put("t", v.javaClass.simpleName).put("v", v.toString()))
+        }
+        return o
+    }
+
+    /** true, gdy cos zaimportowano. Wolane tylko raz na instalacje (flaga settings_restored_v1). */
+    fun importSettingsOnce(o: org.json.JSONObject?): Boolean {
+        val p = prefs ?: return false
+        if (p.getBoolean("settings_restored_v1", false)) return false
+        val e = p.edit().putBoolean("settings_restored_v1", true)
+        var n = 0
+        if (o != null) for (k in SETTINGS_KEYS) {
+            val it = o.optJSONObject(k) ?: continue
+            val v = it.optString("v")
+            when (it.optString("t")) {
+                "Integer" -> v.toIntOrNull()?.let { e.putInt(k, it) }
+                "Long" -> v.toLongOrNull()?.let { e.putLong(k, it) }
+                "Float" -> v.toFloatOrNull()?.let { e.putFloat(k, it) }
+                "Boolean" -> e.putBoolean(k, v == "true")
+                else -> e.putString(k, v)
+            }
+            n++
+        }
+        e.apply()
+        return n > 0
+    }
+
     fun loadEtaPriorKmh(): Double =
         (prefs?.getFloat("eta_prior_kmh", 0f) ?: 0f).toDouble()
 
