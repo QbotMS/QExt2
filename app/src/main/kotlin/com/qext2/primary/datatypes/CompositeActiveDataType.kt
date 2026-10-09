@@ -619,8 +619,8 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
         if (lastWindUpdateMs == 0L || ageMs > 10_000L) return "--"
         val speedMs = currentWindSpeedMs()
         if (speedMs.isNaN()) return "--"
-        if (speedMs > 60.0) return "--"
-        val speedRounded = round(speedMs / 3.6).toInt().toString()
+        if (com.qext2.primary.util.WindUnits.toMps(speedMs) > 60.0) return "--"
+        val speedRounded = round(com.qext2.primary.util.WindUnits.toMps(speedMs)).toInt().toString()
         if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "formatWind: deg=$lastDirectionDeg windMs=$lastWindSpeedMs headwindMs=$lastHeadwindSpeedMs ms=$speedRounded")
         return speedRounded
     }
@@ -651,7 +651,7 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
                 if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "wind sample $source=$rawValue -> dir=$lastDirectionDeg")
             }
             "headwindSpeed" -> {
-                if (absValue <= 60.0) {
+                if (com.qext2.primary.util.WindUnits.toMps(absValue) <= 60.0) {
                     lastHeadwindSpeedMs = rawValue
                     lastWindUpdateMs = System.currentTimeMillis()
                 }
@@ -666,7 +666,7 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
                 if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "wind sample $source=$rawValue -> dir=$lastDirectionDeg")
             }
             "windSpeed" -> {
-                if (absValue <= 60.0) {
+                if (com.qext2.primary.util.WindUnits.toMps(absValue) <= 60.0) {
                     lastWindSpeedMs = kotlin.math.abs(rawValue)
                     lastWindUpdateMs = System.currentTimeMillis()
                 }

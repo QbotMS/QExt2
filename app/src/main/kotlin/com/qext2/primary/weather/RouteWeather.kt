@@ -197,7 +197,7 @@ object RouteWeatherClient {
             val rn = m.optJSONArray("rain")?.optDouble(bi, 0.0) ?: 0.0
             val sn = m.optJSONArray("snowfall")?.optDouble(bi, 0.0) ?: 0.0
             val kind = classify(code, pr, rn, sn) ?: continue
-            val prob = maxOf(hourly("precipitation_probability"), if (pr >= 0.1) 50 else 0)
+            val prob = hourly("precipitation_probability")   // E5.3: prawdopodobienstwo osobno od intensywnosci (bez sztucznych 50%)
             val ev = WxEvent(kind, p.minutes, prob, (pr * 4.0).toFloat(), p.kmAhead)
             val e0 = event
             if (e0 == null || ev.kind.severity > e0.kind.severity) event = ev

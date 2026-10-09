@@ -281,6 +281,75 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginBottom="6dp"
+            android:text="JEDNOSTKA WIATRU W KAROO-HEADWIND (QExt2 pokazuje m/s)"
+            android:textColor="#9CA3AF"
+            android:textSize="11sp"
+            android:letterSpacing="0.1" />
+
+        <LinearLayout
+            android:id="@+id/ll_wind_unit"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp">
+
+            <TextView
+                android:id="@+id/btn_wu_kmh"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="KM/H"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:background="#1E2A3A"
+                android:textColor="#9CA3AF"
+                android:layout_marginEnd="4dp" />
+
+            <TextView
+                android:id="@+id/btn_wu_ms"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="M/S"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:background="#1E2A3A"
+                android:textColor="#9CA3AF"
+                android:layout_marginEnd="4dp" />
+
+            <TextView
+                android:id="@+id/btn_wu_mph"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="MPH"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:background="#1E2A3A"
+                android:textColor="#9CA3AF"
+                android:layout_marginEnd="4dp" />
+
+            <TextView
+                android:id="@+id/btn_wu_kn"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="KN"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:background="#1E2A3A"
+                android:textColor="#9CA3AF" />
+
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
             android:text="TRYB JAZDY"
             android:textColor="#9CA3AF"
             android:textSize="11sp"

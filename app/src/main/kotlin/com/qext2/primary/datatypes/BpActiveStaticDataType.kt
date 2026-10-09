@@ -393,8 +393,9 @@ class BpActiveStaticDataType : DataTypeImpl("qext2", "qext2-active-static") {
         val ageMs = System.currentTimeMillis() - lastWindUpdateMs
         if (lastWindUpdateMs == 0L || ageMs > 10_000L) return "--"
         val speedMs = currentWindSpeedMs()
-        if (speedMs.isNaN() || speedMs > 60.0) return "--"
-        return round(speedMs * 3.6).toInt().toString()
+        val mps = com.qext2.primary.util.WindUnits.toMps(speedMs)
+        if (speedMs.isNaN() || mps > 60.0) return "--"
+        return round(mps).toInt().toString()
     }
 
     private fun formatWindDir(): String {

@@ -133,11 +133,11 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
         val descent = agg?.getSteepDescentAhead()?.let { DescentInfo((it.first / 1000.0).toFloat(), it.second.toFloat()) }
         val fresh = s.weatherFresh
         val cond = (s.weatherCondition ?: "").lowercase()
-        val rainNow = if (!fresh) null else s.weatherRain1hMm?.takeIf { it > 0f }
-            ?: if (cond.contains("rain") || cond.contains("drizzle")) 0.2f else null
+        val rainNow = if (!fresh) null else s.weatherRain1hMm?.takeIf { it > 0f }   // E5.3: bez wymyslonego 0.2 mm/h
         // pogoda po trasie (Open-Meteo, co 15 min jazdy wg ETA, do 2 h)
         val rw = agg?.getRouteWeather()?.takeIf { com.qext2.primary.weather.RouteWeatherClient.isFresh(it) }
-        val rainSoon = rw?.event?.let { RainSoon(it.minutes, it.probPct, it.mmPerH, it.kind.name, it.kmAhead) }
+        // E5.3: "za X min" liczone od chwili pobrania prognozy, nie zamrozone
+        val rainSoon = rw?.event?.let { RainSoon((it.minutes - ((now - rw.fetchedAt) / 60_000L).toInt()).coerceAtLeast(0), it.probPct, it.mmPerH, it.kind.name, it.kmAhead) }
         // nastepne zdarzenie: swit przed wschodem, zmrok w dzien, po zmroku swit nastepnego dnia (SDK: CIVIL_DAWN / CIVIL_DUSK)
         val duskRaw = agg?.getCivilDuskMs() ?: 0L
         val dawnRaw = agg?.getCivilDawnMs() ?: 0L

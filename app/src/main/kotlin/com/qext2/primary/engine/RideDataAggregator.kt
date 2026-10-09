@@ -125,6 +125,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val headwindSpeedMpsRef = AtomicReference<Double?>(null)
     private val windGustsMpsRef = AtomicReference<Double?>(null)
     private val headwindUpdatedMsRef = AtomicReference(0L)
+    private val windChannelMs = java.util.concurrent.ConcurrentHashMap<String, Long>()   // E5.1: swiezosc per kanal
+    private val weatherUpdatedMsRef = AtomicReference(0L)                                // E5.2: czas danych pogody
     private val headwindLoggedMsRef = AtomicReference(0L)
     private val karooAvgSpeedKmhRef = AtomicReference(0.0)
     private val temperatureUpdatedMsRef = AtomicReference(0L)
@@ -725,11 +727,10 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                             val s = event.state
                             if (s is StreamState.Streaming) {
                                 val v = s.dataPoint.singleValue ?: s.dataPoint.values.values.firstOrNull() as? Double
-                                if (v != null && v.isFinite()) {
-                                    // karoo-headwind nadaje predkosci w jednostce ze SWOICH ustawien = km/h
-                                    // (sprawdzone 2026-10-09: log 08.10 headwindSpeed 7.87 vs Open-Meteo 2.0 m/s;
-                                    // pole ACTIVE od zawsze dzieli przez 3.6). Tu zamiana na m/s; kierunek bez zmian.
-                                    ref.set(if (field == "headwind") v else v / 3.6)
+                                if (v != null && v.isFinite() && !(field == "headwind" && (v < 0.0 || v > 360.0))) {
+                                    // E5.1: kody bledu kierunku (<0) odrzucone; predkosci z jednostki karoo-headwind (SETUP) na m/s
+                                    ref.set(if (field == "headwind") v else com.qext2.primary.util.WindUnits.toMps(v))
+                                    windChannelMs[field] = System.currentTimeMillis()
                                     val nowHw = System.currentTimeMillis()
                                     if (nowHw - headwindLoggedMsRef.get() > 300_000L) { headwindLoggedMsRef.set(nowHw); com.qext2.primary.util.RideFileLog.append("HEADWIND field=$field v=$v") }
                                     headwindUpdatedMsRef.set(nowHw)
@@ -1330,7 +1331,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     rsrvModelReady = rsrvModelReady,
                     carbModelReady = carbModelReady,
                     fluidModelReady = fluidModelReady,
-                    weatherFresh = weatherFreshRef.get(),
+                    weatherFresh = now - weatherUpdatedMsRef.get() in 0..(35 * 60_000L),   // E5.2: wiek liczony przy uzyciu
                     weatherTemperatureC = weatherTemperatureCRef.get(),
                     windSpeedMps = getKarooWindMps(),
                     weatherRain1hMm = weatherRain1hMmRef.get(),
@@ -1459,6 +1460,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     fun updateWeather(data: com.qext2.primary.weather.WeatherData) {
         weatherSourceReadyRef.set(true)
         weatherFreshRef.set(WeatherClient.isFresh(data))
+        weatherUpdatedMsRef.set(data.updatedAt)
+        data.humidityPct.takeIf { it in 1..100 }?.let { statsCalc.humidityPercent = it.toFloat() }   // E5.2: wilgotnosc z miejsca jazdy
         weatherTemperatureCRef.set(data.temperatureC)
         weatherWindDirectionDegRef.set(data.windDirectionDeg)
         weatherHumidityPctRef.set(data.humidityPct)
@@ -1671,29 +1674,31 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
 
     /** Predkosc wiatru (m/s) z karoo-headwind: ostatnia wartosc, gdy rozszerzenie zyje (probka <= 15 s,
      *  kierunek odswieza sie co chwile, predkosc tylko gdy sie zmieni -- jak ACTIVE); inaczej null. */
+    private fun fresh(ch: String): Boolean = System.currentTimeMillis() - (windChannelMs[ch] ?: 0L) <= 15_000L
+
     fun getKarooWindMps(): Float? {
-        if (System.currentTimeMillis() - headwindUpdatedMsRef.get() > 15_000L) return null
+        if (!fresh("windSpeed")) return null
         val sp = windSpeedMpsRef.get() ?: return null
         return if (sp.isFinite() && kotlin.math.abs(sp) <= 60.0) kotlin.math.abs(sp).toFloat() else null
     }
 
     /** Wiatr czolowy ze znakiem (m/s) z karoo-headwind: + w twarz, - w plecy; null = brak swiezych danych. */
     fun getHeadwindSignedMps(): Float? {
-        if (System.currentTimeMillis() - headwindUpdatedMsRef.get() > 15_000L) return null
+        if (!fresh("headwindSpeed")) return null
         val sp = headwindSpeedMpsRef.get() ?: return null
         return if (sp.isFinite() && kotlin.math.abs(sp) <= 60.0) sp.toFloat() else null
     }
 
     /** Porywy wiatru (m/s) z karoo-headwind; null = brak swiezych danych. */
     fun getKarooWindGustsMps(): Float? {
-        if (System.currentTimeMillis() - headwindUpdatedMsRef.get() > 15_000L) return null
+        if (!fresh("windGusts")) return null
         val g = windGustsMpsRef.get() ?: return null
         return if (g.isFinite() && g in 0.0..80.0) g.toFloat() else null
     }
 
     /** KOKPIT: (kierunek wzgledny stopnie, wiatr czolowy m/s) z karoo-headwind, gdy swieze (<= 15 s); inaczej null */
     fun getHeadwindRel(): Pair<Int, Float>? {
-        if (System.currentTimeMillis() - headwindUpdatedMsRef.get() > 15_000L) return null
+        if (!fresh("headwind") || !fresh("headwindSpeed")) return null
         val d = headwindDirDegRef.get() ?: return null
         val sp = headwindSpeedMpsRef.get() ?: return null
         if (!sp.isFinite() || kotlin.math.abs(sp) > 60.0) return null
@@ -2005,7 +2010,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         if (data.ftp > 0) statsCalc.ftpWatts = data.ftp
         statsCalc.ctlXssForBudget = data.ctlXss
         statsCalc.todayFactor = tf
-        statsCalc.humidityPercent = data.humidityPercent
+        // E5.2: wilgotnosc NIE z /ride-readiness (pogoda dla domu) -- przychodzi z pogody w miejscu jazdy
         sunsetTimestampRef.set(data.sunsetTimestampMs)
         maxHrRef.set(data.maxHr.coerceIn(100, 220))
         todayFactorRef.set(tf)

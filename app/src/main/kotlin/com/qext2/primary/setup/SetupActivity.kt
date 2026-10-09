@@ -32,6 +32,7 @@ class SetupActivity : Activity() {
         bindCheckboxes()
         setupTabs()
         bindBikeSelect()
+        bindWindUnit()
 
         findViewById<TextView>(R.id.tv_deadline)?.setOnClickListener {
             android.util.Log.e("QExt2Setup", "DEADLINE CLICKED!")
@@ -372,6 +373,25 @@ class SetupActivity : Activity() {
             "Aktywny deadline: %02d:%02d".format(hour, min)
         }
         findViewById<TextView>(R.id.tv_active_deadline)?.text = activeDeadline
+    }
+
+    /** E5.1: jednostka, w ktorej nadaje karoo-headwind; QExt2 przelicza na m/s. */
+    private fun bindWindUnit() {
+        val ids = listOf(R.id.btn_wu_kmh, R.id.btn_wu_ms, R.id.btn_wu_mph, R.id.btn_wu_kn)
+        val btns = ids.map { findViewById<TextView>(it) }
+        fun hl(sel: Int) = btns.forEachIndexed { i, b ->
+            b?.setBackgroundColor(if (i == sel) 0xFF1D4ED8.toInt() else 0xFF1E2A3A.toInt())
+            b?.setTextColor(if (i == sel) 0xFFFFFFFF.toInt() else 0xFF9CA3AF.toInt())
+        }
+        hl(AthleteDataStore.loadHeadwindUnit())
+        btns.forEachIndexed { i, b ->
+            b?.setOnClickListener {
+                AthleteDataStore.saveHeadwindUnit(i)
+                com.qext2.primary.util.WindUnits.sourceUnit = i
+                hl(i)
+                setStatus("Wiatr z karoo-headwind: " + com.qext2.primary.util.WindUnits.LABELS[i])
+            }
+        }
     }
 
     private fun setStatus(msg: String) {
