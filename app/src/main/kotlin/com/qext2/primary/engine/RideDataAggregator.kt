@@ -1188,13 +1188,11 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 // AUTO adaptacyjne: aktualizuj modeFactor z rolling window 20 min
                 val athleteData = AthleteDataStore.load()
                 val ridingModeCode = AthleteDataStore.loadRidingMode().toInt()
-                val effectiveModeFactor = if (ridingModeCode == 3) {
-                    // AUTO — adaptacyjne
-                    adaptiveTracker.update(now, powerRef.get(), getEffectiveLtpWatts())
-                } else {
-                    // Fixowany tryb — nie dotykamy
-                    when (ridingModeCode) { 1 -> 0.88f; 2 -> 1.12f; else -> 1.00f }
-                }
+                // E2.6/D1: jedno mapowanie; AUTO = strategia z prognozy RSRV na mecie (ETA z poprzedniego obiegu)
+                val autoFactor = adaptiveTracker.update(now, _statsSnapshot.value.rideReservePercent,
+                    lastEtaMsRef.get().takeIf { it > now }?.let { (it - now) / 1000.0 }, getEffectiveRoute())
+                val effectiveModeFactor = com.qext2.primary.active.AdaptiveModeTracker.modeFactorFor(ridingModeCode, autoFactor)
+                modeFactorRef.set(effectiveModeFactor)
 
                 // Pacing context — produkowany co sekundę
                 val pacingCtx = PacingEngine.compute(
@@ -1765,18 +1763,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         AthleteData.dataAgeHours(athleteFetchTsRef.get(), nowMs)
 
     fun refreshModeFactor() {
-        val rawMode = AthleteDataStore.loadRidingMode()
-        val tf = todayFactorRef.get()
-        modeFactorRef.set(when (rawMode) {
-            0 -> 0.88f
-            2 -> 1.12f
-            3 -> when {
-                tf < 0.90f -> 0.88f
-                tf > 1.02f -> 1.12f
-                else -> 1.00f
-            }
-            else -> 1.00f
-        })
+        modeFactorRef.set(com.qext2.primary.active.AdaptiveModeTracker.modeFactorFor(
+            AthleteDataStore.loadRidingMode(), com.qext2.primary.active.AdaptiveModeTracker.factor(adaptiveTracker.getCurrentMode())))
     }
 
     fun getNavClimbs(): List<KarooClimb> = navClimbsRef.get()
@@ -1982,17 +1970,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         sunsetTimestampRef.set(data.sunsetTimestampMs)
         maxHrRef.set(data.maxHr.coerceIn(100, 220))
         todayFactorRef.set(tf)
-        val rawMode = AthleteDataStore.loadRidingMode()
-        modeFactorRef.set(when (rawMode) {
-            0 -> 0.88f
-            2 -> 1.12f
-            3 -> when {                          // AUTO
-                tf < 0.90f -> 0.88f
-                tf > 1.02f -> 1.12f
-                else -> 1.00f
-            }
-            else -> 1.00f
-        })
+        refreshModeFactor()
         statsCalc.bodyWeightKg = data.bodyWeightKg
         if (data.lthrBpm > 0) statsCalc.lthrBpm = data.lthrBpm.toFloat()
         if (data.maxHr > 0) statsCalc.maxHrBpm = data.maxHr
@@ -2104,7 +2082,10 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         else 1f
 
         // Binding constraint × riding mode × decoupling
-        val ceiling = effectiveLtp * minOf(wFac, rsvFac) * modeFactorRef.get() * decFac
+        // E2.6: ten sam sufit co liczba w KOKPIT (PacingEngine); brak profilu -> brak porady
+        val pc = pacingContextRef.get()
+        if (!pc.isActive) { lastUnifiedPowerBg = 0; return Pair(Color.parseColor("#CBD5E1"), 0) }
+        val ceiling = pc.ceilingW.toFloat()
 
         val over = power >= ceiling.toInt()
         if (over) {

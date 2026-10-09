@@ -48,7 +48,7 @@ object PacingEngine {
         todayFactor: Float,
         modeFactor: Float,
     ): PacingContext {
-        val ltp = effectiveLtp.coerceAtLeast(50f)
+        val ltp = effectiveLtp   // A09: brak profilu (<50 W) ma wylaczyc porade, nie udawac 50 W
         val ftp = effectiveFtp.coerceAtLeast(ltp)
 
         if (ltp < 50f) {
