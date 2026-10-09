@@ -44,12 +44,15 @@ class SetupActivity : Activity() {
     private lateinit var root: LinearLayout
     private val ui = Handler(Looper.getMainLooper())
 
-    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+    /** Rozmiary z makiety (Karoo 3: 480 x 800 px, density 1.875 -- docs/FIELD_LOOK_PLAN.md) przeliczane na
+     *  rzeczywista szerokosc ekranu. NIE dp: 1 dp = 1.875 px na Karoo 3, wiec dp z makiety dawaly 2x za duzo. */
+    private val scale by lazy { resources.displayMetrics.widthPixels / 480f }
+    private fun dp(v: Int) = (v * scale).toInt()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         AthleteDataStore.init(this)
-        root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(14), dp(14), dp(14), dp(14)) }
+        root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(18), dp(16), dp(18)) }
         setContentView(ScrollView(this).apply { setBackgroundColor(bg); addView(root) })
         render()
     }
@@ -63,7 +66,7 @@ class SetupActivity : Activity() {
 
     private fun render() {
         root.removeAllViews()
-        root.addView(label("QEXT2", 26, txt, bold = true).apply { setPadding(dp(4), 0, 0, dp(10)) })
+        root.addView(label("QEXT2", 30, txt, bold = true).apply { setPadding(dp(4), 0, 0, dp(10)) })
         root.addView(statusCard())
         root.addView(formCard())
         root.addView(deadlineCard())
@@ -88,12 +91,12 @@ class SetupActivity : Activity() {
         }
         val c = box(if (fresh) Color.parseColor("#0F2A1C") else Color.parseColor("#3A1416"))
         if (fresh) {
-            c.addView(label("Wszystko działa", 22, green, bold = true))
+            c.addView(label("Wszystko działa", 26, green, bold = true))
             c.addView(label("Dane z QBota: dziś ${when_?.format(hm)}\nRower: $bike", 15, Color.parseColor("#C7F0D8")))
         } else {
             val day = when_?.toLocalDate()
             val ago = when { when_ == null -> "brak danych"; day == LocalDate.now().minusDays(1) -> "z wczoraj ${when_.format(hm)}"; else -> "z ${day}" }
-            c.addView(label("Dane z QBota $ago", 22, red, bold = true))
+            c.addView(label("Dane z QBota $ago", 26, red, bold = true))
             c.addView(label("QExt2 liczy na ostatnim profilu, forma dnia = 1,00. Dane pobiorą się same, gdy będzie sieć.", 15, Color.parseColor("#FECACA")))
             c.addView(button("Pobierz teraz", Color.parseColor("#DC2626")) {
                 QExt2PrimaryExtension.instance?.refetchAthleteData()
@@ -105,7 +108,7 @@ class SetupActivity : Activity() {
 
     private fun formCard(): View {
         val c = box(card)
-        c.addView(label("Forma dnia z QBota", 14, sub))
+        c.addView(label("Forma dnia z QBota", 15, sub))
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.BOTTOM }
         if (dataFresh()) {
             val f = AthleteDataStore.load().todayFactor
@@ -115,8 +118,8 @@ class SetupActivity : Activity() {
                 f <= 1.02f -> "normalnie" to txt
                 else -> "lepiej niż zwykle" to green
             }
-            row.addView(label("%.2f".format(f).replace('.', ','), 44, col, bold = true))
-            row.addView(label("  $desc", 16, txt).apply { setPadding(0, 0, 0, dp(8)) })
+            row.addView(label("%.2f".format(f).replace('.', ','), 56, col, bold = true))
+            row.addView(label("  $desc", 17, txt).apply { setPadding(0, 0, 0, dp(8)); layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) })
             c.addView(row)
             c.addView(label(when {
                 f < 0.995f -> "Rezerwa (RSRV) spada dziś szybciej niż zwykle."
@@ -124,8 +127,8 @@ class SetupActivity : Activity() {
                 else -> "Rezerwa (RSRV) liczona normalnie."
             }, 14, sub))
         } else {
-            row.addView(label("1,00", 44, sub, bold = true))
-            row.addView(label("  brak dzisiejszej, liczę neutralnie", 15, orange).apply { setPadding(0, 0, 0, dp(8)) })
+            row.addView(label("1,00", 56, sub, bold = true))
+            row.addView(label("  brak dzisiejszej, liczę neutralnie", 15, orange).apply { setPadding(0, 0, 0, dp(8)); layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) })
             c.addView(row)
         }
         return c
@@ -138,10 +141,10 @@ class SetupActivity : Activity() {
         val effMs = agg?.getDeadlineMs()?.takeIf { it > 0L }
         val eff = effMs?.let { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).format(hm) }
         if (today == null) {
-            c.addView(label("Koniec jazdy", 14, sub))
+            c.addView(label("Koniec jazdy", 15, sub))
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.BOTTOM }
-            row.addView(label(eff ?: "zmrok", 44, txt, bold = true))
-            row.addView(label("  o zmroku, automatycznie", 16, orange).apply { setPadding(0, 0, 0, dp(8)) })
+            row.addView(label(eff ?: "zmrok", 56, txt, bold = true))
+            row.addView(label("  o zmroku, automatycznie", 17, orange).apply { setPadding(0, 0, 0, dp(8)); layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) })
             c.addView(row)
             c.addView(button("Dziś muszę skończyć wcześniej", btn) {
                 val start = effMs?.let { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()) }
@@ -149,10 +152,10 @@ class SetupActivity : Activity() {
                 AthleteDataStore.saveDeadlineToday(h, m); applyDeadline()
             })
         } else {
-            c.addView(label("Koniec jazdy – tylko dziś", 14, sub))
+            c.addView(label("Koniec jazdy – tylko dziś", 15, sub))
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
             row.addView(squareButton("−15") { shiftToday(-15) })
-            row.addView(label("%02d:%02d".format(today.first, today.second), 56, txt, bold = true).apply {
+            row.addView(label("%02d:%02d".format(today.first, today.second), 72, txt, bold = true).apply {
                 gravity = Gravity.CENTER; layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             })
             row.addView(squareButton("+15") { shiftToday(15) })
@@ -178,14 +181,14 @@ class SetupActivity : Activity() {
         val c = box(card)
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) }
-        col.addView(label("Kaseta", 14, sub))
+        col.addView(label("Kaseta", 15, sub))
         val custom = AthleteDataStore.loadCassetteOverrideEnabled()
-        col.addView(label(if (custom) AthleteDataStore.loadCassetteCogsRaw() else "z przerzutki AXS", 17, txt, bold = true))
+        col.addView(label(if (custom) AthleteDataStore.loadCassetteCogsRaw() else "z przerzutki AXS", 19, txt, bold = true))
         col.addView(label(if (custom) "wymuszona (Grizl, Grail); Monster bez zmian" else "Monster: własna estymacja 11-50", 13, sub))
         row.addView(col)
         row.addView(Button(this).apply {
-            text = "Zmień"; setTextColor(txt); textSize = 16f; isAllCaps = false; background = round(btn, 12)
-            layoutParams = LinearLayout.LayoutParams(dp(110), dp(54))
+            text = "Zmień"; setTextColor(txt); setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, 17 * scale); isAllCaps = false; background = round(btn, 12)
+            layoutParams = LinearLayout.LayoutParams(dp(120), dp(56))
             setOnClickListener { cassetteDialog() }
         })
         c.addView(row)
@@ -221,24 +224,24 @@ class SetupActivity : Activity() {
     private fun box(color: Int) = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         background = round(color, 14)
-        setPadding(dp(16), dp(14), dp(16), dp(14))
-        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(12) }
+        setPadding(dp(18), dp(16), dp(18), dp(16))
+        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(14) }
     }
 
     private fun label(t: String, sp: Int, color: Int, bold: Boolean = false) = TextView(this).apply {
-        text = t; textSize = sp.toFloat(); setTextColor(color)
+        text = t; setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, sp * scale); setTextColor(color)
         if (bold) typeface = Typeface.DEFAULT_BOLD
     }
 
     private fun button(t: String, color: Int, onClick: () -> Unit) = Button(this).apply {
-        text = t; textSize = 17f; setTextColor(Color.WHITE); isAllCaps = false; background = round(color, 12)
-        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(58)).apply { topMargin = dp(12) }
+        text = t; setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, 19 * scale); setTextColor(Color.WHITE); isAllCaps = false; background = round(color, 12)
+        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(60)).apply { topMargin = dp(12) }
         setOnClickListener { onClick() }
     }
 
     private fun squareButton(t: String, onClick: () -> Unit) = Button(this).apply {
-        text = t; textSize = 20f; setTextColor(txt); isAllCaps = false; background = round(btn, 12)
-        layoutParams = LinearLayout.LayoutParams(dp(68), dp(68))
+        text = t; setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, 24 * scale); setTextColor(txt); isAllCaps = false; background = round(btn, 12)
+        layoutParams = LinearLayout.LayoutParams(dp(72), dp(72))
         setOnClickListener { onClick() }
     }
 }
