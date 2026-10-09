@@ -22,9 +22,10 @@ jobs:
       # E3 (plan v2): token /ride-readiness i prywatny klucz release (sekrety repo; bez nich build testowy na kluczu debug)
       QEXT_READINESS_TOKEN: ${{ secrets.QEXT_READINESS_TOKEN }}
       OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
-      RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
-      RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-      RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+      # jedno haslo dla magazynu i klucza; alias nie jest tajny
+      RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_PASSWORD }}
+      RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_PASSWORD }}
+      RELEASE_KEY_ALIAS: qext2
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
