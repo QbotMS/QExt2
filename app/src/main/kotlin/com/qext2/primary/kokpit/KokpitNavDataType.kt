@@ -141,12 +141,8 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
         // nastepne zdarzenie: swit przed wschodem, zmrok w dzien, po zmroku swit nastepnego dnia (SDK: CIVIL_DAWN / CIVIL_DUSK)
         val duskRaw = agg?.getCivilDuskMs() ?: 0L
         val dawnRaw = agg?.getCivilDawnMs() ?: 0L
-        val (twMs, twLabel) = when {
-            dawnRaw > now -> dawnRaw to "świt"
-            duskRaw > now -> duskRaw to "zmrok"
-            dawnRaw > 0L -> (dawnRaw + 86_400_000L) to "świt"
-            else -> 0L to "zmrok"
-        }
+        val (twMs, twLabel) = com.qext2.primary.util.Twilight.next(now, dawnRaw, duskRaw)
+            ?.let { it.first to (if (it.second) "świt" else "zmrok") } ?: (0L to "zmrok")
         val dusk = if (twLabel == "zmrok" && twMs > now) twMs else null
         val eta = if (s.etaModelReady && s.etaTimestamp > 0L) s.etaTimestamp else null
         val pois = (agg?.navPois() ?: SurfaceBridge.poisSnapshot()).map { PoiInfo(it.km, it.cat, it.name, it.today) }

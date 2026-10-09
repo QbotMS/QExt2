@@ -128,12 +128,7 @@ class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: 
         val now = System.currentTimeMillis()
         val dusk = agg?.getCivilDuskMs() ?: 0L
         val dawn = agg?.getCivilDawnMs() ?: 0L
-        return when {
-            dawn > now -> dawn to true
-            dusk > now -> dusk to false
-            dawn > 0L -> (dawn + 86_400_000L) to true
-            else -> null
-        }
+        return com.qext2.primary.util.Twilight.next(now, dawn, dusk)
     }
 
     private fun toData(agg: RideDataAggregator?, s: StatsRideSnapshot): StatsV2Data {
