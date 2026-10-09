@@ -314,11 +314,11 @@ class StatsCalculatorTest {
         assertEquals(152.7, StatsCalculator.choGPerSec(200.0, 240.0) * 3600, 0.5)
         val c = StatsCalculator(ftpWatts = 240)
         for (sec in 1..3600L) c.update(200, 140, sec, sec)
-        assertEquals(153, c.choBurnedG(), 1)
+        assertEquals(153.0, c.choBurnedG().toDouble(), 1.0)
         assertEquals(90, c.choRecommendedGPerH())
         val e = StatsCalculator(ftpWatts = 240)
         for (sec in 1..3600L) e.update(120, 120, sec, sec)
         // 120 W: frakcja 0.5 -> 56.1 g/h spalania -> zalecenie ok. 39 g/h
-        assertEquals(39, e.choRecommendedGPerH(), 1)
+        assertEquals(39.0, e.choRecommendedGPerH().toDouble(), 1.0)
     }
 }
