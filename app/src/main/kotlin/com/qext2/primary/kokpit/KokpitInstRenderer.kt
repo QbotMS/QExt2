@@ -213,7 +213,7 @@ object KokpitInstRenderer {
         // pod spodem: CPe5 i srednia
         val cpe = d.cpe5W?.let { fmt("%.0f", it) } ?: "—"
         t(c, cpe, cx - gap, sBase, subSize, WHITE, true, Paint.Align.RIGHT)
-        t(c, "▲ CPe5 ", cx - gap - w(cpe, subSize), sBase, subSize * 0.55f, WHITE, false, Paint.Align.RIGHT)
+        t(c, "▲ NP5 ", cx - gap - w(cpe, subSize), sBase, subSize * 0.55f, WHITE, false, Paint.Align.RIGHT)
         t(c, "▲ Ø ", cx + gap, sBase, subSize * 0.55f, YEL, false)
         t(c, d.avgSpeedKmh?.let { fmt("%.1f", it) } ?: "—", cx + gap + w("▲ Ø ", subSize * 0.55f, false), sBase, subSize, WHITE, true)
     }
@@ -324,8 +324,8 @@ object KokpitInstRenderer {
         val lbl = 16f * s
         val cpCol = SUB
         val capTop = refBase - refSize * 0.72f
-        t(c, "CpE", cpLX, capTop + lbl * 0.72f, lbl, cpCol, false, Paint.Align.RIGHT)
-        t(c, "5", cpLX - w("CpE", lbl, false) / 2f, capTop + lbl * 0.72f + lbl * 0.80f, lbl, cpCol, false, Paint.Align.CENTER)
+        t(c, "NP", cpLX, capTop + lbl * 0.72f, lbl, cpCol, false, Paint.Align.RIGHT)
+        t(c, "5", cpLX - w("NP", lbl, false) / 2f, capTop + lbl * 0.72f + lbl * 0.80f, lbl, cpCol, false, Paint.Align.CENTER)
         val avTxt = d.avgSpeedKmh?.let { fmt("%.1f", it) } ?: "—"
         t(c, avTxt, cx + g, refBase, refSize, WHITE, true)
         val symSz = 16f * s

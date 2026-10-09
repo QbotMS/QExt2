@@ -502,7 +502,7 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
         val tempText = formatTemp(displayTemp)
         val agg = QExt2PrimaryExtension.instance?.aggregator
         val snap = agg?.statsSnapshot?.value
-        val if10Text = (snap?.ifEff5Live ?: 0f).let { if (it > 0f) String.format("%.2f", it) else "--" }
+        val if10Text = (snap?.let { if (it.np5Watts > 0 && it.cpEffW > 0f) it.np5Watts / it.cpEffW else 0f } ?: 0f).let { if (it > 0f) String.format("%.2f", it) else "--" }
         val wbalText = if (snap != null && snap.wBalancePercent >= 0) snap.wBalancePercent.toString() else "NO"
         val wbalTrend = snap?.wBalanceTrend ?: "stable"
         val windText = formatWind()

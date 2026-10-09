@@ -146,6 +146,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val kcalRef = AtomicReference(0)
     private val npRef = AtomicReference(0)
     private val viRef = AtomicReference(0f)
+    private val karooAvgCadRef = AtomicReference(0)   // E2.5
+    private val karooAvgHrRef = AtomicReference(0)    // E2.5
 
     private val hrFreshnessRef = AtomicReference(0L)
     private val cadenceFreshnessRef = AtomicReference(0L)
@@ -777,6 +779,21 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
             )
         )
 
+        // E2.5: srednia kadencja i srednie tetno calej jazdy z Karoo (autopauza wlaczona)
+        for ((type, ref) in listOf(DataType.Type.AVERAGE_CADENCE to karooAvgCadRef, DataType.Type.AVERAGE_HR to karooAvgHrRef)) {
+            consumerIds.add(
+                karooSystem.addConsumer<OnStreamState>(
+                    params = OnStreamState.StartStreaming(type),
+                    onEvent = { event ->
+                        val st = event.state
+                        if (st is StreamState.Streaming) {
+                            val v = st.dataPoint.singleValue ?: st.dataPoint.values.values.firstOrNull() as? Double
+                            if (v != null && v.isFinite() && v >= 0.0) ref.set(v.toInt())
+                        }
+                    }
+                )
+            )
+        }
         consumerIds.add(
             karooSystem.addConsumer<OnStreamState>(
                 params = OnStreamState.StartStreaming(DataType.Type.VARIABILITY_INDEX),
@@ -1279,8 +1296,10 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     carbsGPerH = carbs,
                     carbBalanceG = carbBalance,
                     carbNeededG = getCarbNeededG(),
-                    cadenceAvg = if (cadSamples > 0L) (cadenceSumRef.get() / cadSamples).toInt() else 0,
-                    movingElapsedSec = movingElapsedSecRef.get(),
+                    cadenceAvg = karooAvgCadRef.get().takeIf { it > 0 } ?: if (cadSamples > 0L) (cadenceSumRef.get() / cadSamples).toInt() else 0,
+                    np5Watts = statsCalc.np5Watts() ?: 0,
+                    avgHrBpm = karooAvgHrRef.get(),
+                    movingElapsedSec = elapsedSec.takeIf { it > 0L } ?: movingElapsedSecRef.get(),   // E2.5: czas ruchu = Karoo (autopauza)
                     surfacePavedKmLeft = surfPavedLeft,
                     surfaceOffroadKmLeft = surfOffLeft,
                     surfacePavedKmInit = surfPavedInit,

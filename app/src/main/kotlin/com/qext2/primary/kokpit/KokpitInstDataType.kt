@@ -95,7 +95,7 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
                   try {
                     if (emits == 0) com.qext2.primary.util.RideFileLog.append("INST_FLOW first agg=${agg != null}")
                     if (p.hrFreshnessMs < 12_000L && p.hr > 40 && p.speedKmh > 3.0) { hrSum += p.hr; hrN++ }
-                    val d = try { toData(agg, p, s, if (hrN > 30) (hrSum / hrN).toInt() else null).let { dd ->
+                    val d = try { toData(agg, p, s, s.avgHrBpm.takeIf { it > 0 }).let { dd ->
                         val now = System.currentTimeMillis()
                         dd.copy(cpTrend = trCp.push(now, dd.cpe5W), avgSpeedTrend = trSpd.push(now, dd.avgSpeedKmh),
                             hrAvgTrend = trHr.push(now, dd.hrAvg?.toFloat()), cadAvgTrend = trCad.push(now, dd.cadenceAvg?.toFloat()))
@@ -149,7 +149,7 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
             powerW = power,
             cpW = cp,
             // znacznik na luku = srednia moc z 5 min (IF5 x CP efektywne); liczba = IF5 jak w ACTIVE
-            cpe5W = (s.ifEff5Live * s.cpEffLinW).takeIf { it > 0f },
+            cpe5W = s.np5Watts.takeIf { it > 0 }?.toFloat(),   // E2.3: NP5 (z zerami)
             if5 = s.ifEff5Live.takeIf { it > 0f },
             wbalTrend = s.wBalanceTrend,
             powerColor = p.powerColor,

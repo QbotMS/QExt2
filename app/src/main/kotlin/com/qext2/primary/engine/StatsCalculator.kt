@@ -54,6 +54,23 @@ class StatsCalculator(var ftpWatts: Int = 200) {
 
     private val wBalHistory = ArrayDeque<Pair<Long, Int>>()
 
+    // E2.3 (plan v2): NP z ostatnich 5 min CZASU RUCHU. Zero (toczenie) liczone, brak pomiaru (null) nie.
+    private val np5Window = ArrayDeque<Int?>(NP5_WINDOW_S)
+
+    /** NP5 [W] albo null, gdy okno niepelne lub pokrycie pomiarem < 90%. */
+    fun np5Watts(): Int? {
+        if (np5Window.size < NP5_WINDOW_S) return null
+        val vals = np5Window.filterNotNull()
+        if (vals.size < (NP5_WINDOW_S * 0.9).toInt() || vals.size < 30) return null
+        var sum4 = 0.0; var n = 0; var run = 0.0
+        for (i in vals.indices) {
+            run += vals[i]
+            if (i >= 30) run -= vals[i - 30]
+            if (i >= 29) { val a = run / 30.0; sum4 += a * a * a * a; n++ }
+        }
+        return if (n > 0) (sum4 / n).pow(0.25).roundToInt() else null
+    }
+
     fun wBalanceTrend(): String {
         if (wBalHistory.size < 3) return "stable"
         val recent = wBalHistory.takeLast(3)
@@ -143,6 +160,11 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         val movingAdvanced = movingSec > lastMovingSec
         val hasPower = powerWatts > 0
         val activeSample = movingAdvanced && hasPower && powerFresh
+
+        if (movingAdvanced) {
+            np5Window.addLast(if (powerFresh) powerWatts.coerceAtLeast(0) else null)
+            while (np5Window.size > NP5_WINDOW_S) np5Window.removeFirst()
+        }
 
         // RSRV v2: kazda sekunda ruchu ze swieza moca (0 W na zjezdzie tez); postoj sie nie liczy.
         if (movingAdvanced) {
@@ -358,6 +380,7 @@ class StatsCalculator(var ftpWatts: Int = 200) {
         wBalInitialized = wPrimeKj > 0f
         xssAccum = 0f
         powerBuffer300s.clear()
+        np5Window.clear()
         sumOf4thPowersEff = 0.0
         countEff = 0L
         lastCpEffLinW = 0f
@@ -443,6 +466,7 @@ class StatsCalculator(var ftpWatts: Int = 200) {
     companion object {
         // Skalibrowane do Xert training_load (EWMA-CTL 59.6 vs 62.4) -- DECISIONS.md 2026-07-06.
         const val XSS_BETA = 1.0f
+        const val NP5_WINDOW_S = 300
 
         @JvmStatic
         fun safetyFloat(v: Float): Float = if (v.isNaN() || v.isInfinite()) 0f else v.coerceAtLeast(0f)

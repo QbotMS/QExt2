@@ -295,4 +295,16 @@ class StatsCalculatorTest {
         assertTrue("forma 0.9 ${b.rideReservePercentV2(0.0)} < forma 1.0 ${a.rideReservePercentV2(0.0)}",
             b.rideReservePercentV2(0.0) < a.rideReservePercentV2(0.0))
     }
+
+    @Test
+    fun `E2_3 NP5 liczy toczenie jako zero, a brak pomiaru pomija`() {
+        val a = StatsCalculator(ftpWatts = 240)
+        for (sec in 1..300L) a.update(if (sec % 120 < 60) 300 else 0, 150, sec, sec)
+        val np = a.np5Watts()
+        assertNotNull(np)
+        assertTrue("NP5 z zerami $np", np!! in 170..250)
+        val b = StatsCalculator(ftpWatts = 240)
+        for (sec in 1..300L) b.update(300, 150, sec, sec, powerFresh = sec % 120 < 60)
+        assertNull("pokrycie < 90% -> brak NP5", b.np5Watts())
+    }
 }
