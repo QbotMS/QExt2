@@ -22,11 +22,12 @@ val gateToken = (localProps.getProperty("QEXT_GATE_TOKEN") ?: System.getenv("QEX
 val readinessUrl = (localProps.getProperty("QEXT_READINESS_URL")
     ?: "https://qbot.cytr.us/ride-readiness")
     .replace("\"", "\\\"")
-val owmApiKey = (localProps.getProperty("OPENWEATHER_API_KEY")?.takeIf { it.isNotBlank() } ?: "72c2801aeb8c779b59c702cc5f2fbd9c")
+val owmApiKey = (localProps.getProperty("OPENWEATHER_API_KEY")?.takeIf { it.isNotBlank() } ?: System.getenv("OPENWEATHER_API_KEY") ?: "")?.takeIf { it.isNotBlank() } ?: "72c2801aeb8c779b59c702cc5f2fbd9c")
     .replace("\"", "\\\"")
 val owmBaseUrl = (localProps.getProperty("OPENWEATHER_BASE_URL")
     ?: "https://api.openweathermap.org/data/2.5/weather")
     .replace("\"", "\\\"")
+val readinessToken = (localProps.getProperty("QEXT_READINESS_TOKEN") ?: System.getenv("QEXT_READINESS_TOKEN") ?: "").replace("\"", "\\\"")
 val weatherLatStr = (localProps.getProperty("WEATHER_LAT") ?: "")
 val weatherLonStr = (localProps.getProperty("WEATHER_LON") ?: "")
 
@@ -49,9 +50,20 @@ android {
         buildConfigField("String", "WEATHER_LON", "\"$weatherLonStr\"")
         buildConfigField("String", "QBOT_BASE_URL", "\"$qbotBaseUrl\"")
         buildConfigField("String", "QBOT_BEARER", "\"$qbotBearer\"")
+        buildConfigField("String", "QEXT_READINESS_TOKEN", "\"$readinessToken\"")
     }
 
     signingConfigs {
+        // E3.1 (plan v2): prywatny klucz release spoza repo (sekrety CI: RELEASE_KEYSTORE_B64 -> plik, hasla, alias)
+        val relStore = System.getenv("RELEASE_KEYSTORE_FILE")
+        if (!relStore.isNullOrBlank() && file(relStore).exists()) {
+            create("release") {
+                storeFile = file(relStore)
+                storePassword = System.getenv("RELEASE_STORE_PASSWORD")
+                keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+                keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+            }
+        }
         getByName("debug") {
             storeFile = rootProject.file("debug.keystore")
             storePassword = "android"
@@ -63,7 +75,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 

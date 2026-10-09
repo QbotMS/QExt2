@@ -427,14 +427,17 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         // wiadomo, ktora kaseta byla fizycznie zamontowana (AXS config bywa nieaktualny).
         val cassOvr = if (AthleteDataStore.loadCassetteOverrideEnabled()) "1" else "0"
         val cassCogs = AthleteDataStore.loadCassetteCogsRaw().replace(" ", "")
-        val sep = if (baseUrl.contains("?")) "&" else "?"
-        val url = baseUrl + sep + "cassette_override=" + cassOvr +
-            (if (cassCogs.isNotEmpty()) "&cassette_cogs=" + cassCogs else "")
+        // E3.3: odczyt GET z tokenem urzadzenia; zgloszenie kasety osobno (POST) -- GET niczego nie zapisuje
+        val url = baseUrl
+        val authHeaders = BuildConfig.QEXT_READINESS_TOKEN.takeIf { it.isNotBlank() }
+            ?.let { mapOf("Authorization" to "Bearer $it") } ?: emptyMap()
+        if (!isRetry) postCassetteReport(system, baseUrl, authHeaders, cassOvr == "1", cassCogs)
         Log.i(TAG, "QEXT_READINESS_FETCH_START url=$url retry=$isRetry")
         fetchConsumerId = system.addConsumer<OnHttpResponse>(
-            params = OnHttpResponse.MakeHttpRequest(method = "GET", url = url, waitForConnection = false),
+            params = OnHttpResponse.MakeHttpRequest(method = "GET", url = url, headers = authHeaders, waitForConnection = true),
             onError = { msg ->
                 Log.w(TAG, "QEXT_READINESS_FETCH_FAILED reason=onError msg=$msg")
+                scheduleReadinessRetry(system, "onError")
             },
             onEvent = { resp ->
                 val s = resp.state
@@ -498,13 +501,41 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                             Log.i(TAG, "QEXT_READINESS_FETCH_SAVED source=$url wPrimeKj=${data.wPrimeKj} ltpWatts=${data.ltpWatts} ftpWatts=${data.ftp} factor=${adjusted.todayFactor}")
                         } catch (e: Exception) {
                             Log.w(TAG, "QEXT_READINESS_FETCH_FAILED reason=parse_error msg=${e.message}")
+                            scheduleReadinessRetry(system, "parse_error")
                         }
                     } else {
                         Log.w(TAG, "QEXT_READINESS_FETCH_FAILED reason=http_status status=${s.statusCode} error=${s.error ?: "no body"}")
+                        scheduleReadinessRetry(system, "http_${s.statusCode}")
                     }
                 }
             }
         )
+    }
+
+    /** E5.4/A27: ponawianie pobrania danych zawodnika -- 2, 4, 6, 8, 10 min, potem do nastepnego pokazania pola. */
+    private fun scheduleReadinessRetry(system: KarooSystemService, reason: String) {
+        if (fetchAttempts >= 5) { com.qext2.primary.util.RideFileLog.append("READINESS_RETRY_GIVEUP reason=$reason"); return }
+        fetchAttempts++
+        val waitMs = 120_000L * fetchAttempts
+        com.qext2.primary.util.RideFileLog.append("READINESS_RETRY n=$fetchAttempts in=${waitMs / 1000}s reason=$reason")
+        serviceScope.launch { delay(waitMs); fetchAthleteData(system, isRetry = true) }
+    }
+
+    /** E3.3: zgloszenie kasety (stan przelacznika + koronki) jako POST, z tokenem; bledy nie wplywaja na odczyt. */
+    private fun postCassetteReport(system: KarooSystemService, url: String, auth: Map<String, String>, override: Boolean, cogs: String) {
+        try {
+            val body = org.json.JSONObject().put("cassette_override", override).put("cassette_cogs", cogs).toString().toByteArray()
+            var id: String? = null
+            id = system.addConsumer<OnHttpResponse>(
+                params = OnHttpResponse.MakeHttpRequest(method = "POST", url = url,
+                    headers = auth + mapOf("Content-Type" to "application/json"), body = body, waitForConnection = true),
+                onError = { msg -> id?.let { system.removeConsumer(it) }; Log.w(TAG, "QEXT_CASSETTE_POST_FAILED msg=$msg") },
+                onEvent = { resp ->
+                    val st = resp.state
+                    if (st is HttpResponseState.Complete) { id?.let { system.removeConsumer(it) }; Log.i(TAG, "QEXT_CASSETTE_POST status=${st.statusCode}") }
+                },
+            )
+        } catch (e: Exception) { Log.w(TAG, "QEXT_CASSETTE_POST_CRASH msg=${e.message}") }
     }
 
     override fun onDestroy() {
