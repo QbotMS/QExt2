@@ -1636,6 +1636,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
 
     /** Kaseta aktualnego roweru (override z ustawien albo domyslna) - dla KOKPIT instrumenty. */
     fun getCassetteCogs(): List<Int> {
+        // Monster: zawsze wlasna kaseta estymacji (11-50); override kasety dotyczy tylko rowerow z AXS (Grizl/Grail)
+        if (bikeDetector.current() == BikeDetector.Bike.MONSTER) return MONSTER_CASSETTE
         val ov = cassetteCogsRef.get()
         if (cassetteOverrideRef.get() && ov.isNotEmpty()) return ov.toList()
         return defaultCassetteForBike()

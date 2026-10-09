@@ -181,6 +181,7 @@ class SetupActivity : Activity() {
         col.addView(label("Kaseta", 14, sub))
         val custom = AthleteDataStore.loadCassetteOverrideEnabled()
         col.addView(label(if (custom) AthleteDataStore.loadCassetteCogsRaw() else "z przerzutki AXS", 17, txt, bold = true))
+        col.addView(label(if (custom) "wymuszona (Grizl, Grail); Monster bez zmian" else "Monster: własna estymacja 11-50", 13, sub))
         row.addView(col)
         row.addView(Button(this).apply {
             text = "Zmień"; setTextColor(txt); textSize = 16f; isAllCaps = false; background = round(btn, 12)
