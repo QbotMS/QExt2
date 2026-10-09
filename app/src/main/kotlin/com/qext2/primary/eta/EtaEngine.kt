@@ -40,8 +40,12 @@ object EtaSpeedTable {
     }
 
     /** Krotkie postoje (mikro + przerwy) na danym dystansie, w sekundach. Ciagle, bez skokow. */
+    /** E4.4: mediana krotkich postojow Michala [min/km] z serwera (/ride-readiness); <=0 -> stala QBota (0.72). */
+    @Volatile var historyMinPerKm: Double = 0.0
+
     fun shortStopsSec(km: Double): Double =
-        (MICRO_MIN_PER_KM * km + (km / SHORT_BREAK_EVERY_KM) * SHORT_BREAK_MIN) * 60.0
+        if (historyMinPerKm > 0.0) historyMinPerKm * km * 60.0
+        else (MICRO_MIN_PER_KM * km + (km / SHORT_BREAK_EVERY_KM) * SHORT_BREAK_MIN) * 60.0
 }
 
 /** Dekoder Google encoded polyline; profil wysokosci Karoo: precyzja 1, pary (dystans_m, wysokosc_m). */

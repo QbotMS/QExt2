@@ -80,6 +80,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         logBuildBaseline()
         runStartupSelfCheck()
         AthleteDataStore.init(this)
+        com.qext2.primary.eta.EtaSpeedTable.historyMinPerKm = AthleteDataStore.loadEtaStopsMinPerKm()
         com.qext2.primary.eta.EtaFileLog.init(getExternalFilesDir(null) ?: filesDir)
         com.qext2.primary.util.RideFileLog.init(getExternalFilesDir(null) ?: filesDir)
         com.qext2.primary.util.RideFileLog.append("START QExt2 versionCode=${BuildConfig.VERSION_CODE}")
@@ -495,6 +496,10 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                                 fetchTimestamp = System.currentTimeMillis()
                             )
                             AthleteDataStore.save(data)
+                            json.optDouble("shortStopsMinPerKm", 0.0).takeIf { it > 0.0 && it < 5.0 }?.let {
+                                AthleteDataStore.saveEtaStopsMinPerKm(it)
+                                com.qext2.primary.eta.EtaSpeedTable.historyMinPerKm = it   // E4.4
+                            }
                             val adjusted = data.applyBaroAdjustment(AthleteDataStore.loadBaroSensitive())
                             _aggregator?.updateAthleteData(adjusted)
                             AthleteDataStore.saveLastRefresh()

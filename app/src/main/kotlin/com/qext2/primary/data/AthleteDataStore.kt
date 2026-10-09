@@ -537,6 +537,13 @@ object AthleteDataStore {
         prefs?.edit()?.putFloat("eta_prior_kmh", kmh.toFloat())?.apply()
     }
 
+    fun saveEtaStopsMinPerKm(v: Double) {
+        prefs?.edit()?.putFloat("eta_stops_min_km", v.toFloat())?.apply()
+    }
+
+    fun loadEtaStopsMinPerKm(): Double =
+        (prefs?.getFloat("eta_stops_min_km", 0f) ?: 0f).toDouble()
+
     fun loadEtaPriorKmh(): Double =
         (prefs?.getFloat("eta_prior_kmh", 0f) ?: 0f).toDouble()
 
