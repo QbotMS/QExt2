@@ -127,69 +127,69 @@ object Kokpit2InstRenderer {
 
     private fun draw(c: Canvas, d: KokpitInstData, vw: Float) {
         val cx = vw / 2f
-        val base = 125f            // dolny wiersz na samej krawedzi
+        val base = 124f            // dolny wiersz 2 px od krawedzi
         val g = 4f
+        val lx0 = 6f
         val rx = vw - 4f
 
         // belka trasy na gorze pola
         d.route?.let { routeBar(c, it, 8f, vw - 8f, 6f, 18f, vw) }
-        // separator miedzy V i W
+        // separator miedzy W i V
         fp.color = DIV; c.drawRect(cx - 1f, 24f, cx + 1f, 126f, fp)
 
-        // --- gorny wiersz: KAD (lewo), srednia predkosc | NP 5 min, tetno (prawo)
+        // --- gorny wiersz: tetno (lewo), NP 5 | srednia predkosc (przy srodku), KAD (prawo)
         val capTop = 29f
         val big = 44f
         val bigBase = capTop + big * CAP
-        val cv = d.cadence?.toString() ?: "—"
-        t(c, cv, 6f, bigBase, big, if (d.cadence != null) WHITE else NONE)
-        t(c, "KAD", 6f + w(cv, big) + 5f, capTop + 15f * CAP, 15f, UNIT, false)
-
         val z = d.hrZone
         val showZone = d.hrShowZone && z != null
         val hrTxt = if (showZone) "Z$z" else d.hr?.toString() ?: "—"
         val hrCol = when { d.hr == null && !showZone -> NONE; z == 5 -> BAD; z == 4 -> YEL; else -> WHITE }
-        t(c, hrTxt, rx, bigBase, big, hrCol, true, Paint.Align.RIGHT)
         val heartCol = when (d.hrDriftLevel) { 2 -> BAD; 1 -> ORANGE; else -> WHITE }
-        heart(c, rx - w(hrTxt, big) - 4f - 22f, capTop + (big * CAP - 20f) / 2f, 22f, heartCol)
+        heart(c, lx0, capTop + (big * CAP - 20f) / 2f, 22f, heartCol)
+        t(c, hrTxt, lx0 + 26f, bigBase, big, hrCol)
+
+        val cv = d.cadence?.toString() ?: "—"
+        t(c, cv, rx, bigBase, big, if (d.cadence != null) WHITE else NONE, true, Paint.Align.RIGHT)
+        t(c, "KAD", rx - w(cv, big) - 5f, capTop + 15f * CAP, 15f, UNIT, false, Paint.Align.RIGHT)
 
         val ref = 36f
         val refBase = capTop + ref * CAP
-        val avTxt = d.avgSpeedKmh?.let { fmt("%.1f", it) } ?: "—"
-        t(c, avTxt, cx - g, refBase, ref, if (d.avgSpeedKmh != null) WHITE else NONE, true, Paint.Align.RIGHT)
-        val sym = 20f
-        avgSym(c, cx - g - w(avTxt, ref) - 2f - sym, refBase - ref * CAP / 2f - sym / 2f, sym, trendCol(d.avgSpeedTrend))
         val npTxt = d.cpe5W?.let { kotlin.math.round(it).toInt().toString() } ?: "—"
-        t(c, npTxt, cx + g, refBase, ref, if (d.cpe5W != null) WHITE else NONE)
-        val lx = cx + g + w(npTxt, ref) + 2f
+        t(c, npTxt, cx - g, refBase, ref, if (d.cpe5W != null) WHITE else NONE, true, Paint.Align.RIGHT)
         val ls = 19f
         val lc = trendCol(d.cpTrend)
         val lw = w("NP", ls, false)
-        t(c, "NP", lx, capTop + ls * CAP, ls, lc, false)
-        t(c, "5", lx + lw / 2f, capTop + ls * CAP + ls * 0.85f, ls, lc, false, Paint.Align.CENTER)
+        val lRight = cx - g - w(npTxt, ref) - 2f
+        t(c, "NP", lRight, capTop + ls * CAP, ls, lc, false, Paint.Align.RIGHT)
+        t(c, "5", lRight - lw / 2f, capTop + ls * CAP + ls * 0.85f, ls, lc, false, Paint.Align.CENTER)
+        val avTxt = d.avgSpeedKmh?.let { fmt("%.1f", it) } ?: "—"
+        t(c, avTxt, cx + g, refBase, ref, if (d.avgSpeedKmh != null) WHITE else NONE)
+        val sym = 20f
+        avgSym(c, cx + g + w(avTxt, ref) + 2f, refBase - ref * CAP / 2f - sym / 2f, sym, trendCol(d.avgSpeedTrend))
 
-        // --- dolny wiersz: BIEG (lewo), PREDKOSC | MOC (srodek), W' (prawo); wszystko na linii base
-        // bieg: maly blat, duza koronka
-        t(c, "BIEG", 6f, 91f, 15f, UNIT, false)
-        var gearRight: Float
-        if (d.gearFront != null && d.gearRear != null) {
-            var x = 6f
-            val f1 = d.gearFront.toString(); t(c, f1, x, base, 28f, WHITE); x += w(f1, 28f)
-            t(c, "×", x, base, 20f, UNIT); x += w("×", 20f)
-            val r1 = d.gearRear.toString(); t(c, r1, x, base, 44f, WHITE); x += w(r1, 44f)
-            gearRight = x
-        } else { t(c, "—", 6f, base, 44f, NONE); gearRight = 6f + w("—", 44f) }
-
-        // W' (prawy dol): % i W' nad nim
+        // --- dolny wiersz: W' (lewo), MOC | PREDKOSC (przy srodku), BIEG (prawo); wszystko na linii base
         val wb = d.wbalPct
         val wTxt = wb?.toString() ?: "—"
         val wCol = when { wb == null -> NONE; d.wbalTrend == "rising" -> GOOD; d.wbalTrend == "falling" || d.wbalTrend == "plummeting" -> BAD; else -> WHITE }
-        val pctW = w("%", 17f, false)
-        t(c, "%", rx, base, 17f, UNIT, false, Paint.Align.RIGHT)
-        t(c, "W′", rx, base - 17f * CAP - 4f, 16f, UNIT, false, Paint.Align.RIGHT)
-        val wLeft = rx - pctW - 3f - w(wTxt, 38f)
-        t(c, wTxt, rx - pctW - 3f, base, 38f, wCol, true, Paint.Align.RIGHT)
+        t(c, wTxt, lx0, base, 38f, wCol)
+        val pctX = lx0 + w(wTxt, 38f) + 3f
+        t(c, "%", pctX, base, 17f, UNIT, false)
+        t(c, "W′", pctX, base - 17f * CAP - 4f, 16f, UNIT, false)
+        val wRight = pctX + maxOf(w("%", 17f, false), w("W′", 16f, false))
 
-        // predkosc i moc tej samej wielkosci: najwieksza, przy ktorej V miesci sie za biegiem, a W przed W'
+        // bieg: maly blat, duza koronka, wyrownany do prawej
+        t(c, "BIEG", rx, 90f, 15f, UNIT, false, Paint.Align.RIGHT)
+        val gearLeft: Float
+        if (d.gearFront != null && d.gearRear != null) {
+            var x = rx
+            val r1 = d.gearRear.toString(); t(c, r1, x, base, 44f, WHITE, true, Paint.Align.RIGHT); x -= w(r1, 44f)
+            t(c, "×", x, base, 20f, UNIT, true, Paint.Align.RIGHT); x -= w("×", 20f)
+            val f1 = d.gearFront.toString(); t(c, f1, x, base, 29f, WHITE, true, Paint.Align.RIGHT); x -= w(f1, 29f)
+            gearLeft = x
+        } else { t(c, "—", rx, base, 44f, NONE, true, Paint.Align.RIGHT); gearLeft = rx - w("—", 44f) }
+
+        // moc i predkosc: zawsze ta sama, najwieksza mozliwa wielkosc (start 90 px)
         val v10 = d.speedKmh?.let { kotlin.math.round(it * 10f).toInt() }
         val sInt = v10?.let { (it / 10).toString() } ?: "—"
         val sDec = v10?.let { "." + (it % 10).toString() } ?: ""
@@ -198,31 +198,25 @@ object Kokpit2InstRenderer {
         val zone = if (pw != null && cp != null && cp > 0f) { val r = pw / cp; var i = 0; for (kk in PZ.indices) if (r >= PZ[kk].first) i = kk; i } else null
         fun vBlock(sz: Float) = w(sInt, sz) + (if (sDec.isNotEmpty()) w(sDec, sz * 0.42f) else 0f) + 2f + 14f
         fun wBlock(sz: Float) = w(pv, sz) + 3f + unitWWidth(zone)
-        // V i W niezaleznie: kazda liczba tak duza, jak pozwala jej polowa (min. 8 px od biegu / od W')
-        // moc i predkosc dominuja: start 90 px, zmniejszane tylko do szerokosci
-        var vsV = 90f
-        while (vsV > 44f && cx - g - vBlock(vsV) < gearRight + 6f) vsV -= 1f
-        var vsW = 90f
-        while (vsW > 44f && cx + g + wBlock(vsW) > wLeft - 6f) vsW -= 1f
-        // predkosc i moc zawsze tej samej wielkosci (mniejsza z dwoch dopasowanych)
-        vsV = minOf(vsV, vsW); vsW = vsV
-        val spCol = if (d.speedKmh != null) WHITE else NONE
-        val topV = base - vsV * CAP
-        val ds = vsV * 0.42f
-        var x = cx - g
-        if (sDec.isNotEmpty()) { t(c, sDec, x, topV + ds * CAP, ds, spCol, true, Paint.Align.RIGHT); x -= w(sDec, ds) }
-        t(c, sInt, x, base, vsV, spCol, true, Paint.Align.RIGHT); x -= w(sInt, vsV)
-        unitV(c, x - 2f, topV, base)
-        // moc: od srodka w prawo, kolor z oceny tempa (PacingEngine)
+        var vs = 90f
+        while (vs > 44f && (cx + g + vBlock(vs) > gearLeft - 6f || cx - g - wBlock(vs) < wRight + 6f)) vs -= 1f
+        val top = base - vs * CAP
+        // moc: do srodka z lewej, kolor z oceny tempa (PacingEngine); piorun+strefa po lewej, 8 px nad cyframi
         val pCol = if (d.powerW == null) NONE else d.powerColor
-        t(c, pv, cx + g, base, vsW, pCol)
-        unitW(c, cx + g + w(pv, vsW) + 3f, base - vsW * CAP - 8f, base, zone)   // piorun+strefa 8 px nad gorna krawedzia cyfr
+        t(c, pv, cx - g, base, vs, pCol, true, Paint.Align.RIGHT)
+        unitW(c, cx - g - w(pv, vs) - 3f - unitWWidth(zone), top - 8f, base, zone)
+        // predkosc: od srodka w prawo, czesc dziesietna mniejsza (gora rowno z cyframi), V km/h po prawej
+        val spCol = if (d.speedKmh != null) WHITE else NONE
+        var x = cx + g
+        t(c, sInt, x, base, vs, spCol); x += w(sInt, vs)
+        if (sDec.isNotEmpty()) { val ds = vs * 0.42f; t(c, sDec, x, top + ds * CAP, ds, spCol); x += w(sDec, ds) }
+        unitV(c, x + 2f + 14f, top, base)
     }
 
     /** szerokosc bloku piorun + numer strefy (W pod spodem jest wezsze) */
     private fun unitWWidth(zone: Int?): Float {
         val bh = 33f
-        return bh * 15f / 22f + 1f + (if (zone != null) w((zone + 1).toString(), bh / CAP) * ZSX else 0f)
+        return bh * 14f / 22f - 1f + (if (zone != null) w((zone + 1).toString(), bh / CAP) * ZSX else 0f)
     }
     private const val ZSX = 0.8f
 
@@ -240,7 +234,7 @@ object Kokpit2InstRenderer {
         val bh = 33f
         val zc = if (zone != null) Color.parseColor(PZ[zone].second) else UNIT
         bolt(c, left, top, bh, zc)
-        if (zone != null) { tp.textScaleX = ZSX; t(c, (zone + 1).toString(), left + bh * 15f / 22f + 1f, top + bh, bh / CAP, zc); tp.textScaleX = 1f }
+        if (zone != null) { tp.textScaleX = ZSX; t(c, (zone + 1).toString(), left + bh * 14f / 22f - 1f, top + bh, bh / CAP, zc); tp.textScaleX = 1f }
         t(c, "W", left + 1f, base, 17f, UNIT, false)
     }
 
@@ -349,7 +343,7 @@ object Kokpit2NavRenderer {
         // komunikat zawsze na samej gorze, wiersze na dole (nadmiar wysokosci miedzy nimi)
         c.save(); c.scale(k, k); drawMsg(c, d, vw); c.restore()
         c.save(); c.translate(0f, H - 126f * k); c.scale(k, k)
-        rowWeather(c, d, vw, 77f)
+        rowWeather(c, d, vw, 76f)
         rowKm(c, d, vw, 124f)
         c.restore()
         cv = null
