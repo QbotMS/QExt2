@@ -58,7 +58,8 @@ class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: 
         emitter.updateView(RemoteViews(context.packageName, R.layout.field_stats_v2))
 
         scope.launch {
-            if (!forceLive && AthleteDataStore.loadStatsV2Demo()) {
+            // produkcyjne STATS v2 (forceLive): demo z tego samego przelacznika co KOKPIT 2 (SETUP)
+            if (if (forceLive) AthleteDataStore.loadKokpit2Demo() else AthleteDataStore.loadStatsV2Demo()) {
                 Log.i(TAG, "QEXT_STATS_V2_DEMO on")
                 while (isActive) {
                     val bmp = try {

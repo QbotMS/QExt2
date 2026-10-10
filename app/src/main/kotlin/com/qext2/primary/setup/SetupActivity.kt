@@ -225,7 +225,7 @@ class SetupActivity : Activity() {
         val on = AthleteDataStore.loadKokpit2Demo()
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) }
-        col.addView(label("KOKPIT 2: dane demo", 15, sub))
+        col.addView(label("KOKPIT 2 i STATS v2: dane demo", 15, sub))
         col.addView(label(if (on) "WŁĄCZONE" else "wyłączone", 19, if (on) orange else txt, bold = true))
         col.addView(label("Zmiana działa po ponownym wejściu na stronę z polami.", 13, sub))
         val cu = com.qext2.primary.kokpit.Kokpit2Config.updatedAt
