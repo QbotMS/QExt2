@@ -206,7 +206,7 @@ object Kokpit2InstRenderer {
         val wRight = lx0 + maxOf(w(wTxt, 44f), w("W′%", 16f, false))
 
         // bieg: maly blat, duza koronka, wyrownany do prawej
-        t(c, "BIEG", rx, 88f + ext, 15f, UNIT, false, Paint.Align.RIGHT)
+        t(c, "BIEG", rx, base - 44f * CAP - 5f, 15f, UNIT, false, Paint.Align.RIGHT)   // nad cyframi biegu, niezaleznie od czcionki
         val gearLeft: Float
         if (d.gearFront != null && d.gearRear != null) {
             var x = rx
