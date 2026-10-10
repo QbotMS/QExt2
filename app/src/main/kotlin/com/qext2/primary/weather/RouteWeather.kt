@@ -160,7 +160,10 @@ object RouteWeatherClient {
                 )
                 idRef.set(id)
                 if (settled.get()) cleanup()
-                cont.invokeOnCancellation { cleanup() }
+                cont.invokeOnCancellation {
+                    if (!settled.get()) com.qext2.primary.util.RideFileLog.append("WX_ERR timeout 10 s - brak odpowiedzi (siec / telefon)")
+                    cleanup()
+                }
             }
         }
     }
