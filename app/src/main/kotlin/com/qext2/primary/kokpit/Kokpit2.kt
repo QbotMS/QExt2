@@ -201,9 +201,10 @@ object Kokpit2InstRenderer {
         val wb = d.wbalPct
         val wTxt = wb?.toString() ?: "—"
         val wCol = when { wb == null -> NONE; d.wbalTrend == "rising" -> GOOD; d.wbalTrend == "falling" || d.wbalTrend == "plummeting" -> BAD; else -> WHITE }
-        t(c, wTxt, lx0, base, 52f, wCol)   // jak liczba koronki
+        // jak liczba koronki; miejsce liczone na 2 cyfry - "100" (tylko na starcie) zwezone do tej szerokosci
+        run { val ww = w(wTxt, 52f); val ref2 = w("88", 52f); if (ww > ref2) tp.textScaleX = ref2 / ww; t(c, wTxt, lx0, base, 52f, wCol); tp.textScaleX = 1f }
         t(c, "W′%", lx0, base - 52f * CAP - 7f, 16f, UNIT, false)
-        val wRight = lx0 + maxOf(w(wTxt, 52f), w("W′%", 16f, false))
+        val wRight = lx0 + maxOf(minOf(w(wTxt, 52f), w("88", 52f)), w("W′%", 16f, false))
 
         // bieg: maly blat, duza koronka, wyrownany do prawej
         t(c, "BIEG", rx, base - 52f * CAP - 5f, 15f, UNIT, false, Paint.Align.RIGHT)   // nad cyframi biegu, niezaleznie od czcionki
@@ -230,7 +231,7 @@ object Kokpit2InstRenderer {
         // WIELKOSC STALA: liczona dla najszerszego przypadku (moc 888, strefa 6, predkosc 88.8, W' 100, bieg 52x52),
         // nie dla biezacych wartosci - cyfry nie zmieniaja wielkosci ani szerokosci miedzy klatkami
         val uWRef = unitWWidth(5)
-        val wRightRef = lx0 + maxOf(w("100", 52f), w("W′%", 16f, false))
+        val wRightRef = lx0 + maxOf(w("88", 52f), w("W′%", 16f, false))
         val gearLeftRef = rx - w("52", 52f) - w("×", 20f) - w("52", 36f)
         heavy = true
         fun digVRef(sz: Float) = w("88", sz) + w(".8", sz * DEC)
@@ -241,9 +242,9 @@ object Kokpit2InstRenderer {
         while (vs0 > 44f && (digVRef(vs0) > availV0 || w("888", vs0) > availW)) vs0 -= 1f
         val topRowBottom = capTop + big * CAP
         var vs = ((base - topRowBottom - 5f) / CAP).coerceAtLeast(vs0)
-        while (vs > vs0 && minOf(availV / digVRef(vs), availW / w("888", vs)) < 0.72f) vs -= 1f
-        val sxV0 = minOf(1f, availV / digVRef(vs)).coerceIn(0.72f, 1f)
-        val sxW0 = minOf(1f, availW / w("888", vs)).coerceIn(0.72f, 1f)
+        while (vs > vs0 && minOf(availV / digVRef(vs), availW / w("888", vs)) < 0.80f) vs -= 1f
+        val sxV0 = minOf(1f, availV / digVRef(vs)).coerceIn(0.80f, 1f)
+        val sxW0 = minOf(1f, availW / w("888", vs)).coerceIn(0.80f, 1f)
         // tylko wartosc szersza niz wzorzec (np. moc 4-cyfrowa) jest dodatkowo zwezona; wielkosc bez zmian
         fun digV(sz: Float) = w(sInt, sz) + (if (sDec.isNotEmpty()) w(sDec, sz * DEC) else 0f)
         val sxV = minOf(sxV0, availV / digV(vs)).coerceAtLeast(0.6f)
