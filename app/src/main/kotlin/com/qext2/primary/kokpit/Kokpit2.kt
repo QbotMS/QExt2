@@ -65,7 +65,17 @@ object Kokpit2Demo {
     }
 
     /** demo nawigacji: wiatr czolowy liczony z obracajacego sie kierunku (kolor strzalki zmienia sie w kolko) */
-    fun nav(d: KokpitNavData): KokpitNavData {
+    fun nav(d0: KokpitNavData): KokpitNavData {
+        // rotacja scenariuszy pogody co 8 s - takze najszersze wartosci (temp. ujemna 2-cyfrowa, wiatr 2-cyfrowy, nachylenie -12%)
+        val now = System.currentTimeMillis()
+        val d = when (((now / 8000L) % 6L).toInt()) {
+            0 -> d0.copy(tempC = 24f, rainNowMmH = null, rainSoon = null, sky = "CLEAR", windMps = 4f)
+            1 -> d0.copy(tempC = -7f, rainNowMmH = null, rainSoon = RainSoon(25, 70, 1.5f, "SNOW", 8f), windMps = 6f)
+            2 -> d0.copy(tempC = 8f, rainNowMmH = 2.4f, rainSoon = null, windMps = 9f)
+            3 -> d0.copy(tempC = 12f, rainNowMmH = null, rainSoon = RainSoon(40, 60, 1.2f, "RAIN", 10f), sky = "OVERCAST", windMps = 5f)
+            4 -> d0.copy(tempC = 31f, rainNowMmH = null, rainSoon = RainSoon(15, 80, 6f, "STORM", 4f), windMps = 12f, gradePct = -12f)
+            else -> d0.copy(tempC = -12f, rainNowMmH = null, rainSoon = null, sky = "FOG", windMps = 14f, gradePct = 12f)
+        }
         val rel = d.windRelDeg ?: return d
         val ws = d.windMps ?: 4f
         // strzalka = kierunek wiatru wzgledem jazdy: w gore (0 st.) wieje w plecy, w dol w twarz -> czolowy = -ws*cos
