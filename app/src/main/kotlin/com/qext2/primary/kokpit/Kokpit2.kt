@@ -534,7 +534,6 @@ object Kokpit2NavRenderer {
         val gr = d.gradePct
         val grG = if (gr == null) listOf(Item(26f) { x -> tri(c, x, base, 26f, capH, 3f, NONE) }, txt("—", vs, NONE, base))
             else listOf(Item(26f) { x -> tri(c, x, base, 26f, capH, gr, gradeColor(gr)) }, txt(fmt("%.0f", gr), vs, WHITE, base), txt("%", 20f, UNIT, base, false))
-        val turn = turnItem(c, d, base, vs)
         // pozycje z wzorcow najszerszych wartosci (nie z biezacych) - kolumny stoja w miejscu
         val tempRef = 14f + 4f + w("-88°", vs)
         val wxRef = 30f + 4f + w("88%", 36f) + 4f + w("88′", 20f)
@@ -542,6 +541,7 @@ object Kokpit2NavRenderer {
         val xTemp = 8f
         val xWx = xTemp + tempRef + 6f
         val xGr = vw - 8f - grRef
+        val turn = turnItem(c, d, base, vs, xGr - (xWx + wxRef) - 16f)   // min. 8 px odstepu z obu stron
         val xTurn = ((xWx + wxRef) + xGr) / 2f - turn.width / 2f
         drawG(tempG, xTemp, 4f); drawG(wx, xWx, 4f); turn.draw(xTurn); drawG(grG, xGr, 4f)
     }
@@ -611,9 +611,14 @@ object Kokpit2NavRenderer {
     }
 
     /** znak nastepnego manewru: ikona + odleglosc (ta sama wielkosc co wartosci wiersza); szerokosc stala - uklad nie skacze */
-    private fun turnItem(c: Canvas, d: KokpitNavData, base: Float, vs: Float): Item {
-        val iconS = 36f
-        val fullW = iconS + 3f + w("888", vs) + 2f + w("km", 20f, false)
+    private fun turnItem(c: Canvas, d: KokpitNavData, base: Float, vs0: Float, maxW: Float = Float.MAX_VALUE): Item {
+        // wielkosc dopasowana raz do stalej kolumny (wzorzec 888 km) - nie zalezy od biezacej wartosci
+        fun fw(sz: Float) = 36f * sz / vs0 + 3f + w("888", sz) + 2f + w("km", 20f * sz / vs0, false)
+        var vs = vs0
+        while (vs > 24f && fw(vs) > maxW) vs -= 1f
+        val iconS = 36f * vs / vs0
+        val us = 20f * vs / vs0
+        val fullW = fw(vs)
         val kind = d.turnKind; val dist = d.turnDistM
         if (kind == null || dist == null) return Item(fullW) { }
         val warn = kind == "UTURN" || kind == "RB_U" || kind.startsWith("SHARP")
@@ -626,7 +631,7 @@ object Kokpit2NavRenderer {
         return Item(fullW) { x ->
             turnIcon(c, kind, x, base - iconS + 1f, iconS, col)
             t(c, num, x + iconS + 3f, base, vs, col)
-            t(c, unit, x + iconS + 3f + w(num, vs) + 2f, base, 20f, UNIT, false)
+            t(c, unit, x + iconS + 3f + w(num, vs) + 2f, base, us, UNIT, false)
         }
     }
 
