@@ -1,5 +1,6 @@
 package com.qext2.primary.kokpit
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -72,7 +73,30 @@ object Kokpit2Demo {
     }
 }
 
-private const val CAP = 0.711f   // wysokosc cyfr / rozmiar czcionki (Roboto Condensed)
+
+/** Czcionka KOKPIT 2: Saira Condensed (OFL, assets/fonts); zapas = systemowa sans-serif-condensed. */
+object Kokpit2Fonts {
+    @Volatile private var r: Typeface? = null
+    @Volatile private var s: Typeface? = null
+    @Volatile private var b: Typeface? = null
+    private val fbB: Typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
+    private val fbR: Typeface = Typeface.create("sans-serif-condensed", Typeface.NORMAL)
+    fun init(ctx: Context) {
+        if (b != null) return
+        try {
+            r = Typeface.createFromAsset(ctx.assets, "fonts/SairaCondensed-Regular.ttf")
+            s = Typeface.createFromAsset(ctx.assets, "fonts/SairaCondensed-SemiBold.ttf")
+            b = Typeface.createFromAsset(ctx.assets, "fonts/SairaCondensed-Bold.ttf")
+        } catch (e: Exception) {
+            com.qext2.primary.util.RideFileLog.append("FONT_FAIL Kokpit2 ${e.javaClass.simpleName} ${e.message}")
+        }
+    }
+    val reg: Typeface get() = r ?: fbR
+    val semi: Typeface get() = s ?: fbB
+    val bold: Typeface get() = b ?: fbB
+}
+
+private const val CAP = 0.688f   // wysokosc cyfr / rozmiar czcionki (Saira Condensed, OS/2 capHeight 688/1000)
 
 /* ============================== dolne pole: instr ============================== */
 
@@ -97,19 +121,21 @@ object Kokpit2InstRenderer {
     private val BLACK = Color.BLACK
     private val PZ = listOf(0.00f to "#9AA3AE", 0.55f to "#6FA8FF", 0.75f to "#22C55E", 0.90f to "#EAB308", 1.05f to "#F97316", 1.20f to "#EF4444")
 
-    private val bold: Typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
-    private val reg: Typeface = Typeface.create("sans-serif-condensed", Typeface.NORMAL)
+    private val bold: Typeface get() = Kokpit2Fonts.semi   // Saira Condensed SemiBold
+    private val reg: Typeface get() = Kokpit2Fonts.reg
+    /** true = moc i predkosc: Saira Condensed Bold */
+    private var heavy = false
     private val tp = Paint(Paint.ANTI_ALIAS_FLAG)
     private val fp = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
     private val sp = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
     private fun fmt(p: String, vararg a: Any): String = String.format(java.util.Locale.US, p, *a)
 
     private fun t(c: Canvas, s: String, x: Float, base: Float, size: Float, color: Int, b: Boolean = true, align: Paint.Align = Paint.Align.LEFT) {
-        tp.typeface = if (b) bold else reg; tp.textSize = size; tp.color = color; tp.textAlign = align
+        tp.typeface = if (heavy) Kokpit2Fonts.bold else if (b) bold else reg; tp.textSize = size; tp.color = color; tp.textAlign = align
         c.drawText(s, x, base, tp)
         tp.textAlign = Paint.Align.LEFT
     }
-    private fun w(s: String, size: Float, b: Boolean = true): Float { tp.typeface = if (b) bold else reg; tp.textSize = size; return tp.measureText(s) }
+    private fun w(s: String, size: Float, b: Boolean = true): Float { tp.typeface = if (heavy) Kokpit2Fonts.bold else if (b) bold else reg; tp.textSize = size; return tp.measureText(s) }
 
     private fun trendCol(v: Int) = when { v > 0 -> GOOD; v < 0 -> BAD; else -> SUB }
 
@@ -202,6 +228,7 @@ object Kokpit2InstRenderer {
         // 3) gdy po powiekszeniu brakuje szerokosci -> cyfry zwezone (textScaleX, min. 0.75), nie nizsze
         val unitVW = w("V", 22f) + 1f + w("km", 11f, false)
         val uW = unitWWidth(zone)
+        heavy = true
         fun digV(sz: Float) = w(sInt, sz) + (if (sDec.isNotEmpty()) w(sDec, sz * DEC) else 0f)
         val availV = gearLeft - 6f - (cx + g) - 1f - unitVW
         val availW = (cx - g) - (wRight + 6f) - 3f - uW
@@ -230,6 +257,7 @@ object Kokpit2InstRenderer {
         t(c, sInt, x, base, vs, spCol); x += w(sInt, vs)
         if (sDec.isNotEmpty()) { val ds = vs * DEC; t(c, sDec, x, top + ds * CAP, ds, spCol); x += w(sDec, ds) }
         tp.textScaleX = 1f
+        heavy = false
         // jednostki stalej wielkosci: piorun+strefa (W pod spodem) z lewej mocy, V km/h z prawej predkosci; gora = gora cyfr
         unitW(c, cx - g - pWid - 3f - uW, top, base, zone)
         unitV(c, x + 1f, top, base)
@@ -331,8 +359,8 @@ object Kokpit2NavRenderer {
     private val BLUE = Color.parseColor("#60A5FA")
     private val ORANGE = Color.parseColor("#FB923C")
 
-    private val bold: Typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
-    private val reg: Typeface = Typeface.create("sans-serif-condensed", Typeface.NORMAL)
+    private val bold: Typeface get() = Kokpit2Fonts.semi   // Saira Condensed SemiBold
+    private val reg: Typeface get() = Kokpit2Fonts.reg
     private val tp = Paint(Paint.ANTI_ALIAS_FLAG)
     private val fp = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
     private val sp = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }

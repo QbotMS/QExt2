@@ -54,6 +54,7 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
         QExt2PrimaryExtension.instance?.onFieldVisible()
         emitter.onNext(UpdateGraphicConfig(showHeader = false))
         AthleteDataStore.init(context)
+        if (v2) Kokpit2Fonts.init(context)
         val w = config.viewSize.first.coerceAtLeast(160)
         val h = config.viewSize.second.coerceAtLeast(60)
         Log.i(TAG, "QEXT_KOKPIT_NAV_VIEW size=${w}x$h")

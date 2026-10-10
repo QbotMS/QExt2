@@ -51,6 +51,7 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
         QExt2PrimaryExtension.instance?.onFieldVisible()
         emitter.onNext(UpdateGraphicConfig(showHeader = false))
         AthleteDataStore.init(context)
+        if (v2) Kokpit2Fonts.init(context)
         val w = config.viewSize.first.coerceAtLeast(200)
         val h = config.viewSize.second.coerceAtLeast(80)
         Log.i(TAG, "QEXT_KOKPIT_INST_VIEW size=${w}x$h")
