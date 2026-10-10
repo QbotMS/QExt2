@@ -142,8 +142,8 @@ object Kokpit2InstRenderer {
 
         // --- gorny wiersz: tetno (lewo), NP 5 | srednia predkosc (przy srodku), KAD (prawo)
         // gorny wiersz staly; nadmiar wysokosci idzie do dolnego wiersza (moc i predkosc)
-        val capTop = 29f
-        val big = 44f
+        val capTop = 25f
+        val big = 52f
         val bigBase = capTop + big * CAP
         val z = d.hrZone
         val showZone = d.hrShowZone && z != null
@@ -176,9 +176,9 @@ object Kokpit2InstRenderer {
         val wb = d.wbalPct
         val wTxt = wb?.toString() ?: "—"
         val wCol = when { wb == null -> NONE; d.wbalTrend == "rising" -> GOOD; d.wbalTrend == "falling" || d.wbalTrend == "plummeting" -> BAD; else -> WHITE }
-        t(c, wTxt, lx0, base, 38f, wCol)
-        t(c, "W′%", lx0, base - 38f * CAP - 7f, 16f, UNIT, false)
-        val wRight = lx0 + maxOf(w(wTxt, 38f), w("W′%", 16f, false))
+        t(c, wTxt, lx0, base, 44f, wCol)   // jak liczba koronki
+        t(c, "W′%", lx0, base - 44f * CAP - 7f, 16f, UNIT, false)
+        val wRight = lx0 + maxOf(w(wTxt, 44f), w("W′%", 16f, false))
 
         // bieg: maly blat, duza koronka, wyrownany do prawej
         t(c, "BIEG", rx, 88f + ext, 15f, UNIT, false, Paint.Align.RIGHT)
@@ -210,8 +210,10 @@ object Kokpit2InstRenderer {
         val availV0 = availV + unitVW - 15f
         while (vs0 > 44f && (digV(vs0) > availV0 || w(pv, vs0) > availW)) vs0 -= 1f
         val topRowBottom = capTop + big * CAP
-        val vs = minOf(vs0 + 8f / CAP, (base - topRowBottom - 4f) / CAP).coerceAtLeast(vs0)
-        val sx = minOf(1f, availV / digV(vs), availW / w(pv, vs)).coerceIn(0.75f, 1f)
+        // cala wysokosc pod gornym wierszem; zwezenie najwyzej do 0.72, inaczej nizej
+        var vs = ((base - topRowBottom - 5f) / CAP).coerceAtLeast(vs0)
+        while (vs > vs0 && minOf(availV / digV(vs), availW / w(pv, vs)) < 0.72f) vs -= 1f
+        val sx = minOf(1f, availV / digV(vs), availW / w(pv, vs)).coerceIn(0.72f, 1f)
         val top = base - vs * CAP
         val pCol = if (d.powerW == null) NONE else d.powerColor
         // predkosc zolta (jak w starych polach: domyslny kolor predkosci #F2C230), moc biala - latwo odroznic
