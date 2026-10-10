@@ -503,7 +503,7 @@ object Kokpit2NavRenderer {
     private fun rowWeather(c: Canvas, d: KokpitNavData, vw: Float, base: Float) {
         val vs = 42f
         val capH = vs * CAP
-        val tempG = listOf(Item(14f) { x -> thermo(c, x, base, 14f, capH, LBL) },
+        val tempG = listOf(Item(16f) { x -> thermo(c, x, base, 16f, capH, LBL) },
             if (d.tempC != null) txt(fmt("%.0f", d.tempC) + "°", vs, WHITE, base) else txt("—", vs, NONE, base))
         val wx = ArrayList<Item>()
         val rn = d.rainNowMmH; val rs = d.rainSoon
@@ -535,7 +535,7 @@ object Kokpit2NavRenderer {
         val grG = if (gr == null) listOf(Item(26f) { x -> tri(c, x, base, 26f, capH, 3f, NONE) }, txt("—", vs, NONE, base))
             else listOf(Item(26f) { x -> tri(c, x, base, 26f, capH, gr, gradeColor(gr)) }, txt(fmt("%.0f", gr), vs, WHITE, base), txt("%", 20f, UNIT, base, false))
         // pozycje z wzorcow najszerszych wartosci (nie z biezacych) - kolumny stoja w miejscu
-        val tempRef = 14f + 4f + w("-88°", vs)
+        val tempRef = 16f + 4f + w("-88°", vs)
         val wxRef = 30f + 4f + w("88%", 32f) + 4f + w("88′", 18f)
         val grRef = 26f + 4f + w("-88", vs) + 4f + w("%", 20f, false)
         val xTemp = 8f
@@ -543,7 +543,8 @@ object Kokpit2NavRenderer {
         val xGr = vw - 8f - grRef
         val turn = turnItem(c, d, base, vs, xGr - (xWx + wxRef) - 16f)   // min. 8 px odstepu z obu stron
         val xTurn = ((xWx + wxRef) + xGr) / 2f - turn.width / 2f
-        drawG(tempG, xTemp, 4f); drawG(wx, xWx, 4f); turn.draw(xTurn); drawG(grG, xGr, 4f)
+        // nachylenie zakotwiczone do prawej krawedzi (jak temperatura do lewej)
+        drawG(tempG, xTemp, 4f); drawG(wx, xWx, 4f); turn.draw(xTurn); drawG(grG, vw - 8f - gw(grG, 4f), 4f)
     }
 
     /** logo QBot (jak favicon.svg serwisu): pomaranczowe Q z linia tetna, bez tla; kwadrat sz x sz, lewy-gorny rog (x, y) */
@@ -607,7 +608,7 @@ object Kokpit2NavRenderer {
         drawG(dstG, x, 2f); x += dstRef + gap
         drawG(dtdG, x, 2f); x += dtdRef + gap
         drawG(etaG, x, 2f); x += etaRef + gap
-        drawG(windG, x, 4f)
+        drawG(windG, vw - 8f - gw(windG, 4f), 4f)   // wiatr zakotwiczony do prawej krawedzi (jak DST do lewej)
     }
 
     /** znak nastepnego manewru: ikona + odleglosc (ta sama wielkosc co wartosci wiersza); szerokosc stala - uklad nie skacze */
@@ -717,11 +718,19 @@ object Kokpit2NavRenderer {
         p.close(); fp.color = color; c.drawPath(p, fp)
     }
 
+    /** termometr: rurka z obrysem, zbiorniczek na dole, slupek rteci i kreski skali */
     private fun thermo(c: Canvas, x: Float, base: Float, wI: Float, hI: Float, color: Int) {
         val cx = x + wI / 2f
+        val tube = wI * 0.42f
+        val bulbR = wI * 0.36f
+        val bulbCy = base - bulbR
+        val top = base - hI
+        sp.color = color; sp.strokeWidth = 2f; sp.strokeCap = Paint.Cap.ROUND
+        c.drawRoundRect(RectF(cx - tube / 2f, top, cx + tube / 2f, bulbCy), tube / 2f, tube / 2f, sp)
         fp.color = color
-        c.drawRect(cx - wI * 0.14f, base - hI, cx + wI * 0.14f, base - hI * 0.25f, fp)
-        c.drawCircle(cx, base - hI * 0.18f, wI * 0.32f, fp)
+        c.drawCircle(cx, bulbCy, bulbR, fp)
+        c.drawRect(cx - tube * 0.2f, top + hI * 0.35f, cx + tube * 0.2f, bulbCy, fp)
+        for (k in 1..3) { val yy = top + hI * (0.15f + 0.15f * k); c.drawLine(cx + tube / 2f + 1f, yy, cx + tube / 2f + 3f, yy, sp) }
     }
 
     private fun drop(c: Canvas, x: Float, base: Float, wI: Float, hI: Float, color: Int) {
