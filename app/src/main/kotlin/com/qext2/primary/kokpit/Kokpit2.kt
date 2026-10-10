@@ -91,6 +91,8 @@ object Kokpit2InstRenderer {
     private val YEL = Color.parseColor("#FACC15")
     private val ORANGE = Color.parseColor("#FB923C")
     private val SPEED = Color.parseColor("#F2C230")
+    /** wielkosc cyfry po przecinku predkosci wzgledem cyfr glownych */
+    private const val DEC = 0.55f
     private val WHITE = Color.WHITE
     private val BLACK = Color.BLACK
     private val PZ = listOf(0.00f to "#9AA3AE", 0.55f to "#6FA8FF", 0.75f to "#22C55E", 0.90f to "#EAB308", 1.05f to "#F97316", 1.20f to "#EF4444")
@@ -196,7 +198,7 @@ object Kokpit2InstRenderer {
         val pv = d.powerW?.toString() ?: "—"
         val cp = d.cpW; val pw = d.powerW
         val zone = if (pw != null && cp != null && cp > 0f) { val r = pw / cp; var i = 0; for (kk in PZ.indices) if (r >= PZ[kk].first) i = kk; i } else null
-        fun vBlock(sz: Float) = w(sInt, sz) + (if (sDec.isNotEmpty()) w(sDec, sz * 0.42f) else 0f) + 2f + 14f
+        fun vBlock(sz: Float) = w(sInt, sz) + (if (sDec.isNotEmpty()) w(sDec, sz * DEC) else 0f) + 2f + 14f
         fun wBlock(sz: Float) = w(pv, sz) + 3f + unitWWidth(zone)
         var vs = 90f
         while (vs > 44f && (cx + g + vBlock(vs) > gearLeft - 6f || cx - g - wBlock(vs) < wRight + 6f)) vs -= 1f
@@ -210,7 +212,7 @@ object Kokpit2InstRenderer {
         val spCol = if (d.speedKmh != null) SPEED else NONE
         var x = cx + g
         t(c, sInt, x, base, vs, spCol); x += w(sInt, vs)
-        if (sDec.isNotEmpty()) { val ds = vs * 0.42f; t(c, sDec, x, top + ds * CAP, ds, spCol); x += w(sDec, ds) }
+        if (sDec.isNotEmpty()) { val ds = vs * DEC; t(c, sDec, x, top + ds * CAP, ds, spCol); x += w(sDec, ds) }
         unitV(c, x + 2f + 14f, top, base)
     }
 
