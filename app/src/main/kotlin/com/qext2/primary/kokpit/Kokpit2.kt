@@ -122,16 +122,15 @@ object Kokpit2InstRenderer {
         // uklad z makiety 474x126; wieksze pole: ta sama skala, nadmiar wysokosci na gorze
         val k = minOf(H / 126f, W / 474f)
         c.save()
-        c.translate(0f, H - 126f * k)
         c.scale(k, k)
-        draw(c, d, W / k)
+        draw(c, d, W / k, (H / k - 126f).coerceAtLeast(0f))   // ekran jazdy: 478x143 -> ok. 16 px nadmiaru
         c.restore()
         return bmp
     }
 
-    private fun draw(c: Canvas, d: KokpitInstData, vw: Float) {
+    private fun draw(c: Canvas, d: KokpitInstData, vw: Float, ext: Float) {
         val cx = vw / 2f
-        val base = 123f            // dolny wiersz 3 px od krawedzi
+        val base = 123f + ext      // dolny wiersz 3 px od dolnej krawedzi (belka zostaje u gory)
         val g = 5f
         val lx0 = 6f
         val rx = vw - 4f
@@ -139,11 +138,12 @@ object Kokpit2InstRenderer {
         // belka trasy na gorze pola
         d.route?.let { routeBar(c, it, 8f, vw - 8f, 6f, 18f, vw) }
         // separator miedzy W i V
-        fp.color = DIV; c.drawRect(cx - 1f, 24f, cx + 1f, 126f, fp)
+        fp.color = DIV; c.drawRect(cx - 1f, 24f, cx + 1f, 126f + ext, fp)
 
         // --- gorny wiersz: tetno (lewo), NP 5 | srednia predkosc (przy srodku), KAD (prawo)
-        val capTop = 29f
-        val big = 44f
+        // gorny wiersz rosnie z nadmiarem wysokosci
+        val capTop = 29f + ext * 0.25f
+        val big = 44f + ext * 0.5f
         val bigBase = capTop + big * CAP
         val z = d.hrZone
         val showZone = d.hrShowZone && z != null
@@ -157,7 +157,7 @@ object Kokpit2InstRenderer {
         t(c, cv, rx, bigBase, big, if (d.cadence != null) WHITE else NONE, true, Paint.Align.RIGHT)
         t(c, "KAD", rx - w(cv, big) - 5f, capTop + 15f * CAP, 15f, UNIT, false, Paint.Align.RIGHT)
 
-        val ref = 36f
+        val ref = 36f + ext * 0.25f
         val refBase = capTop + ref * CAP
         val npTxt = d.cpe5W?.let { kotlin.math.round(it).toInt().toString() } ?: "—"
         t(c, npTxt, cx - g, refBase, ref, if (d.cpe5W != null) WHITE else NONE, true, Paint.Align.RIGHT)
@@ -181,7 +181,7 @@ object Kokpit2InstRenderer {
         val wRight = lx0 + maxOf(w(wTxt, 38f), w("W′%", 16f, false))
 
         // bieg: maly blat, duza koronka, wyrownany do prawej
-        t(c, "BIEG", rx, 88f, 15f, UNIT, false, Paint.Align.RIGHT)
+        t(c, "BIEG", rx, 88f + ext, 15f, UNIT, false, Paint.Align.RIGHT)
         val gearLeft: Float
         if (d.gearFront != null && d.gearRear != null) {
             var x = rx
@@ -343,7 +343,8 @@ object Kokpit2NavRenderer {
         val k = minOf(H / 126f, W / 474f)
         val vw = W / k
         // komunikat zawsze na samej gorze, wiersze na dole (nadmiar wysokosci miedzy nimi)
-        c.save(); c.scale(k, k); drawMsg(c, d, vw); c.restore()
+        val ext = (H / k - 126f).coerceAtLeast(0f)
+        c.save(); c.scale(k, k); drawMsg(c, d, vw, 41f + ext); c.restore()   // nadmiar wysokosci -> wiekszy komunikat
         c.save(); c.translate(0f, H - 126f * k); c.scale(k, k)
         rowWeather(c, d, vw, 76f)
         rowKm(c, d, vw, 122f)
@@ -364,8 +365,7 @@ object Kokpit2NavRenderer {
     }
 
     // ---------- komunikat: tlo wg waznosci ----------
-    private fun drawMsg(c: Canvas, d: KokpitNavData, vw: Float) {
-        val h = 41f
+    private fun drawMsg(c: Canvas, d: KokpitNavData, vw: Float, h: Float) {
         val m = d.msg
         val crit = m.kind == MsgKind.WPRIME || m.kind == MsgKind.DESCENT ||
             (m.kind == MsgKind.HUB && m.accentColor.equals("#FF8C8C", ignoreCase = true))
@@ -377,7 +377,7 @@ object Kokpit2NavRenderer {
         val demoW = if (d.demo) w("DEMO", 18f) + 8f else 0f
         val right = vw - 8f - demoW
         val leadCol = if (crit || warn) fg else if (m.kind == MsgKind.NONE) UNIT else WHITE
-        var s = 31f
+        var s = (31f * h / 41f).coerceAtMost(40f)
         fun total(sz: Float): Float = (if (m.lead.isNotEmpty()) w(m.lead, sz, false) + sz * 0.3f else 0f) + (if (m.accent.isNotEmpty()) w(m.accent, sz) else 0f)
         while (s > 14f && x + total(s) > right) s -= 1f
         val base = h / 2f + s * CAP / 2f
