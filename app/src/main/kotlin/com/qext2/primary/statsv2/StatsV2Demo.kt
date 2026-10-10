@@ -65,7 +65,7 @@ object StatsV2Demo {
             winPartial = true,
             typEf = 1.60f,
             cpW = 250f,
-            ahead = listOf(52f to android.graphics.Color.parseColor("#C9D2DC"), 37f to android.graphics.Color.parseColor("#D9A04E"), 7f to android.graphics.Color.parseColor("#E0563B")),
+            ahead = listOf(52f to android.graphics.Color.parseColor("#F2F4F7"), 37f to android.graphics.Color.parseColor("#FFB300"), 7f to android.graphics.Color.parseColor("#FF2A2A")),
             stopsKm = listOf(22f, 41.5f),
             demo = true,
         )

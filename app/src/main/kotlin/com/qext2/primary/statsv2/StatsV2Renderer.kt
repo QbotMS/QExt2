@@ -106,6 +106,7 @@ object StatsV2Renderer {
 
     @Synchronized
     fun render(w: Int, h: Int, d: StatsV2Data): Bitmap {
+        tp.typeface = com.qext2.primary.kokpit.Kokpit2Fonts.semi   // ta sama czcionka co KOKPIT 2 (Saira Semi Condensed)
         val bw = w.coerceAtLeast(120)
         val bh = h.coerceAtLeast(160)
         val bmp = Bitmap.createBitmap(bw, bh, Bitmap.Config.RGB_565)
@@ -372,7 +373,7 @@ object StatsV2Renderer {
         if (d.hasRoute && total != null && total > 0f) {
             val frac = (d.doneKm / total).coerceIn(0f, 1f)
             val fx = l + (rr - l) * frac
-            fp.color = Color.parseColor("#5B9BE0"); c.drawRect(l, bt, fx, bb, fp)
+            fp.color = Color.parseColor("#2E7BFF"); c.drawRect(l, bt, fx, bb, fp)   // przejechane - jak belka KOKPIT 2
             // pozostala czesc wg nawierzchni (jak w KOKPIT), liczby km w odcinkach
             d.ahead?.takeIf { it.isNotEmpty() }?.let { segs ->
                 val sum = segs.sumOf { it.first.toDouble() }.toFloat().coerceAtLeast(0.001f)
@@ -388,10 +389,12 @@ object StatsV2Renderer {
             for (k in d.stopsKm) {
                 val sx0 = l + (rr - l) * (k / total).coerceIn(0f, 1f)
                 fp.color = PILL; c.drawRect(sx0 - F(5f), bt, sx0 + F(5f), bb, fp)
-                fp.color = AMBER; c.drawRect(sx0 - F(3f), bt, sx0 + F(3f), bb, fp)
+                fp.color = Color.parseColor("#FF3DF5"); c.drawRect(sx0 - F(3f), bt, sx0 + F(3f), bb, fp)   // postoje - magenta jak KOKPIT 2
             }
-            fp.color = PILL; c.drawRect(fx - F(5f), bt - F(8f), fx + F(5f), bb + F(8f), fp)
-            fp.color = WHITE; c.drawRect(fx - F(3f), bt - F(8f), fx + F(3f), bb + F(8f), fp)
+            // pozycja: limonkowe kolo z czarna obwodka - jak KOKPIT 2
+            val mr = (bb - bt) / 2f + F(6f); val mx = fx.coerceIn(l + mr, rr - mr)
+            fp.color = PILL; c.drawCircle(mx, (bt + bb) / 2f, mr, fp)
+            fp.color = Color.parseColor("#39FF14"); c.drawCircle(mx, (bt + bb) / 2f, mr - F(3f), fp)
         } else {
             none(c, (l + rr) / 2f, (bt + bb) / 2f, "brak trasy")
         }

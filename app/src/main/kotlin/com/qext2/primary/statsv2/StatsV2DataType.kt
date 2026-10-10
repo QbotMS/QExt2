@@ -50,6 +50,7 @@ class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: 
         QExt2PrimaryExtension.instance?.onFieldVisible()
         emitter.onNext(UpdateGraphicConfig(showHeader = false))
         AthleteDataStore.init(context)
+        com.qext2.primary.kokpit.Kokpit2Fonts.init(context)
         val w = config.viewSize.first.coerceAtLeast(120)
         val h = config.viewSize.second.coerceAtLeast(160)
         Log.i(TAG, "QEXT_STATS_V2_VIEW size=${w}x$h")
@@ -172,7 +173,7 @@ class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: 
             cpW = s.cpEffW.takeIf { it > 0f },
             ahead = if (s.hasRoute && SurfaceBridge.hasProfile()) (agg?.navSurfaceSegments() ?: emptyList()).sortedBy { it.kmStart }
                 .filter { it.kmEnd > pos }
-                .map { (it.kmEnd - maxOf(it.kmStart, pos)) to android.graphics.Color.parseColor(when (it.surface) { SurfaceType.PAVED -> "#C9D2DC"; SurfaceType.GRAVEL -> "#D9A04E"; SurfaceType.LOOSE -> "#E0563B" }) }
+                .map { (it.kmEnd - maxOf(it.kmStart, pos)) to android.graphics.Color.parseColor(when (it.surface) { SurfaceType.PAVED -> "#F2F4F7"; SurfaceType.GRAVEL -> "#FFB300"; SurfaceType.LOOSE -> "#FF2A2A" }) }
                 else null,
             stopsKm = agg?.getLongStopsKm()?.map { it.toFloat() } ?: emptyList(),
         )
