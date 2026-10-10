@@ -74,7 +74,7 @@ object Kokpit2Demo {
 }
 
 
-/** Czcionka KOKPIT 2: Oswald (OFL, assets/fonts) dla wartosci - Medium, moc i predkosc - Bold; podpisy systemowe. */
+/** Czcionka KOKPIT 2: Saira Semi Condensed (OFL, assets/fonts) dla wartosci - SemiBold, moc i predkosc - Bold; podpisy systemowe. */
 object Kokpit2Fonts {
     @Volatile private var r: Typeface? = null
     @Volatile private var s: Typeface? = null
@@ -84,8 +84,8 @@ object Kokpit2Fonts {
     fun init(ctx: Context) {
         if (b != null) return
         try {
-            s = Typeface.createFromAsset(ctx.assets, "fonts/Oswald-Medium.ttf")
-            b = Typeface.createFromAsset(ctx.assets, "fonts/Oswald-Bold.ttf")
+            s = Typeface.createFromAsset(ctx.assets, "fonts/SairaSemiCondensed-SemiBold.ttf")
+            b = Typeface.createFromAsset(ctx.assets, "fonts/SairaSemiCondensed-Bold.ttf")
         } catch (e: Exception) {
             com.qext2.primary.util.RideFileLog.append("FONT_FAIL Kokpit2 ${e.javaClass.simpleName} ${e.message}")
         }
@@ -95,7 +95,7 @@ object Kokpit2Fonts {
     val bold: Typeface get() = b ?: fbB
 }
 
-private const val CAP = 0.81f    // wysokosc cyfr / rozmiar czcionki (Oswald, OS/2 capHeight 810/1000)
+private const val CAP = 0.688f   // wysokosc cyfr / rozmiar czcionki (Saira Semi Condensed, OS/2 capHeight 688/1000)
 
 /* ============================== dolne pole: instr ============================== */
 
@@ -120,7 +120,7 @@ object Kokpit2InstRenderer {
     private val BLACK = Color.BLACK
     private val PZ = listOf(0.00f to "#9AA3AE", 0.55f to "#6FA8FF", 0.75f to "#22C55E", 0.90f to "#EAB308", 1.05f to "#F97316", 1.20f to "#EF4444")
 
-    private val bold: Typeface get() = Kokpit2Fonts.semi   // Oswald Medium
+    private val bold: Typeface get() = Kokpit2Fonts.semi   // Saira Semi Condensed SemiBold
     private val reg: Typeface get() = Kokpit2Fonts.reg
     /** true = moc i predkosc: Saira Condensed Bold */
     private var heavy = false
@@ -364,7 +364,7 @@ object Kokpit2NavRenderer {
     private val BLUE = Color.parseColor("#60A5FA")
     private val ORANGE = Color.parseColor("#FB923C")
 
-    private val bold: Typeface get() = Kokpit2Fonts.semi   // Oswald Medium
+    private val bold: Typeface get() = Kokpit2Fonts.semi   // Saira Semi Condensed SemiBold
     private val reg: Typeface get() = Kokpit2Fonts.reg
     private val tp = Paint(Paint.ANTI_ALIAS_FLAG)
     private val fp = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
