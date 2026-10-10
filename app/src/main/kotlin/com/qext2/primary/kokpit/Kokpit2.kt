@@ -206,7 +206,9 @@ object Kokpit2InstRenderer {
         val availV = gearLeft - 6f - (cx + g) - 1f - unitVW
         val availW = (cx - g) - (wRight + 6f) - 3f - uW
         var vs0 = 90f
-        while (vs0 > 44f && (digV(vs0) > availV || w(pv, vs0) > availW)) vs0 -= 1f
+        // wielkosc bazowa liczona jak przed przeniesieniem km/h obok V (kolumna 15 px) - szersze jednostki nie zmniejszaja cyfr
+        val availV0 = availV + unitVW - 15f
+        while (vs0 > 44f && (digV(vs0) > availV0 || w(pv, vs0) > availW)) vs0 -= 1f
         val topRowBottom = capTop + big * CAP
         val vs = minOf(vs0 + 8f / CAP, (base - topRowBottom - 4f) / CAP).coerceAtLeast(vs0)
         val sx = minOf(1f, availV / digV(vs), availW / w(pv, vs)).coerceIn(0.75f, 1f)
