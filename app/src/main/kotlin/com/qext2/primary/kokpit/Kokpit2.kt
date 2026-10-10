@@ -504,8 +504,8 @@ object Kokpit2NavRenderer {
         // JEDNA wielkosc dla temperatury, manewru i nachylenia: najwieksza (do 42 px), przy ktorej wzorce
         // najszerszych wartosci mieszcza sie w wierszu - liczona raz z wzorcow, nie z biezacych wartosci
         val wxRef0 = 30f + 4f + w("88%", 32f) + 4f + w("88′", 18f)
-        fun rowW(sz: Float) = (16f + 4f + w("-88°", sz)) + 6f + wxRef0 + 8f +
-            (30f + 3f + w("888", sz) + 2f + w("km", 16f, false)) + 8f + (26f + 4f + w("-88", sz) + 4f + w("%", 20f, false))
+        fun rowW(sz: Float) = (16f + 4f + w("-88°", sz)) + 6f + wxRef0 + 18f +
+            (30f + 8f + w("888", sz) + 2f + w("km", 16f, false)) + 8f + (26f + 4f + w("-88", sz) + 4f + w("%", 20f, false))
         var vs = 42f
         while (vs > 28f && rowW(vs) > vw - 16f) vs -= 1f
         val capH = vs * CAP
@@ -547,8 +547,9 @@ object Kokpit2NavRenderer {
         val xTemp = 8f
         val xWx = xTemp + tempRef + 6f
         val xGr = vw - 8f - grRef
-        val turn = turnItem(c, d, base, vs, xGr - (xWx + wxRef) - 4f)   // wielkosc jak nachylenie (42 px), min. 2 px od wzorcow sasiadow
-        val xTurn = ((xWx + wxRef) + xGr) / 2f - turn.width / 2f
+        // manewr odsuniety od pogody (18 px), stoi tuz przed nachyleniem
+        val turn = turnItem(c, d, base, vs, xGr - (xWx + wxRef) - 26f)
+        val xTurn = xGr - 8f - turn.width
         // nachylenie zakotwiczone do prawej krawedzi (jak temperatura do lewej)
         drawG(tempG, xTemp, 4f); drawG(wx, xWx, 4f); turn.draw(xTurn); drawG(grG, vw - 8f - gw(grG, 4f), 4f)
     }
@@ -620,7 +621,7 @@ object Kokpit2NavRenderer {
     /** znak nastepnego manewru: ikona + odleglosc (ta sama wielkosc co wartosci wiersza); szerokosc stala - uklad nie skacze */
     private fun turnItem(c: Canvas, d: KokpitNavData, base: Float, vs0: Float, maxW: Float = Float.MAX_VALUE): Item {
         // wielkosc dopasowana raz do stalej kolumny (wzorzec 888 km) - nie zalezy od biezacej wartosci
-        fun fw(sz: Float) = 30f * sz / vs0 + 3f + w("888", sz) + 2f + w("km", 16f * sz / vs0, false)
+        fun fw(sz: Float) = 30f * sz / vs0 + 8f + w("888", sz) + 2f + w("km", 16f * sz / vs0, false)
         var vs = vs0
         while (vs > 24f && fw(vs) > maxW) vs -= 1f
         val iconS = 30f * vs / vs0
@@ -637,8 +638,8 @@ object Kokpit2NavRenderer {
         } else { num = fmt("%.1f", dist / 1000.0).replace('.', ','); unit = "km" }
         return Item(fullW) { x ->
             turnIcon(c, kind, x, base - iconS + 1f, iconS, col)
-            t(c, num, x + iconS + 3f, base, vs, col)
-            t(c, unit, x + iconS + 3f + w(num, vs) + 2f, base, us, UNIT, false)
+            t(c, num, x + iconS + 8f, base, vs, col)   // 8 px miedzy ikona a dystansem
+            t(c, unit, x + iconS + 8f + w(num, vs) + 2f, base, us, UNIT, false)
         }
     }
 
