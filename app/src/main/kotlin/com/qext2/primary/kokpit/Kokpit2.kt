@@ -345,7 +345,7 @@ object Kokpit2NavRenderer {
         c.save(); c.scale(k, k); drawMsg(c, d, vw); c.restore()
         c.save(); c.translate(0f, H - 126f * k); c.scale(k, k)
         rowWeather(c, d, vw, 76f)
-        rowKm(c, d, vw, 123f)
+        rowKm(c, d, vw, 122f)
         c.restore()
         cv = null
         return bmp
