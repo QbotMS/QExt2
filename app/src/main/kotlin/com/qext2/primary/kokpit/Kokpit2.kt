@@ -455,7 +455,7 @@ object Kokpit2NavRenderer {
 
     // ---------- wiersz pogody: temp + opad/niebo | wiatr | nachylenie ----------
     private fun rowWeather(c: Canvas, d: KokpitNavData, vw: Float, base: Float) {
-        val vs = 40f
+        val vs = 42f
         val capH = vs * CAP
         val groups = ArrayList<List<Item>>()
 
@@ -464,27 +464,27 @@ object Kokpit2NavRenderer {
         tg.add(if (d.tempC != null) txt(fmt("%.0f", d.tempC) + "°", vs, WHITE, base) else txt("—", vs, NONE, base))
         val rn = d.rainNowMmH; val rs = d.rainSoon
         if (rn != null && rn >= 0.1f) {
-            tg.add(Item(19f) { x -> drop(c, x, base, 19f, 22f, BLUE) })
-            tg.add(txt(fmt("%.1f", rn).replace('.', ','), 31f, BLUE, base))
-            tg.add(txt("mm", 17f, BLUE, base, false))
+            tg.add(Item(22f) { x -> drop(c, x, base, 22f, 26f, BLUE) })
+            tg.add(txt(fmt("%.1f", rn).replace('.', ','), 36f, BLUE, base))
+            tg.add(txt("mm", 20f, BLUE, base, false))
         } else if (rs != null && rs.probPct >= 30 && rs.kind != "FOG") {
             val cl = when (rs.kind) { "STORM" -> RED; "SNOW" -> Color.parseColor("#BFDBFE"); else -> BLUE }
             when (rs.kind) {
-                "STORM" -> tg.add(Item(26f) { x -> storm(c, x, base, 26f, 22f, cl) })
-                "SNOW" -> tg.add(Item(22f) { x -> snow(c, x, base, 22f, cl) })
-                else -> tg.add(Item(19f) { x -> drop(c, x, base, 19f, 22f, cl) })
+                "STORM" -> tg.add(Item(30f) { x -> storm(c, x, base, 30f, 26f, cl) })
+                "SNOW" -> tg.add(Item(26f) { x -> snow(c, x, base, 26f, cl) })
+                else -> tg.add(Item(22f) { x -> drop(c, x, base, 22f, 26f, cl) })
             }
-            tg.add(txt("${rs.probPct}%", 31f, cl, base))
-            tg.add(txt("${rs.minutes}′", 17f, cl, base))
+            tg.add(txt("${rs.probPct}%", 36f, cl, base))
+            tg.add(txt("${rs.minutes}′", 20f, cl, base))
         } else d.sky?.let { sk ->
             when (sk) {
-                "CLEAR" -> tg.add(Item(26f) { x -> sun(c, x + 13f, base - capH / 2f, 7f, Color.parseColor("#FACC15")) })
-                "PARTLY" -> tg.add(Item(30f) { x ->
-                    sun(c, x + 11f, base - capH * 0.62f, 6f, Color.parseColor("#FACC15"))
-                    cloud(c, x + 3f, base - capH * 0.55f, 27f, capH * 0.55f, Color.parseColor("#E5E7EB"))
+                "CLEAR" -> tg.add(Item(30f) { x -> sun(c, x + 15f, base - capH / 2f, 8f, Color.parseColor("#FACC15")) })
+                "PARTLY" -> tg.add(Item(34f) { x ->
+                    sun(c, x + 12f, base - capH * 0.62f, 7f, Color.parseColor("#FACC15"))
+                    cloud(c, x + 3f, base - capH * 0.55f, 31f, capH * 0.55f, Color.parseColor("#E5E7EB"))
                 })
-                "FOG" -> tg.add(Item(26f) { x -> fog(c, x, base, 26f, capH, UNIT) })
-                else -> tg.add(Item(30f) { x -> cloud(c, x, base - capH * 0.75f, 30f, capH * 0.75f, UNIT) })
+                "FOG" -> tg.add(Item(30f) { x -> fog(c, x, base, 30f, capH, UNIT) })
+                else -> tg.add(Item(34f) { x -> cloud(c, x, base - capH * 0.75f, 34f, capH * 0.75f, UNIT) })
             }
         }
         groups.add(tg)
@@ -508,7 +508,37 @@ object Kokpit2NavRenderer {
         groups.add(if (gr == null) listOf(Item(26f) { x -> tri(c, x, base, 26f, capH, 3f, NONE) }, txt("—", vs, NONE, base))
             else listOf(Item(26f) { x -> tri(c, x, base, 26f, capH, gr, gradeColor(gr)) }, txt(fmt("%.0f", gr), vs, WHITE, base), txt("%", 20f, UNIT, base, false)))
 
-        place(groups, 8f, vw - 8f)
+        // STALE POZYCJE: temperatura+opad od lewej, logo QBot w srodku wiersza (30 px, nieskalowane),
+        // wiatr zawsze tuz za logo, nachylenie do prawej krawedzi
+        fun gw(g: List<Item>) = g.sumOf { it.width.toDouble() }.toFloat() + 4f * (g.size - 1)
+        fun drawG(g: List<Item>, x0: Float) { var x = x0; for ((i, item) in g.withIndex()) { if (i > 0) x += 4f; item.draw(x); x += item.width } }
+        val tgG = groups[0]; val wG = groups[1]; val grG = groups[2]
+        drawG(tgG, 8f)
+        val grX = vw - 8f - gw(grG)
+        drawG(grG, grX)
+        val ls = 30f
+        val lx = vw / 2f - ls / 2f
+        if (8f + gw(tgG) + 6f <= lx) qlogo(c, lx, base - capH / 2f - ls / 2f, ls)   // gdy opad zajmie srodek - bez logo
+        var wx = vw / 2f + ls / 2f + 18f
+        if (wx + gw(wG) > grX - 8f) wx = maxOf(vw / 2f + ls / 2f + 6f, grX - 8f - gw(wG))
+        drawG(wG, wx)
+    }
+
+    /** logo QBot (jak favicon.svg serwisu): pomaranczowe Q z linia tetna, bez tla; kwadrat sz x sz, lewy-gorny rog (x, y) */
+    private fun qlogo(c: Canvas, x: Float, y: Float, sz: Float) {
+        val k = sz / 48f
+        val o = Color.parseColor("#FF7A00")
+        sp.color = o; sp.strokeCap = Paint.Cap.ROUND; sp.strokeJoin = Paint.Join.ROUND
+        sp.strokeWidth = 5f * k
+        c.drawCircle(x + 24f * k, y + 24f * k, 17f * k, sp)
+        c.drawLine(x + 34f * k, y + 34f * k, x + 42f * k, y + 42f * k, sp)
+        sp.strokeWidth = 3.5f * k
+        val pts = floatArrayOf(12f, 27f, 16f, 27f, 19f, 23f, 23f, 29f, 27f, 16f, 31f, 30f, 34f, 24f, 37f, 24f)
+        val path = Path(); path.moveTo(x + pts[0] * k, y + pts[1] * k)
+        var i = 2; while (i < pts.size) { path.lineTo(x + pts[i] * k, y + pts[i + 1] * k); i += 2 }
+        c.drawPath(path, sp)
+        fp.color = o; c.drawCircle(x + 39f * k, y + 24f * k, 2.5f * k, fp)
+        sp.strokeJoin = Paint.Join.MITER
     }
 
     // ---------- wiersz km: DST | DTD | ETA ----------
