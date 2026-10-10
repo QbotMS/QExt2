@@ -219,7 +219,7 @@ object Kokpit2InstRenderer {
 
         // --- gorny wiersz: tetno (lewo), NP 5 | srednia predkosc (przy srodku), KAD (prawo)
         // gorny wiersz staly; nadmiar wysokosci idzie do dolnego wiersza (moc i predkosc)
-        val capTop = 25f
+        val capTop = 27f   // gorny wiersz (tetno, NP 5, sr. V, KAD) 2 px nizej
         val big = 52f
         val bigBase = capTop + big * CAP
         val z = d.hrZone
@@ -291,7 +291,7 @@ object Kokpit2InstRenderer {
         val availW = (cx - g) - (xUnitW + uWRef + 4f)
         val availV = (xUnitV - 4f) - (cx + g)
         val topRowBottom = capTop + big * CAP
-        var vs = (base - topRowBottom - 5f) / CAP
+        var vs = (base - topRowBottom - 3f) / CAP   // wielkosc mocy/predkosci bez zmian po obnizeniu gornego wiersza
         while (vs > 44f && minOf(availV / digVRef(vs), availW / w("888", vs)) < 0.80f) vs -= 1f
         vs += 10f  // na sztywno +10 px (decyzja Michala 2026-10-10: +5, +3, +2)
         val sxV0 = minOf(1f, availV / digVRef(vs)).coerceAtLeast(0.70f)
