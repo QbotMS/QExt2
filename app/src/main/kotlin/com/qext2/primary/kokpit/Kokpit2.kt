@@ -496,74 +496,54 @@ object Kokpit2NavRenderer {
     }
 
     // ---------- wiersz pogody: temp + opad/niebo | wiatr | nachylenie ----------
+    private fun gw(g: List<Item>, inner: Float) = g.sumOf { it.width.toDouble() }.toFloat() + inner * (g.size - 1)
+    private fun drawG(g: List<Item>, x0: Float, inner: Float) { var x = x0; for ((i, item) in g.withIndex()) { if (i > 0) x += inner; item.draw(x); x += item.width } }
+
+    // ---------- gorny wiersz (zmienne): temperatura | pogoda | manewr | nachylenie - STALE KOLUMNY ----------
     private fun rowWeather(c: Canvas, d: KokpitNavData, vw: Float, base: Float) {
         val vs = 42f
         val capH = vs * CAP
-        val groups = ArrayList<List<Item>>()
-
-        val tg = ArrayList<Item>()
-        tg.add(Item(14f) { x -> thermo(c, x, base, 14f, capH, LBL) })
-        tg.add(if (d.tempC != null) txt(fmt("%.0f", d.tempC) + "°", vs, WHITE, base) else txt("—", vs, NONE, base))
+        val tempG = listOf(Item(14f) { x -> thermo(c, x, base, 14f, capH, LBL) },
+            if (d.tempC != null) txt(fmt("%.0f", d.tempC) + "°", vs, WHITE, base) else txt("—", vs, NONE, base))
+        val wx = ArrayList<Item>()
         val rn = d.rainNowMmH; val rs = d.rainSoon
         if (rn != null && rn >= 0.1f) {
-            tg.add(Item(22f) { x -> drop(c, x, base, 22f, 26f, BLUE) })
-            tg.add(txt(fmt("%.1f", rn).replace('.', ','), 36f, BLUE, base))
-            tg.add(txt("mm", 20f, BLUE, base, false))
+            wx.add(Item(22f) { x -> drop(c, x, base, 22f, 26f, BLUE) })
+            wx.add(txt(fmt("%.1f", rn).replace('.', ','), 36f, BLUE, base))
+            wx.add(txt("mm", 20f, BLUE, base, false))
         } else if (rs != null && rs.probPct >= 30 && rs.kind != "FOG") {
             val cl = when (rs.kind) { "STORM" -> RED; "SNOW" -> Color.parseColor("#BFDBFE"); else -> BLUE }
             when (rs.kind) {
-                "STORM" -> tg.add(Item(30f) { x -> storm(c, x, base, 30f, 26f, cl) })
-                "SNOW" -> tg.add(Item(26f) { x -> snow(c, x, base, 26f, cl) })
-                else -> tg.add(Item(22f) { x -> drop(c, x, base, 22f, 26f, cl) })
+                "STORM" -> wx.add(Item(30f) { x -> storm(c, x, base, 30f, 26f, cl) })
+                "SNOW" -> wx.add(Item(26f) { x -> snow(c, x, base, 26f, cl) })
+                else -> wx.add(Item(22f) { x -> drop(c, x, base, 22f, 26f, cl) })
             }
-            tg.add(txt("${rs.probPct}%", 36f, cl, base))
-            tg.add(txt("${rs.minutes}′", 20f, cl, base))
+            wx.add(txt("${rs.probPct}%", 36f, cl, base))
+            wx.add(txt("${rs.minutes}′", 20f, cl, base))
         } else d.sky?.let { sk ->
             when (sk) {
-                "CLEAR" -> tg.add(Item(30f) { x -> sun(c, x + 15f, base - capH / 2f, 8f, Color.parseColor("#FACC15")) })
-                "PARTLY" -> tg.add(Item(34f) { x ->
+                "CLEAR" -> wx.add(Item(30f) { x -> sun(c, x + 15f, base - capH / 2f, 8f, Color.parseColor("#FACC15")) })
+                "PARTLY" -> wx.add(Item(34f) { x ->
                     sun(c, x + 12f, base - capH * 0.62f, 7f, Color.parseColor("#FACC15"))
                     cloud(c, x + 3f, base - capH * 0.55f, 31f, capH * 0.55f, Color.parseColor("#E5E7EB"))
                 })
-                "FOG" -> tg.add(Item(30f) { x -> fog(c, x, base, 30f, capH, UNIT) })
-                else -> tg.add(Item(34f) { x -> cloud(c, x, base - capH * 0.75f, 34f, capH * 0.75f, UNIT) })
+                "FOG" -> wx.add(Item(30f) { x -> fog(c, x, base, 30f, capH, UNIT) })
+                else -> wx.add(Item(34f) { x -> cloud(c, x, base - capH * 0.75f, 34f, capH * 0.75f, UNIT) })
             }
         }
-        groups.add(tg)
-
-        val wm = d.windMps
-        if (wm == null) groups.add(listOf(txt("wiatr —", 20f, NONE, base, false)))
-        else {
-            val hs = d.windSignedMps
-            val wcol = if (hs == null) WHITE else {
-                val tot = maxOf(d.windTotalMps ?: abs(hs), abs(hs))
-                when { hs >= 3f && hs >= 0.7f * tot -> RED; hs <= -3f && -hs >= 0.7f * tot -> GREEN; else -> WHITE }
-            }
-            val wg = ArrayList<Item>()
-            d.windRelDeg?.let { rel -> wg.add(Item(30f) { x -> arrow(c, x + 15f, base - capH / 2f, 30f, rel.toFloat(), wcol) }) }
-            wg.add(txt(fmt("%.0f", wm), vs, WHITE, base))
-            wg.add(Item(20f) { x -> msUnit(c, x, base, capH) })
-            groups.add(wg)
-        }
-
         val gr = d.gradePct
-        groups.add(if (gr == null) listOf(Item(26f) { x -> tri(c, x, base, 26f, capH, 3f, NONE) }, txt("—", vs, NONE, base))
-            else listOf(Item(26f) { x -> tri(c, x, base, 26f, capH, gr, gradeColor(gr)) }, txt(fmt("%.0f", gr), vs, WHITE, base), txt("%", 20f, UNIT, base, false)))
-
-        // STALE POZYCJE: temperatura+opad od lewej, logo QBot w srodku wiersza (30 px, nieskalowane),
-        // wiatr zawsze tuz za logo, nachylenie do prawej krawedzi
-        fun gw(g: List<Item>) = g.sumOf { it.width.toDouble() }.toFloat() + 4f * (g.size - 1)
-        fun drawG(g: List<Item>, x0: Float) { var x = x0; for ((i, item) in g.withIndex()) { if (i > 0) x += 4f; item.draw(x); x += item.width } }
-        val tgG = groups[0]; val wG = groups[1]; val grG = groups[2]
-        drawG(tgG, 8f)
-        val grX = vw - 8f - gw(grG)
-        drawG(grG, grX)
-        val ls = 30f
-        val lx = vw / 2f - ls / 2f
-        if (8f + gw(tgG) + 6f <= lx) qlogo(c, lx, base - capH / 2f - ls / 2f, ls)   // gdy opad zajmie srodek - bez logo
-        var wx = vw / 2f + ls / 2f + 18f
-        if (wx + gw(wG) > grX - 8f) wx = maxOf(vw / 2f + ls / 2f + 6f, grX - 8f - gw(wG))
-        drawG(wG, wx)
+        val grG = if (gr == null) listOf(Item(26f) { x -> tri(c, x, base, 26f, capH, 3f, NONE) }, txt("—", vs, NONE, base))
+            else listOf(Item(26f) { x -> tri(c, x, base, 26f, capH, gr, gradeColor(gr)) }, txt(fmt("%.0f", gr), vs, WHITE, base), txt("%", 20f, UNIT, base, false))
+        val turn = turnItem(c, d, base, vs)
+        // pozycje z wzorcow najszerszych wartosci (nie z biezacych) - kolumny stoja w miejscu
+        val tempRef = 14f + 4f + w("-88°", vs)
+        val wxRef = 30f + 4f + w("88%", 36f) + 4f + w("88′", 20f)
+        val grRef = 26f + 4f + w("-88", vs) + 4f + w("%", 20f, false)
+        val xTemp = 8f
+        val xWx = xTemp + tempRef + 6f
+        val xGr = vw - 8f - grRef
+        val xTurn = ((xWx + wxRef) + xGr) / 2f - turn.width / 2f
+        drawG(tempG, xTemp, 4f); drawG(wx, xWx, 4f); turn.draw(xTurn); drawG(grG, xGr, 4f)
     }
 
     /** logo QBot (jak favicon.svg serwisu): pomaranczowe Q z linia tetna, bez tla; kwadrat sz x sz, lewy-gorny rog (x, y) */
@@ -584,20 +564,17 @@ object Kokpit2NavRenderer {
     }
 
     // ---------- wiersz km: DST | DTD | ETA ----------
+    // ---------- dolny wiersz (stabilne): DST | DTD | ETA | wiatr - STALE KOLUMNY ----------
     private fun rowKm(c: Canvas, d: KokpitNavData, vw: Float, base: Float) {
         val vs = 46f
         val capH = vs * CAP
-        val groups = ArrayList<List<Item>>()
-        // przejechane km z mniejsza czescia dziesietna (jak predkosc: gora rowno z gora cyfr)
         val d10 = kotlin.math.floor(d.doneKm.coerceAtLeast(0f) * 10f).toInt()
         val dDec = "." + (d10 % 10).toString()
         val dds = vs * 0.55f
-        groups.add(listOf(vlabel(c, "DST", base, capH), txt((d10 / 10).toString(), vs, WHITE, base),
-            Item(w(dDec, dds)) { x -> t(c, dDec, x, base - capH + dds * CAP, dds, WHITE) }))
-        // DTD bez "km" (oczywiste przy pionowym podpisie) - miejsce na znak manewru
-        groups.add(d.leftKm?.let { listOf(vlabel(c, "DTD", base, capH), txt(fmt("%.0f", it), vs, WHITE, base)) }
-            ?: listOf(vlabel(c, "DTD", base, capH), txt("—", vs, NONE, base)))
-        groups.add(listOf(turnItem(c, d, base, vs)))
+        val dstG = listOf(vlabel(c, "DST", base, capH), txt((d10 / 10).toString(), vs, WHITE, base),
+            Item(w(dDec, dds)) { x -> t(c, dDec, x, base - capH + dds * CAP, dds, WHITE) })
+        val dtdG = d.leftKm?.let { listOf(vlabel(c, "DTD", base, capH), txt(fmt("%.0f", it), vs, WHITE, base)) }
+            ?: listOf(vlabel(c, "DTD", base, capH), txt("—", vs, NONE, base))
         val eta = d.etaMs; val dl = d.deadlineMs
         val etaCol = if (eta != null && dl != null) when {
             eta > dl -> RED
@@ -605,9 +582,32 @@ object Kokpit2NavRenderer {
             dl - eta <= 10 * 60_000L -> Color.parseColor("#FACC15")
             else -> WHITE
         } else WHITE
-        groups.add(if (eta != null) listOf(vlabel(c, "ETA", base, capH), txt(clock(eta), vs, etaCol, base))
-            else listOf(vlabel(c, "ETA", base, capH), txt("—", vs, NONE, base)))
-        place(groups, 8f, vw - 8f, 2f)
+        val etaG = if (eta != null) listOf(vlabel(c, "ETA", base, capH), txt(clock(eta), vs, etaCol, base))
+            else listOf(vlabel(c, "ETA", base, capH), txt("—", vs, NONE, base))
+        val wm = d.windMps
+        val windG: List<Item> = if (wm == null) listOf(txt("wiatr —", 20f, NONE, base, false)) else {
+            val hs = d.windSignedMps
+            val wcol = if (hs == null) WHITE else {
+                val tot = maxOf(d.windTotalMps ?: abs(hs), abs(hs))
+                when { hs >= 3f && hs >= 0.7f * tot -> RED; hs <= -3f && -hs >= 0.7f * tot -> GREEN; else -> WHITE }
+            }
+            val wg = ArrayList<Item>()
+            d.windRelDeg?.let { rel -> wg.add(Item(32f) { x -> arrow(c, x + 16f, base - capH / 2f, 32f, rel.toFloat(), wcol) }) }
+            wg.add(txt(fmt("%.0f", wm), vs, WHITE, base))
+            wg.add(Item(20f * capH / 28f) { x -> msUnit(c, x, base, capH) })
+            wg
+        }
+        // kolumny z wzorcow najszerszych wartosci; odstepy rowne
+        val dstRef = 10f + 2f + w("888", vs) + 2f + w(".8", dds)
+        val dtdRef = 10f + 2f + w("888", vs)
+        val etaRef = 10f + 2f + w("88:88", vs)
+        val windRef = 32f + 4f + w("88", vs) + 4f + 20f * capH / 28f
+        val gap = ((vw - 16f) - (dstRef + dtdRef + etaRef + windRef)) / 3f
+        var x = 8f
+        drawG(dstG, x, 2f); x += dstRef + gap
+        drawG(dtdG, x, 2f); x += dtdRef + gap
+        drawG(etaG, x, 2f); x += etaRef + gap
+        drawG(windG, x, 4f)
     }
 
     /** znak nastepnego manewru: ikona + odleglosc (ta sama wielkosc co wartosci wiersza); szerokosc stala - uklad nie skacze */
