@@ -269,7 +269,9 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         // wersje produkcyjne (zawsze dane z jazdy) obok testowych z demo
         com.qext2.primary.statsv2.StatsV2DataType("qext2-stats-live", forceLive = true),
         com.qext2.primary.kokpit.KokpitNavDataType("qext2-kokpit-nav-live", forceLive = true),
-        com.qext2.primary.kokpit.KokpitInstDataType("qext2-kokpit-inst-live", forceLive = true))
+        com.qext2.primary.kokpit.KokpitInstDataType("qext2-kokpit-inst-live", forceLive = true),
+        com.qext2.primary.kokpit.KokpitNavDataType("qext2-kokpit2-nav", v2 = true),
+        com.qext2.primary.kokpit.KokpitInstDataType("qext2-kokpit2-instr", v2 = true))
     override val types: List<DataTypeImpl> get() = _types
 
     override fun startFit(emitter: Emitter<FitEffect>) {

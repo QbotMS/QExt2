@@ -29,6 +29,9 @@ data class KokpitNavData(
     val windDirDeg: Int? = null,
     /** kierunek wiatru wzgledem jazdy z rozszerzenia karoo-headwind (0 = strzalka w gore); null = brak */
     val windRelDeg: Int? = null,
+    /** KOKPIT 2: wiatr czolowy ze znakiem (+ w twarz, - w plecy) i calkowity, m/s - kolor strzalki */
+    val windSignedMps: Float? = null,
+    val windTotalMps: Float? = null,
     /** etykieta nastepnego zdarzenia: "zmrok" albo "świt" (godzina w duskMs) */
     val twilightLabel: String = "zmrok",
     /** postoje >= 10 min: km na trasie */

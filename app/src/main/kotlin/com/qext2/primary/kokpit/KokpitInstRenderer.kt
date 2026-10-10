@@ -47,6 +47,8 @@ data class KokpitInstData(
     val avgSpeedTrend: Int = 0,
     val hrAvgTrend: Int = 0,
     val cadAvgTrend: Int = 0,
+    /** KOKPIT 2: belka trasy w dolnym polu (null = nie rysuj) */
+    val route: RouteBar? = null,
     val demo: Boolean = false,
 )
 

@@ -41,7 +41,8 @@ private const val TAG = "QExt2KokpitNav"
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @Keep
 /** forceLive = wersja produkcyjna: zawsze dane z jazdy (bez demo). */
-class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLive: Boolean = false) : DataTypeImpl("qext2", typeId) {
+/** v2 = KOKPIT 2 nav (wyglad Kokpit2NavRenderer, demo z przelacznika "KOKPIT 2: dane demo"). */
+class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLive: Boolean = false, private val v2: Boolean = false) : DataTypeImpl("qext2", typeId) {
     @Volatile private var lastMsgLogged = ""
 
     override fun startStream(emitter: Emitter<StreamState>) {
@@ -63,7 +64,7 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
         val rotator = RouteMessageRotator()
 
         fun emit(data: KokpitNavData) {
-            val bmp = try { KokpitNavRenderer.render(w, h, data) } catch (e: Exception) {
+            val bmp = try { if (v2) Kokpit2NavRenderer.render(w, h, data) else KokpitNavRenderer.render(w, h, data) } catch (e: Exception) {
                 Log.w(TAG, "QEXT_KOKPIT_NAV_RENDER_FAIL msg=${e.message}", e); com.qext2.primary.util.RideFileLog.append("RENDER_FAIL KOKPIT_NAV msg=${e.message}"); null
             } ?: return
             val rv = RemoteViews(context.packageName, R.layout.field_stats_v2)
@@ -72,9 +73,9 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
         }
 
         scope.launch {
-            if (!forceLive && AthleteDataStore.loadStatsV2Demo()) {
+            if (if (v2) AthleteDataStore.loadKokpit2Demo() else (!forceLive && AthleteDataStore.loadStatsV2Demo())) {
                 while (isActive) {
-                    val d = withContext(Dispatchers.Default) { KokpitNavDemo.at(System.currentTimeMillis()) }
+                    val d = withContext(Dispatchers.Default) { KokpitNavDemo.at(System.currentTimeMillis()).let { if (v2) Kokpit2Demo.nav(it) else it } }
                     emit(d)
                     delay(2000L)
                 }
@@ -184,6 +185,8 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
             windMps = hw?.second,   // tylko headwind z karoo-headwind (2026-10-08); brak -> "wiatr —"
             windDirDeg = null,
             windRelDeg = hw?.first,
+            windSignedMps = agg?.getHeadwindSignedMps(),   // KOKPIT 2: kolor strzalki (+ w twarz)
+            windTotalMps = agg?.getKarooWindMps(),
             sky = rw?.sky?.name,
         )
     }

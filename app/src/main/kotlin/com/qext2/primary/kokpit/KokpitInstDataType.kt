@@ -39,7 +39,8 @@ private const val TAG = "QExt2KokpitInst"
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @Keep
 /** forceLive = wersja produkcyjna: zawsze dane z jazdy (bez demo). */
-class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val forceLive: Boolean = false) : DataTypeImpl("qext2", typeId) {
+/** v2 = KOKPIT 2 instr (wyglad Kokpit2InstRenderer z belka trasy, demo z przelacznika "KOKPIT 2: dane demo"). */
+class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val forceLive: Boolean = false, private val v2: Boolean = false) : DataTypeImpl("qext2", typeId) {
 
     override fun startStream(emitter: Emitter<StreamState>) {
         emitter.onNext(StreamState.Streaming(DataPoint(dataTypeId = dataTypeId, values = emptyMap())))
@@ -58,7 +59,7 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
         emitter.updateView(RemoteViews(context.packageName, R.layout.field_stats_v2))
 
         fun emit(data: KokpitInstData) {
-            val bmp = try { KokpitInstRenderer.render(w, h, data) } catch (e: Throwable) {
+            val bmp = try { if (v2) Kokpit2InstRenderer.render(w, h, data) else KokpitInstRenderer.render(w, h, data) } catch (e: Throwable) {
                 Log.w(TAG, "QEXT_KOKPIT_INST_RENDER_FAIL msg=${e.message}", e)
                 com.qext2.primary.util.RideFileLog.append("RENDER_FAIL KOKPIT_INST ${e.javaClass.simpleName} msg=${e.message} at=${e.stackTrace.firstOrNull()}")
                 null
@@ -75,9 +76,9 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
         var hrN = 0L
 
         scope.launch {
-            if (!forceLive && AthleteDataStore.loadStatsV2Demo()) {
+            if (if (v2) AthleteDataStore.loadKokpit2Demo() else (!forceLive && AthleteDataStore.loadStatsV2Demo())) {
                 while (isActive) {
-                    emit(KokpitInstDemo.at(System.currentTimeMillis()))
+                    emit(KokpitInstDemo.at(System.currentTimeMillis()).let { if (v2) it.copy(route = Kokpit2Demo.route(System.currentTimeMillis())) else it })
                     delay(1000L)
                 }
                 return@launch
@@ -97,7 +98,7 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
                     if (p.hrFreshnessMs < 12_000L && p.hr > 40 && p.speedKmh > 3.0) { hrSum += p.hr; hrN++ }
                     val d = try { toData(agg, p, s, s.avgHrBpm.takeIf { it > 0 }).let { dd ->
                         val now = System.currentTimeMillis()
-                        dd.copy(cpTrend = trCp.push(now, dd.cpe5W), avgSpeedTrend = trSpd.push(now, dd.avgSpeedKmh),
+                        dd.copy(route = if (v2) Kokpit2Route.of(agg, s) else null, cpTrend = trCp.push(now, dd.cpe5W), avgSpeedTrend = trSpd.push(now, dd.avgSpeedKmh),
                             hrAvgTrend = trHr.push(now, dd.hrAvg?.toFloat()), cadAvgTrend = trCad.push(now, dd.cadenceAvg?.toFloat()))
                     } } catch (e: Throwable) {
                         Log.w(TAG, "QEXT_KOKPIT_INST_DATA_FAIL msg=${e.message}")

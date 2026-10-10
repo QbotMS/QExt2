@@ -543,6 +543,14 @@ object AthleteDataStore {
     fun loadStatsV2Demo(): Boolean =
         false   // SETUP v3: bez trybu demo
 
+    /** KOKPIT 2: dane demo (przelacznik w SETUP), domyslnie wylaczone */
+    fun saveKokpit2Demo(enabled: Boolean) {
+        prefs?.edit()?.putBoolean("kokpit2_demo", enabled)?.apply()
+    }
+
+    fun loadKokpit2Demo(): Boolean =
+        prefs?.getBoolean("kokpit2_demo", false) ?: false
+
     /** Typowa predkosc ruchu z poprzednich jazd (wartosc startowa ETA poziom 3), km/h; 0 = brak. */
     fun saveEtaPriorKmh(kmh: Double) {
         prefs?.edit()?.putFloat("eta_prior_kmh", kmh.toFloat())?.apply()

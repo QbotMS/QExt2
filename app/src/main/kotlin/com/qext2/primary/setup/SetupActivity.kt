@@ -71,6 +71,7 @@ class SetupActivity : Activity() {
         root.addView(formCard())
         root.addView(deadlineCard())
         root.addView(cassetteCard())
+        root.addView(demoCard())
         root.addView(label("Wersja ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) · ustawienia zapisywane na serwerze", 13, sub).apply {
             setPadding(dp(4), dp(14), 0, 0)
         })
@@ -216,6 +217,25 @@ class SetupActivity : Activity() {
             }
             .setNegativeButton("Anuluj", null)
             .show()
+    }
+
+    /** KOKPIT 2: dane demo (test pol bez jazdy) */
+    private fun demoCard(): View {
+        val c = box(card)
+        val on = AthleteDataStore.loadKokpit2Demo()
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) }
+        col.addView(label("KOKPIT 2: dane demo", 15, sub))
+        col.addView(label(if (on) "WŁĄCZONE" else "wyłączone", 19, if (on) orange else txt, bold = true))
+        col.addView(label("Zmiana działa po ponownym wejściu na stronę z polami.", 13, sub))
+        row.addView(col)
+        row.addView(Button(this).apply {
+            text = if (on) "Wyłącz" else "Włącz"; setTextColor(txt); setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, 17 * scale); isAllCaps = false; background = round(btn, 12)
+            layoutParams = LinearLayout.LayoutParams(dp(120), dp(56))
+            setOnClickListener { AthleteDataStore.saveKokpit2Demo(!on); render() }
+        })
+        c.addView(row)
+        return c
     }
 
     // ---------- pomocnicze widoki ----------

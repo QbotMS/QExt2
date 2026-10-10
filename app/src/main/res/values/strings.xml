@@ -22,4 +22,8 @@
     <string name="qext2_kokpit_inst_desc">Polkole mocy i predkosci, tetno, W bal, kadencja, bieg z kaseta</string>
     <string name="qext2_kokpit_nav_desc">Komunikaty z trasy, km/ETA/zmrok, trasa z nawierzchnia, nachylenie, przewyzszenie, opad, wiatr</string>
     <string name="qext2_stats_v2_desc">STATS rysowane: NP/IF/VI, RSRV/XSS/KCAL, trasa, nawierzchnia, przewyzszenie, CARB, KAD, BAT</string>
+    <string name="qext2_kokpit2_nav_name">QExt2 KOKPIT 2 nav</string>
+    <string name="qext2_kokpit2_nav_desc">Komunikaty (tlo wg waznosci), pogoda, wiatr, nachylenie, DST/DTD/ETA</string>
+    <string name="qext2_kokpit2_instr_name">QExt2 KOKPIT 2 instr</string>
+    <string name="qext2_kokpit2_instr_desc">Belka trasy, moc ze strefa, predkosc, kadencja, tetno, bieg, W bal</string>
 </resources>
