@@ -167,17 +167,17 @@ object Kokpit2InstRenderer {
         t(c, "NP", lx, capTop + ls * CAP, ls, lc, false)
         t(c, "5", lx + lw / 2f, capTop + ls * CAP + ls * 0.85f, ls, lc, false, Paint.Align.CENTER)
 
-        if (d.demo) t(c, "DEMO", 100f, 41f, 14f, ORANGE)
-
         // --- dolny wiersz: BIEG (lewo), PREDKOSC | MOC (srodek), W' (prawo); wszystko na linii base
         // bieg: maly blat, duza koronka
         t(c, "BIEG", 6f, 91f, 15f, UNIT, false)
+        var gearRight: Float
         if (d.gearFront != null && d.gearRear != null) {
             var x = 6f
-            val f1 = d.gearFront.toString(); t(c, f1, x, base, 28f, WHITE); x += w(f1, 28f)
-            t(c, "×", x, base, 26f, UNIT); x += w("×", 26f)
-            t(c, d.gearRear.toString(), x, base, 46f, WHITE)
-        } else t(c, "—", 6f, base, 46f, NONE)
+            val f1 = d.gearFront.toString(); t(c, f1, x, base, 26f, WHITE); x += w(f1, 26f)
+            t(c, "×", x, base, 24f, UNIT); x += w("×", 24f)
+            val r1 = d.gearRear.toString(); t(c, r1, x, base, 42f, WHITE); x += w(r1, 42f)
+            gearRight = x
+        } else { t(c, "—", 6f, base, 42f, NONE); gearRight = 6f + w("—", 42f) }
 
         // W' (prawy dol): % i W' nad nim
         val wb = d.wbalPct
@@ -189,11 +189,17 @@ object Kokpit2InstRenderer {
         val wLeft = rx - pctW - 3f - w(wTxt, 50f)
         t(c, wTxt, rx - pctW - 3f, base, 50f, wCol, true, Paint.Align.RIGHT)
 
-        val vs = 76f
-        // predkosc: dosunieta do srodka z lewej, czesc dziesietna polowa wielkosci (gora rowno z gora cyfr)
+        // predkosc i moc tej samej wielkosci: najwieksza, przy ktorej V miesci sie za biegiem, a W przed W'
         val v10 = d.speedKmh?.let { kotlin.math.round(it * 10f).toInt() }
         val sInt = v10?.let { (it / 10).toString() } ?: "—"
         val sDec = v10?.let { "." + (it % 10).toString() } ?: ""
+        val pv = d.powerW?.toString() ?: "—"
+        val cp = d.cpW; val pw = d.powerW
+        val zone = if (pw != null && cp != null && cp > 0f) { val r = pw / cp; var i = 0; for (kk in PZ.indices) if (r >= PZ[kk].first) i = kk; i } else null
+        fun vBlock(sz: Float) = w(sInt, sz) + (if (sDec.isNotEmpty()) w(sDec, sz / 2f) else 0f) + 3f + 22f
+        fun wBlock(sz: Float) = w(pv, sz) + 3f + unitWWidth(zone)
+        var vs = 76f
+        while (vs > 44f && (cx - g - vBlock(vs) < gearRight + 6f || cx + g + wBlock(vs) > wLeft - 6f)) vs -= 1f
         val spCol = if (d.speedKmh != null) WHITE else NONE
         val digitTop = base - vs * CAP
         val ds = vs / 2f
@@ -201,17 +207,16 @@ object Kokpit2InstRenderer {
         if (sDec.isNotEmpty()) { t(c, sDec, x, digitTop + ds * CAP, ds, spCol, true, Paint.Align.RIGHT); x -= w(sDec, ds) }
         t(c, sInt, x, base, vs, spCol, true, Paint.Align.RIGHT); x -= w(sInt, vs)
         unitV(c, x - 3f, digitTop, base)
-
-        // moc: od srodka w prawo, kolor z oceny tempa (PacingEngine); zmniejszana, gdy nie miesci sie przed W'
-        val pv = d.powerW?.toString() ?: "—"
+        // moc: od srodka w prawo, kolor z oceny tempa (PacingEngine)
         val pCol = if (d.powerW == null) NONE else d.powerColor
-        val unitWd = 26f
-        var pvs = vs
-        while (pvs > 44f && cx + g + w(pv, pvs) + 3f + unitWd > wLeft - 4f) pvs -= 1f
-        t(c, pv, cx + g, base, pvs, pCol)
-        val cp = d.cpW; val pw = d.powerW
-        val zone = if (pw != null && cp != null && cp > 0f) { val r = pw / cp; var i = 0; for (kk in PZ.indices) if (r >= PZ[kk].first) i = kk; i } else null
-        unitW(c, cx + g + w(pv, pvs) + 3f, base - pvs * CAP, base, zone)
+        t(c, pv, cx + g, base, vs, pCol)
+        unitW(c, cx + g + w(pv, vs) + 3f, digitTop, base, zone)
+    }
+
+    /** szerokosc bloku piorun + numer strefy (W pod spodem jest wezsze) */
+    private fun unitWWidth(zone: Int?): Float {
+        val bh = 33f
+        return bh * 15f / 22f + 1f + (if (zone != null) w((zone + 1).toString(), bh / CAP) else 0f)
     }
 
     /** V nad km/h; prawa krawedz kolumny = right; gora = gorna krawedz cyfr */
