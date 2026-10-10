@@ -450,7 +450,7 @@ object Kokpit2NavRenderer {
         val capH = vs * CAP
         val groups = ArrayList<List<Item>>()
         groups.add(listOf(vlabel(c, "DST", base, capH), txt(fmt("%.0f", d.doneKm), vs, WHITE, base),
-            txt(d.totalKm?.let { "/" + fmt("%.0f", it) } ?: "km", 20f, UNIT, base, false)))
+            txt(d.totalKm?.let { "/" + fmt("%.0f", it) } ?: "km", 22f, UNIT, base, false)))
         groups.add(d.leftKm?.let { listOf(vlabel(c, "DTD", base, capH), txt(fmt("%.0f", it), vs, WHITE, base), txt("km", 20f, UNIT, base, false)) }
             ?: listOf(vlabel(c, "DTD", base, capH), txt("—", vs, NONE, base)))
         val eta = d.etaMs; val dl = d.deadlineMs
