@@ -71,3 +71,20 @@ Czas: pilny sam 20 s, potem na zmianę co 8 s z kolejnymi; min. 5 s na komunikat
 
 ## Demo
 Zwykła jazda w normie; co minutę 10 s alarmu (moc > pułap, Z5, W′ 14%, spadek CP, ostrzeżenie w komunikacie, czerwone serce; od 40. s serce pomarańczowe).
+
+## KOKPIT 2 (2026-10-10, budowa 246)
+Nowe pola produkcyjne (stare KOKPIT bez zmian na czas testow):
+- `qext2-kokpit2-nav` — **QExt2 KOKPIT 2 nav** (gorne), `qext2-kokpit2-instr` — **QExt2 KOKPIT 2 instr** (dolne).
+- Kod: `kokpit/Kokpit2.kt` (Kokpit2NavRenderer, Kokpit2InstRenderer, Kokpit2Route, Kokpit2Demo); dane z tych samych
+  `KokpitNavDataType` / `KokpitInstDataType` z parametrem `v2 = true`.
+- Mockup: kanwa „QExt2 — pola Karoo”, plansza **„KOKPIT — v10 ROBOCZA”** (`Kokpit9.dc.html`) + „Komunikat — tlo wg waznosci” (`Komunikaty.dc.html`).
+- Demo: przelacznik w SETUP „KOKPIT 2: dane demo” (pref `kokpit2_demo`, domyslnie wyl.), dziala po ponownym wejsciu na strone z polami.
+
+Uklad (474x126, wieksze pole = ta sama skala):
+- nav: komunikat 41 px (tlo: krytyczne bordo #8B0A1A / ostrzezenie zolte #FFC21A z czarnym tekstem / informacja #1E2731),
+  wiersz pogody (temp + opad/niebo | wiatr | nachylenie), wiersz DST/DTD/ETA na dolnej krawedzi (pionowe podpisy).
+- instr: belka trasy na gorze (przejechane #2E7BFF, asfalt #F2F4F7, szuter #FFB300, trudny #FF2A2A, postoje #FF3DF5,
+  pozycja = limonkowe kolo #39FF14), KAD | sr. predkosc | NP 5 | tetno, na dole BIEG (blat maly, koronka duza) | V | W | W′.
+- Moc: kolor liczby z PacingEngine (jak PRIMARY); obok W piorun + nr strefy wg CP, oba w kolorze strefy. Bez lukow.
+- Strzalka wiatru: czerwona = wiatr w twarz (skladowa czolowa >= 3 m/s i >= 70% wiatru), zielona = w plecy, biala = boczny/slaby
+  (`getHeadwindSignedMps`, + w twarz).
