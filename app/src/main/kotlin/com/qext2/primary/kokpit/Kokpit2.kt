@@ -223,7 +223,7 @@ object Kokpit2InstRenderer {
         val big = 52f
         val bigBase = capTop + big * CAP
         val z = d.hrZone
-        val showZone = d.hrShowZone && z != null
+        val showZone = Kokpit2Config.color("hr", "zone") == "zone" && z != null   // Setup QBota: strefa / bpm
         val hrTxt = if (showZone) "Z$z" else d.hr?.toString() ?: "—"
         val hrCol = when { d.hr == null && !showZone -> NONE; z == 5 -> BAD; z == 4 -> YEL; else -> WHITE }
         val heartCol = when (d.hrDriftLevel) { 2 -> BAD; 1 -> ORANGE; else -> WHITE }
@@ -252,7 +252,11 @@ object Kokpit2InstRenderer {
         // --- dolny wiersz: W' (lewo), MOC | PREDKOSC (przy srodku), BIEG (prawo); wszystko na linii base
         val wb = d.wbalPct
         val wTxt = wb?.toString() ?: "—"
-        val wCol = when { wb == null -> NONE; d.wbalTrend == "rising" -> GOOD; d.wbalTrend == "falling" || d.wbalTrend == "plummeting" -> BAD; else -> WHITE }
+        val wCol = when {
+            wb == null -> NONE
+            Kokpit2Config.color("wbal", "trend") == "level" -> if (wb > 50) WHITE else if (wb >= 20) YEL else BAD
+            d.wbalTrend == "rising" -> GOOD; d.wbalTrend == "falling" || d.wbalTrend == "plummeting" -> BAD; else -> WHITE
+        }
         // jak liczba koronki; miejsce liczone na 2 cyfry - "100" (tylko na starcie) zwezone do tej szerokosci
         run { val ww = w(wTxt, 52f); val ref2 = w("88", 52f); if (ww > ref2) tp.textScaleX = ref2 / ww; t(c, wTxt, lx0, base, 52f, wCol); tp.textScaleX = 1f }
         t(c, "W′%", lx0, base - 52f * CAP - 7f, 16f, UNIT, false)
@@ -304,9 +308,9 @@ object Kokpit2InstRenderer {
         val lsW = if (sxW0 >= 1f && sxW >= sxW0) ((availW - w("888", vs)) / (3f * vs)).coerceIn(0f, 0.10f) else 0f
         val lsV = if (sxV0 >= 1f && sxV >= sxV0) ((availV - digVRef(vs)) / (3f * vs)).coerceIn(0f, 0.10f) else 0f
         val top = base - vs * CAP
-        val pCol = if (d.powerW == null) NONE else d.powerColor
+        val pCol = if (d.powerW == null) NONE else if (Kokpit2Config.color("power", "pacing") == "zones" && zone != null) Color.parseColor(PZ[zone].second) else d.powerColor
         // predkosc zolta (jak w starych polach: domyslny kolor predkosci #F2C230), moc biala - latwo odroznic
-        val spCol = if (d.speedKmh != null) SPEED else NONE
+        val spCol = if (d.speedKmh == null) NONE else if (Kokpit2Config.color("speed", "yellow") == "white") WHITE else SPEED
         tp.textScaleX = sxW
         tp.letterSpacing = lsW
         // moc: do srodka z lewej, kolor z oceny tempa (PacingEngine)
@@ -476,9 +480,14 @@ object Kokpit2NavRenderer {
     // ---------- komunikat: tlo wg waznosci ----------
     private fun drawMsg(c: Canvas, d: KokpitNavData, vw: Float, h: Float) {
         val m = d.msg
-        val crit = m.kind == MsgKind.WPRIME || m.kind == MsgKind.DESCENT ||
-            (m.kind == MsgKind.HUB && m.accentColor.equals("#FF8C8C", ignoreCase = true))
-        val warn = !crit && (m.kind == MsgKind.RAIN || m.kind == MsgKind.FUEL || m.kind == MsgKind.DUSK || m.kind == MsgKind.HUB)
+        // poziom (tlo) z ustawien QBota; centrala wg waznosci nadawcy
+        val lvl = when (m.kind) {
+            MsgKind.HUB -> if (m.accentColor.equals("#FF8C8C", ignoreCase = true)) "crit" else "warn"
+            MsgKind.NONE -> "info"
+            else -> Kokpit2Config.level(m.cfgId, when (m.kind) { MsgKind.WPRIME, MsgKind.DESCENT -> "crit"; MsgKind.RAIN, MsgKind.FUEL, MsgKind.DUSK -> "warn"; else -> "info" })
+        }
+        val crit = lvl == "crit"
+        val warn = lvl == "warn"
         val bg = when { crit -> MSG_CRIT; warn -> MSG_WARN; else -> MSG_INFO }
         val fg = if (warn) BLACK else WHITE
         fp.color = bg; c.drawRect(0f, 0f, vw, h, fp)
@@ -592,8 +601,8 @@ object Kokpit2NavRenderer {
         val eta = d.etaMs; val dl = d.deadlineMs
         val etaCol = if (eta != null && dl != null) when {
             eta > dl -> RED
-            dl - eta >= 30 * 60_000L -> GREEN
-            dl - eta <= 10 * 60_000L -> Color.parseColor("#FACC15")
+            dl - eta >= Kokpit2Config.cp("eta", "green_min", 30.0).toLong() * 60_000L -> GREEN
+            dl - eta <= Kokpit2Config.cp("eta", "yellow_min", 10.0).toLong() * 60_000L -> Color.parseColor("#FACC15")
             else -> WHITE
         } else WHITE
         val etaG = if (eta != null) listOf(vlabel(c, "ETA", base, capH), txt(clock(eta), vs, etaCol, base))
@@ -601,9 +610,11 @@ object Kokpit2NavRenderer {
         val wm = d.windMps
         val windG: List<Item> = if (wm == null) listOf(txt("wiatr —", 20f, NONE, base, false)) else {
             val hs = d.windSignedMps
-            val wcol = if (hs == null) WHITE else {
+            val wMin = Kokpit2Config.cp("wind", "min_mps", 3.0).toFloat()
+            val wShare = (Kokpit2Config.cp("wind", "share", 70.0) / 100.0).toFloat()
+            val wcol = if (hs == null || Kokpit2Config.color("wind", "headtail") == "white") WHITE else {
                 val tot = maxOf(d.windTotalMps ?: abs(hs), abs(hs))
-                when { hs >= 3f && hs >= 0.7f * tot -> RED; hs <= -3f && -hs >= 0.7f * tot -> GREEN; else -> WHITE }
+                when { hs >= wMin && hs >= wShare * tot -> RED; hs <= -wMin && -hs >= wShare * tot -> GREEN; else -> WHITE }
             }
             val wg = ArrayList<Item>()
             d.windRelDeg?.let { rel -> wg.add(Item(32f) { x -> arrow(c, x + 16f, base - capH / 2f, 32f, rel.toFloat(), wcol) }) }
@@ -635,7 +646,7 @@ object Kokpit2NavRenderer {
         val fullW = fw(vs)
         val kind = d.turnKind; val dist = d.turnDistM
         if (kind == null || dist == null) return Item(fullW) { }
-        val warn = kind == "UTURN" || kind == "RB_U" || kind.startsWith("SHARP")
+        val warn = Kokpit2Config.color("turn", "sharp_warn") == "sharp_warn" && (kind == "UTURN" || kind == "RB_U" || kind.startsWith("SHARP"))
         val col = if (warn) MSG_WARN else WHITE
         val num: String; val unit: String
         if (dist < 950.0) {

@@ -517,6 +517,11 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                                 AthleteDataStore.saveEtaStopsMinPerKm(it)
                                 com.qext2.primary.eta.EtaSpeedTable.historyMinPerKm = it   // E4.4
                             }
+                            // Setup QBota > QExt2: komunikaty i kolory pol KOKPIT 2
+                            json.optJSONObject("qext2Config")?.toString()?.let {
+                                AthleteDataStore.saveQext2Config(it); com.qext2.primary.kokpit.Kokpit2Config.load(it)
+                                com.qext2.primary.util.RideFileLog.append("QEXT2_CONFIG updated=${com.qext2.primary.kokpit.Kokpit2Config.updatedAt ?: "domyslne"}")
+                            }
                             val adjusted = data.applyBaroAdjustment(false)
                             _aggregator?.updateAthleteData(adjusted)
                             AthleteDataStore.saveLastRefresh()

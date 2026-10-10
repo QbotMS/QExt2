@@ -228,6 +228,8 @@ class SetupActivity : Activity() {
         col.addView(label("KOKPIT 2: dane demo", 15, sub))
         col.addView(label(if (on) "WŁĄCZONE" else "wyłączone", 19, if (on) orange else txt, bold = true))
         col.addView(label("Zmiana działa po ponownym wejściu na stronę z polami.", 13, sub))
+        val cu = com.qext2.primary.kokpit.Kokpit2Config.updatedAt
+        col.addView(label("Komunikaty i kolory z QBota: " + (cu?.replace("T", " ")?.take(16) ?: "domyślne"), 13, sub))
         row.addView(col)
         row.addView(Button(this).apply {
             text = if (on) "Wyłącz" else "Włącz"; setTextColor(txt); setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, 17 * scale); isAllCaps = false; background = round(btn, 12)

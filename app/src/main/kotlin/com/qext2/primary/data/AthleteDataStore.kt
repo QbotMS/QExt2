@@ -551,6 +551,10 @@ object AthleteDataStore {
     fun loadKokpit2Demo(): Boolean =
         prefs?.getBoolean("kokpit2_demo", false) ?: false
 
+    /** Setup QBota > QExt2: ustawienia komunikatow i kolorow (JSON compact z /ride-readiness) */
+    fun saveQext2Config(json: String) { prefs?.edit()?.putString("qext2_config", json)?.apply() }
+    fun loadQext2Config(): String? = prefs?.getString("qext2_config", null)
+
     /** Typowa predkosc ruchu z poprzednich jazd (wartosc startowa ETA poziom 3), km/h; 0 = brak. */
     fun saveEtaPriorKmh(kmh: Double) {
         prefs?.edit()?.putFloat("eta_prior_kmh", kmh.toFloat())?.apply()

@@ -1746,7 +1746,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
 
 
     fun getSteepDescentAhead(): Pair<Double, Double>? =
-        try { etaEngine.steepDescentAhead(distanceToDestinationMetersRef.get()) } catch (_: Exception) { null }
+        try { etaEngine.steepDescentAhead(distanceToDestinationMetersRef.get(),
+            com.qext2.primary.kokpit.Kokpit2Config.p("descent", "near_km", 3.0) * 1000.0,
+            com.qext2.primary.kokpit.Kokpit2Config.p("descent", "threshold_pct", -6.0)) } catch (_: Exception) { null }
 
     fun getEtaMs(): Long = lastEtaMsRef.get()
 

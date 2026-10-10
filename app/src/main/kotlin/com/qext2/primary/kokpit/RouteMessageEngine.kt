@@ -42,7 +42,8 @@ data class RouteMsgInput(
 enum class MsgKind { HUB, WPRIME, RAIN, FUEL, DUSK, DESCENT, CLIMB, SURFACE, POI, NONE }
 
 /** lead = zwykly tekst, accent = wyrozniony fragment w kolorze accentColor (#RRGGBB). */
-data class RouteMsg(val kind: MsgKind, val lead: String, val accent: String, val accentColor: String)
+/** cfgId = id komunikatu w ustawieniach QBota (Setup > QExt2): wl/wyl, poziom, kolejnosc; "" = bez ustawien. */
+data class RouteMsg(val kind: MsgKind, val lead: String, val accent: String, val accentColor: String, val cfgId: String = "")
 
 object RouteMessageEngine {
     const val NEAR_KM = 3.0f
@@ -84,63 +85,72 @@ object RouteMessageEngine {
     fun nextClimb(climbs: List<ClimbInfo>, pos: Float): ClimbInfo? =
         climbs.filter { it.startKm >= pos - 0.05f }.minByOrNull { it.startKm }
 
-    /** Wszystkie aktualne komunikaty, od najwazniejszego. */
+    /** Wszystkie aktualne komunikaty, od najwazniejszego. Progi, wl/wyl i kolejnosc - z ustawien QBota (Kokpit2Config),
+     *  domyslnie dotychczasowe wartosci. */
     fun candidates(i: RouteMsgInput): List<RouteMsg> {
+        val C = Kokpit2Config
         val out = ArrayList<RouteMsg>()
-        // 0. W' (najwyzszy priorytet - wymaga natychmiastowej reakcji)
-        i.wprime?.let { wp -> out.add(RouteMsg(MsgKind.WPRIME, "W′ ${wp.pct}%:", wp.state, if (wp.critical) "#FF8C8C" else "#FB923C")) }
+        // 0. W' (wymaga natychmiastowej reakcji)
+        if (C.on("wprime")) i.wprime?.let { wp -> out.add(RouteMsg(MsgKind.WPRIME, "W′ ${wp.pct}%:", wp.state, if (wp.critical) "#FF8C8C" else "#FB923C", "wprime")) }
         // 1. pilne
         val rn = i.rainNowMmH
-        if (rn != null && rn >= 0.1f) out.add(RouteMsg(MsgKind.RAIN, "pada:", String.format(java.util.Locale.US, "%.1f mm/h", rn).replace('.', ','), "#60A5FA"))
-        else {
+        if (rn != null && rn >= C.p("rain_now", "min_mmh", 0.1).toFloat()) {
+            if (C.on("rain_now")) out.add(RouteMsg(MsgKind.RAIN, "pada:", String.format(java.util.Locale.US, "%.1f mm/h", rn).replace('.', ','), "#60A5FA", "rain_now"))
+        } else {
             val rs = i.rainSoon
             if (rs != null) {
                 val where = if (rs.kmAhead >= 0.5f) " (${km(rs.kmAhead)} km)" else ""
                 when (rs.kind) {
-                    "STORM" -> if (rs.minutes <= 60) out.add(RouteMsg(MsgKind.RAIN, "burza za ${rs.minutes} min$where:", "${rs.probPct}%", "#FF8C8C"))
-                    "SNOW" -> if (rs.minutes <= RAIN_SOON_MIN) out.add(RouteMsg(MsgKind.RAIN, "śnieg za ${rs.minutes} min$where:", "${rs.probPct}%", "#BFDBFE"))
+                    "STORM" -> if (C.on("storm") && rs.minutes <= C.pi("storm", "lead_min", 60)) out.add(RouteMsg(MsgKind.RAIN, "burza za ${rs.minutes} min$where:", "${rs.probPct}%", "#FF8C8C", "storm"))
+                    "SNOW" -> if (C.on("snow") && rs.minutes <= C.pi("snow", "lead_min", RAIN_SOON_MIN)) out.add(RouteMsg(MsgKind.RAIN, "śnieg za ${rs.minutes} min$where:", "${rs.probPct}%", "#BFDBFE", "snow"))
                     "FOG" -> {}
-                    else -> if (rs.minutes in 0..RAIN_SOON_MIN && rs.probPct >= 40) out.add(RouteMsg(MsgKind.RAIN, "deszcz za ${rs.minutes} min$where:", "${rs.probPct}%", "#60A5FA"))
+                    else -> if (C.on("rain_soon") && rs.minutes in 0..C.pi("rain_soon", "lead_min", RAIN_SOON_MIN) && rs.probPct >= C.pi("rain_soon", "min_prob", 40))
+                        out.add(RouteMsg(MsgKind.RAIN, "deszcz za ${rs.minutes} min$where:", "${rs.probPct}%", "#60A5FA", "rain_soon"))
                 }
             }
         }
         val cb = i.carbBalanceG
-        if (cb != null && cb <= FUEL_ALERT_G) out.add(RouteMsg(MsgKind.FUEL, "zjedz:", "${cb} g", "#E9A23B"))
+        if (C.on("fuel") && cb != null && cb <= C.pi("fuel", "alert_g", FUEL_ALERT_G)) out.add(RouteMsg(MsgKind.FUEL, "zjedz:", "${cb} g", "#E9A23B", "fuel"))
         if (i.duskMs > 0L && i.duskMs > i.nowMs) {
             val toDusk = ((i.duskMs - i.nowMs) / 60000L).toInt()
-            if (i.etaMs > i.duskMs) out.add(RouteMsg(MsgKind.DUSK, "meta po zmroku:", "zmrok ${clock(i.duskMs)}", "#FF8C8C"))
-            else if (toDusk in 0..DUSK_WARN_MIN) out.add(RouteMsg(MsgKind.DUSK, "do zmroku:", "$toDusk min", "#FB923C"))
+            if (i.etaMs > i.duskMs) { if (C.on("dusk_after")) out.add(RouteMsg(MsgKind.DUSK, "meta po zmroku:", "zmrok ${clock(i.duskMs)}", "#FF8C8C", "dusk_after")) }
+            else if (C.on("dusk_soon") && toDusk in 0..C.pi("dusk_soon", "warn_min", DUSK_WARN_MIN)) out.add(RouteMsg(MsgKind.DUSK, "do zmroku:", "$toDusk min", "#FB923C", "dusk_soon"))
         }
-        if (!i.hasRoute) { if (out.isEmpty()) out.add(RouteMsg(MsgKind.NONE, "brak trasy", "", "#9AA5B1")); return out }
-        // 2. trasa w promieniu 3 km (po odleglosci)
+        if (!i.hasRoute) { if (out.isEmpty()) out.add(RouteMsg(MsgKind.NONE, "brak trasy", "", "#9AA5B1")); return C.sortByOrder(out) }
+        // 2. trasa w zasiegu (po odleglosci)
         val near = ArrayList<Pair<Float, RouteMsg>>()
-        i.descent?.let { d ->
-            if (d.distAheadKm <= NEAR_KM) {
+        if (C.on("descent")) i.descent?.let { d ->
+            if (d.distAheadKm <= C.p("descent", "near_km", NEAR_KM.toDouble()).toFloat()) {
                 val s = surfaceAt(i.surfaces, i.posKm + d.distAheadKm)
                 val tail = if (s != null && s != SurfClass.PAVED) " ${surfName(s)}" else ""
-                near.add(d.distAheadKm to RouteMsg(MsgKind.DESCENT, "za ${km(d.distAheadKm)} km: zjazd", "${d.gradePct.roundToInt()}%$tail", "#FF8C8C"))
+                near.add(d.distAheadKm to RouteMsg(MsgKind.DESCENT, "za ${km(d.distAheadKm)} km: zjazd", "${d.gradePct.roundToInt()}%$tail", "#FF8C8C", "descent"))
             }
         }
-        val c = nextClimb(i.climbs, i.posKm)
-        val sc = nextSurfaceChange(i.surfaces, i.posKm)
-        c?.let { cl -> val d = (cl.startKm - i.posKm).coerceAtLeast(0f); if (d <= NEAR_KM) near.add(d to climbMsg(d, cl)) }
-        sc?.let { (d, s, len) -> if (d <= NEAR_KM) near.add(d to surfMsg(d, s, len)) }
+        val c = if (C.on("climb")) nextClimb(i.climbs, i.posKm) else null
+        val sc = if (C.on("surface")) nextSurfaceChange(i.surfaces, i.posKm) else null
+        val climbNear = C.p("climb", "near_km", NEAR_KM.toDouble()).toFloat()
+        val surfNear = C.p("surface", "near_km", NEAR_KM.toDouble()).toFloat()
+        c?.let { cl -> val d = (cl.startKm - i.posKm).coerceAtLeast(0f); if (d <= climbNear) near.add(d to climbMsg(d, cl, "climb")) }
+        sc?.let { (d, s, len) -> if (d <= surfNear) near.add(d to surfMsg(d, s, len, "surface")) }
         out.addAll(near.sortedBy { it.first }.map { it.second })
-        // 3. punkty (woda / sklep / jedzenie) w promieniu 2 km; woda najpierw, zamkniete pomijane
-        val p = i.pois.filter { it.km >= i.posKm - 0.05f && it.km - i.posKm <= POI_NEAR_KM && it.today?.startsWith("zamkn") != true }
-            .sortedWith(compareBy({ if (it.cat == "water") 0 else 1 }, { it.km }))
-            .firstOrNull()
-        p?.let { out.add(poiMsg((it.km - i.posKm).coerceAtLeast(0f), it)) }
-        // 4. domyslnie (dalej niz 3 km)
+        // 3. punkty (woda / sklep / jedzenie) w zasiegu; woda najpierw, zamkniete pomijane (wg ustawien)
+        if (C.on("poi")) {
+            val poiNear = C.p("poi", "near_km", POI_NEAR_KM.toDouble()).toFloat()
+            val skipClosed = C.pb("poi", "skip_closed", true)
+            val p = i.pois.filter { it.km >= i.posKm - 0.05f && it.km - i.posKm <= poiNear && (!skipClosed || it.today?.startsWith("zamkn") != true) }
+                .sortedWith(compareBy({ if (it.cat == "water") 0 else 1 }, { it.km }))
+                .firstOrNull()
+            p?.let { out.add(poiMsg((it.km - i.posKm).coerceAtLeast(0f), it)) }
+        }
+        // 4. domyslnie (dalej niz zasieg)
         if (near.isEmpty()) {
             val far = ArrayList<Pair<Float, RouteMsg>>()
-            c?.let { cl -> far.add((cl.startKm - i.posKm) to climbMsg((cl.startKm - i.posKm).coerceAtLeast(0f), cl)) }
-            sc?.let { (d, s, len) -> far.add(d to surfMsg(d, s, len)) }
+            c?.let { cl -> far.add((cl.startKm - i.posKm) to climbMsg((cl.startKm - i.posKm).coerceAtLeast(0f), cl, "climb_far")) }
+            sc?.let { (d, s, len) -> far.add(d to surfMsg(d, s, len, "surface_far")) }
             far.minByOrNull { it.first }?.let { out.add(it.second) }
         }
-        // bez zdarzen w poblizu: pusty pasek (komunikat "dalekiej" zmiany co 30 km byl tylko szumem)
         if (out.isEmpty()) out.add(RouteMsg(MsgKind.NONE, "", "", "#9AA5B1"))
-        return out
+        return C.sortByOrder(out)
     }
 
     fun pick(i: RouteMsgInput): RouteMsg = candidates(i).first()
@@ -151,14 +161,14 @@ object RouteMessageEngine {
         val what = when (p.cat) { "water" -> "woda"; "shop" -> "sklep"; "food" -> "jedzenie"; else -> p.cat }
         val name = if (p.name.isNotBlank() && p.cat != "water") p.name.take(18) else ""
         val hrs = p.today?.let { if (name.isEmpty()) it else " · $it" } ?: ""
-        return RouteMsg(MsgKind.POI, "za ${km(d)} km: $what", "$name$hrs".trim(), "#4ADE80")
+        return RouteMsg(MsgKind.POI, "za ${km(d)} km: $what", "$name$hrs".trim(), "#4ADE80", "poi")
     }
 
-    private fun climbMsg(d: Float, cl: ClimbInfo) =
-        RouteMsg(MsgKind.CLIMB, "za ${km(d)} km: podjazd", "${km(cl.lengthKm)} km · ${cl.gradePct.roundToInt()}%", "#FB923C")
+    private fun climbMsg(d: Float, cl: ClimbInfo, id: String = "climb") =
+        RouteMsg(MsgKind.CLIMB, "za ${km(d)} km: podjazd", "${km(cl.lengthKm)} km · ${cl.gradePct.roundToInt()}%", "#FB923C", id)
 
-    private fun surfMsg(d: Float, s: SurfClass, len: Float) =
-        RouteMsg(MsgKind.SURFACE, "za ${km(d)} km:", "${surfName(s)} ${km(len)} km", surfColor(s))
+    private fun surfMsg(d: Float, s: SurfClass, len: Float, id: String = "surface") =
+        RouteMsg(MsgKind.SURFACE, "za ${km(d)} km:", "${surfName(s)} ${km(len)} km", surfColor(s), id)
 }
 
 /**
@@ -182,12 +192,14 @@ class RouteMessageRotator {
             if (urgentKind != top.kind) { urgentKind = top.kind; urgentSince = nowMs }
         } else urgentKind = null
         var want = top
-        if (urgentKind != null && cands.size > 1 && nowMs - urgentSince > 20_000L) {
-            val slot = (nowMs - urgentSince - 20_000L) / 8_000L
+        val solo = Kokpit2Config.rot("urgent_solo_s", 20L) * 1000L
+        val step = Kokpit2Config.rot("rotate_s", 8L).coerceAtLeast(1L) * 1000L
+        if (urgentKind != null && cands.size > 1 && nowMs - urgentSince > solo) {
+            val slot = (nowMs - urgentSince - solo) / step
             want = if (slot % 2L == 1L) top else cands[1 + ((slot / 2L) % (cands.size - 1).toLong()).toInt()]
         }
         val cur = current
-        if (cur != null && cur.kind != want.kind && nowMs - currentSince < 5_000L) {
+        if (cur != null && cur.kind != want.kind && nowMs - currentSince < Kokpit2Config.rot("min_hold_s", 5L) * 1000L) {
             val still = cands.firstOrNull { it.kind == cur.kind }
             if (still != null) { current = still; return still }
         }
