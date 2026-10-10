@@ -509,8 +509,8 @@ object Kokpit2NavRenderer {
         val rn = d.rainNowMmH; val rs = d.rainSoon
         if (rn != null && rn >= 0.1f) {
             wx.add(Item(22f) { x -> drop(c, x, base, 22f, 26f, BLUE) })
-            wx.add(txt(fmt("%.1f", rn).replace('.', ','), 36f, BLUE, base))
-            wx.add(txt("mm", 20f, BLUE, base, false))
+            wx.add(txt(fmt("%.1f", rn).replace('.', ','), 32f, BLUE, base))
+            wx.add(txt("mm", 18f, BLUE, base, false))
         } else if (rs != null && rs.probPct >= 30 && rs.kind != "FOG") {
             val cl = when (rs.kind) { "STORM" -> RED; "SNOW" -> Color.parseColor("#BFDBFE"); else -> BLUE }
             when (rs.kind) {
@@ -518,8 +518,8 @@ object Kokpit2NavRenderer {
                 "SNOW" -> wx.add(Item(26f) { x -> snow(c, x, base, 26f, cl) })
                 else -> wx.add(Item(22f) { x -> drop(c, x, base, 22f, 26f, cl) })
             }
-            wx.add(txt("${rs.probPct}%", 36f, cl, base))
-            wx.add(txt("${rs.minutes}′", 20f, cl, base))
+            wx.add(txt("${rs.probPct}%", 32f, cl, base))
+            wx.add(txt("${rs.minutes}′", 18f, cl, base))
         } else d.sky?.let { sk ->
             when (sk) {
                 "CLEAR" -> wx.add(Item(30f) { x -> sun(c, x + 15f, base - capH / 2f, 8f, Color.parseColor("#FACC15")) })
@@ -536,7 +536,7 @@ object Kokpit2NavRenderer {
             else listOf(Item(26f) { x -> tri(c, x, base, 26f, capH, gr, gradeColor(gr)) }, txt(fmt("%.0f", gr), vs, WHITE, base), txt("%", 20f, UNIT, base, false))
         // pozycje z wzorcow najszerszych wartosci (nie z biezacych) - kolumny stoja w miejscu
         val tempRef = 14f + 4f + w("-88°", vs)
-        val wxRef = 30f + 4f + w("88%", 36f) + 4f + w("88′", 20f)
+        val wxRef = 30f + 4f + w("88%", 32f) + 4f + w("88′", 18f)
         val grRef = 26f + 4f + w("-88", vs) + 4f + w("%", 20f, false)
         val xTemp = 8f
         val xWx = xTemp + tempRef + 6f
@@ -613,11 +613,11 @@ object Kokpit2NavRenderer {
     /** znak nastepnego manewru: ikona + odleglosc (ta sama wielkosc co wartosci wiersza); szerokosc stala - uklad nie skacze */
     private fun turnItem(c: Canvas, d: KokpitNavData, base: Float, vs0: Float, maxW: Float = Float.MAX_VALUE): Item {
         // wielkosc dopasowana raz do stalej kolumny (wzorzec 888 km) - nie zalezy od biezacej wartosci
-        fun fw(sz: Float) = 36f * sz / vs0 + 3f + w("888", sz) + 2f + w("km", 20f * sz / vs0, false)
+        fun fw(sz: Float) = 30f * sz / vs0 + 3f + w("888", sz) + 2f + w("km", 16f * sz / vs0, false)
         var vs = vs0
         while (vs > 24f && fw(vs) > maxW) vs -= 1f
-        val iconS = 36f * vs / vs0
-        val us = 20f * vs / vs0
+        val iconS = 30f * vs / vs0
+        val us = 16f * vs / vs0
         val fullW = fw(vs)
         val kind = d.turnKind; val dist = d.turnDistM
         if (kind == null || dist == null) return Item(fullW) { }
