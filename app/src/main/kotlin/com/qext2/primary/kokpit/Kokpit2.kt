@@ -198,7 +198,7 @@ object Kokpit2InstRenderer {
         val pv = d.powerW?.toString() ?: "—"
         val cp = d.cpW; val pw = d.powerW
         val zone = if (pw != null && cp != null && cp > 0f) { val r = pw / cp; var i = 0; for (kk in PZ.indices) if (r >= PZ[kk].first) i = kk; i } else null
-        fun vBlock(sz: Float) = w(sInt, sz) + (if (sDec.isNotEmpty()) w(sDec, sz * DEC) else 0f) + 2f + 14f
+        fun vBlock(sz: Float) = w(sInt, sz) + (if (sDec.isNotEmpty()) w(sDec, sz * DEC) else 0f) + 1f + 14f
         fun wBlock(sz: Float) = w(pv, sz) + 3f + unitWWidth(zone)
         var vs = 90f
         while (vs > 44f && (cx + g + vBlock(vs) > gearLeft - 6f || cx - g - wBlock(vs) < wRight + 6f)) vs -= 1f
@@ -213,7 +213,7 @@ object Kokpit2InstRenderer {
         var x = cx + g
         t(c, sInt, x, base, vs, spCol); x += w(sInt, vs)
         if (sDec.isNotEmpty()) { val ds = vs * DEC; t(c, sDec, x, top + ds * CAP, ds, spCol); x += w(sDec, ds) }
-        unitV(c, x + 2f + 14f, top, base)
+        unitV(c, x + 1f, top, base)
     }
 
     /** szerokosc bloku piorun + numer strefy (W pod spodem jest wezsze) */
@@ -224,12 +224,11 @@ object Kokpit2InstRenderer {
     private const val ZSX = 0.8f
 
     /** V nad km/h; prawa krawedz kolumny = right; gora = gorna krawedz cyfr */
-    private fun unitV(c: Canvas, right: Float, top: Float, base: Float) {
-        val colW = 14f
-        val mx = right - colW / 2f
-        t(c, "V", mx, top + 22f * CAP, 22f, UNIT, true, Paint.Align.CENTER)
-        t(c, "km", mx, base - 11f * 0.95f, 11f, UNIT, false, Paint.Align.CENTER)
-        t(c, "/h", mx, base, 11f, UNIT, false, Paint.Align.CENTER)
+    private fun unitV(c: Canvas, left: Float, top: Float, base: Float) {
+        // V nad km/h, wyrownane do lewej = tuz przy wartosci predkosci
+        t(c, "V", left, top + 22f * CAP, 22f, UNIT, true)
+        t(c, "km", left, base - 11f * 0.95f, 11f, UNIT, false)
+        t(c, "/h", left, base, 11f, UNIT, false)
     }
 
     /** piorun + numer strefy (oba w kolorze strefy), pod nimi W; lewa krawedz = left; gora = gorna krawedz cyfr */
@@ -238,7 +237,7 @@ object Kokpit2InstRenderer {
         val zc = if (zone != null) Color.parseColor(PZ[zone].second) else UNIT
         bolt(c, left, top, bh, zc)
         if (zone != null) { tp.textScaleX = ZSX; t(c, (zone + 1).toString(), left + bh * 14f / 22f - 1f, top + bh, bh / CAP, zc); tp.textScaleX = 1f }
-        t(c, "W", left + 1f, base, 17f, UNIT, false)
+        t(c, "W", left + unitWWidth(zone), base, 17f, UNIT, false, Paint.Align.RIGHT)   // W tuz przy cyfrach mocy
     }
 
     private fun routeBar(c: Canvas, rb: RouteBar, l: Float, r: Float, top: Float, bot: Float, vw: Float) {
