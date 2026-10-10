@@ -67,7 +67,8 @@ object Kokpit2Demo {
     fun nav(d: KokpitNavData): KokpitNavData {
         val rel = d.windRelDeg ?: return d
         val ws = d.windMps ?: 4f
-        return d.copy(windSignedMps = (ws * kotlin.math.cos(Math.toRadians(rel.toDouble()))).toFloat(), windTotalMps = ws)
+        // strzalka = kierunek wiatru wzgledem jazdy: w gore (0 st.) wieje w plecy, w dol w twarz -> czolowy = -ws*cos
+        return d.copy(windSignedMps = (-ws * kotlin.math.cos(Math.toRadians(rel.toDouble()))).toFloat(), windTotalMps = ws)
     }
 }
 
@@ -127,8 +128,8 @@ object Kokpit2InstRenderer {
 
     private fun draw(c: Canvas, d: KokpitInstData, vw: Float) {
         val cx = vw / 2f
-        val base = 124f            // dolny wiersz 2 px od krawedzi
-        val g = 4f
+        val base = 123f            // dolny wiersz 3 px od krawedzi
+        val g = 5f
         val lx0 = 6f
         val rx = vw - 4f
 
@@ -173,10 +174,8 @@ object Kokpit2InstRenderer {
         val wTxt = wb?.toString() ?: "—"
         val wCol = when { wb == null -> NONE; d.wbalTrend == "rising" -> GOOD; d.wbalTrend == "falling" || d.wbalTrend == "plummeting" -> BAD; else -> WHITE }
         t(c, wTxt, lx0, base, 38f, wCol)
-        val pctX = lx0 + w(wTxt, 38f) + 3f
-        t(c, "%", pctX, base, 17f, UNIT, false)
-        t(c, "W′", pctX, base - 17f * CAP - 4f, 16f, UNIT, false)
-        val wRight = pctX + maxOf(w("%", 17f, false), w("W′", 16f, false))
+        t(c, "W′%", lx0, base - 38f * CAP - 5f, 16f, UNIT, false)
+        val wRight = lx0 + maxOf(w(wTxt, 38f), w("W′%", 16f, false))
 
         // bieg: maly blat, duza koronka, wyrownany do prawej
         t(c, "BIEG", rx, 90f, 15f, UNIT, false, Paint.Align.RIGHT)
@@ -185,7 +184,7 @@ object Kokpit2InstRenderer {
             var x = rx
             val r1 = d.gearRear.toString(); t(c, r1, x, base, 44f, WHITE, true, Paint.Align.RIGHT); x -= w(r1, 44f)
             t(c, "×", x, base, 20f, UNIT, true, Paint.Align.RIGHT); x -= w("×", 20f)
-            val f1 = d.gearFront.toString(); t(c, f1, x, base, 29f, WHITE, true, Paint.Align.RIGHT); x -= w(f1, 29f)
+            val f1 = d.gearFront.toString(); t(c, f1, x, base, 30f, WHITE, true, Paint.Align.RIGHT); x -= w(f1, 30f)
             gearLeft = x
         } else { t(c, "—", rx, base, 44f, NONE, true, Paint.Align.RIGHT); gearLeft = rx - w("—", 44f) }
 
@@ -344,7 +343,7 @@ object Kokpit2NavRenderer {
         c.save(); c.scale(k, k); drawMsg(c, d, vw); c.restore()
         c.save(); c.translate(0f, H - 126f * k); c.scale(k, k)
         rowWeather(c, d, vw, 76f)
-        rowKm(c, d, vw, 124f)
+        rowKm(c, d, vw, 123f)
         c.restore()
         cv = null
         return bmp
