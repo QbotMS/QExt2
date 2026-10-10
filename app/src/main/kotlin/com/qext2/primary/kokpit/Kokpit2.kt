@@ -227,21 +227,27 @@ object Kokpit2InstRenderer {
         // 3) gdy po powiekszeniu brakuje szerokosci -> cyfry zwezone (textScaleX, min. 0.75), nie nizsze
         val unitVW = w("V", 22f) + 1f + w("km", 11f, false)
         val uW = unitWWidth(zone)
+        // WIELKOSC STALA: liczona dla najszerszego przypadku (moc 888, strefa 6, predkosc 88.8, W' 100, bieg 52x52),
+        // nie dla biezacych wartosci - cyfry nie zmieniaja wielkosci ani szerokosci miedzy klatkami
+        val uWRef = unitWWidth(5)
+        val wRightRef = lx0 + maxOf(w("100", 44f), w("W′%", 16f, false))
+        val gearLeftRef = rx - w("52", 44f) - w("×", 20f) - w("52", 30f)
         heavy = true
-        fun digV(sz: Float) = w(sInt, sz) + (if (sDec.isNotEmpty()) w(sDec, sz * DEC) else 0f)
-        val availV = gearLeft - 6f - (cx + g) - 1f - unitVW
-        val availW = (cx - g) - (wRight + 6f) - 3f - uW
+        fun digVRef(sz: Float) = w("88", sz) + w(".8", sz * DEC)
+        val availV = gearLeftRef - 6f - (cx + g) - 1f - unitVW
+        val availW = (cx - g) - (wRightRef + 6f) - 3f - uWRef
         var vs0 = 90f
-        // wielkosc bazowa liczona jak przed przeniesieniem km/h obok V (kolumna 15 px) - szersze jednostki nie zmniejszaja cyfr
         val availV0 = availV + unitVW - 15f
-        while (vs0 > 44f && (digV(vs0) > availV0 || w(pv, vs0) > availW)) vs0 -= 1f
+        while (vs0 > 44f && (digVRef(vs0) > availV0 || w("888", vs0) > availW)) vs0 -= 1f
         val topRowBottom = capTop + big * CAP
-        // cala wysokosc pod gornym wierszem; zwezenie najwyzej do 0.72, inaczej nizej
         var vs = ((base - topRowBottom - 5f) / CAP).coerceAtLeast(vs0)
-        while (vs > vs0 && minOf(availV / digV(vs), availW / w(pv, vs)) < 0.72f) vs -= 1f
-        // zwezenie osobno dla mocy i predkosci - kazda wykorzystuje cala swoja polowe
-        val sxV = minOf(1f, availV / digV(vs)).coerceIn(0.72f, 1f)
-        val sxW = minOf(1f, availW / w(pv, vs)).coerceIn(0.72f, 1f)
+        while (vs > vs0 && minOf(availV / digVRef(vs), availW / w("888", vs)) < 0.72f) vs -= 1f
+        val sxV0 = minOf(1f, availV / digVRef(vs)).coerceIn(0.72f, 1f)
+        val sxW0 = minOf(1f, availW / w("888", vs)).coerceIn(0.72f, 1f)
+        // tylko wartosc szersza niz wzorzec (np. moc 4-cyfrowa) jest dodatkowo zwezona; wielkosc bez zmian
+        fun digV(sz: Float) = w(sInt, sz) + (if (sDec.isNotEmpty()) w(sDec, sz * DEC) else 0f)
+        val sxV = minOf(sxV0, availV / digV(vs)).coerceAtLeast(0.6f)
+        val sxW = minOf(sxW0, availW / w(pv, vs)).coerceAtLeast(0.6f)
         val top = base - vs * CAP
         val pCol = if (d.powerW == null) NONE else d.powerColor
         // predkosc zolta (jak w starych polach: domyslny kolor predkosci #F2C230), moc biala - latwo odroznic
