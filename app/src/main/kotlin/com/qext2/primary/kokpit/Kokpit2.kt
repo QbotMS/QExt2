@@ -182,7 +182,7 @@ object Kokpit2InstRenderer {
         t(c, cv, rx, bigBase, big, if (d.cadence != null) WHITE else NONE, true, Paint.Align.RIGHT)
         t(c, "KAD", rx - w(cv, big) - 5f, capTop + 15f * CAP, 15f, UNIT, false, Paint.Align.RIGHT)
 
-        val ref = 38f
+        val ref = 40f
         val refBase = capTop + ref * CAP
         val npTxt = d.cpe5W?.let { kotlin.math.round(it).toInt().toString() } ?: "—"
         t(c, npTxt, cx - g, refBase, ref, if (d.cpe5W != null) WHITE else NONE, true, Paint.Align.RIGHT)
@@ -241,7 +241,7 @@ object Kokpit2InstRenderer {
         val topRowBottom = capTop + big * CAP
         var vs = (base - topRowBottom - 5f) / CAP
         while (vs > 44f && minOf(availV / digVRef(vs), availW / w("888", vs)) < 0.80f) vs -= 1f
-        vs += 8f   // na sztywno +8 px (decyzja Michala 2026-10-10: +5, potem +3)
+        vs += 10f  // na sztywno +10 px (decyzja Michala 2026-10-10: +5, +3, +2)
         val sxV0 = minOf(1f, availV / digVRef(vs)).coerceAtLeast(0.70f)
         val sxW0 = minOf(1f, availW / w("888", vs)).coerceAtLeast(0.70f)
         // tylko wartosc szersza niz wzorzec (np. moc 4-cyfrowa) jest dodatkowo zwezona; wielkosc bez zmian
