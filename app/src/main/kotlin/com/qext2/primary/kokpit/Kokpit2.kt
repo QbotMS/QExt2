@@ -173,11 +173,11 @@ object Kokpit2InstRenderer {
         var gearRight: Float
         if (d.gearFront != null && d.gearRear != null) {
             var x = 6f
-            val f1 = d.gearFront.toString(); t(c, f1, x, base, 26f, WHITE); x += w(f1, 26f)
-            t(c, "×", x, base, 24f, UNIT); x += w("×", 24f)
-            val r1 = d.gearRear.toString(); t(c, r1, x, base, 42f, WHITE); x += w(r1, 42f)
+            val f1 = d.gearFront.toString(); t(c, f1, x, base, 24f, WHITE); x += w(f1, 24f)
+            t(c, "×", x, base, 20f, UNIT); x += w("×", 20f)
+            val r1 = d.gearRear.toString(); t(c, r1, x, base, 38f, WHITE); x += w(r1, 38f)
             gearRight = x
-        } else { t(c, "—", 6f, base, 42f, NONE); gearRight = 6f + w("—", 42f) }
+        } else { t(c, "—", 6f, base, 38f, NONE); gearRight = 6f + w("—", 38f) }
 
         // W' (prawy dol): % i W' nad nim
         val wb = d.wbalPct
@@ -186,8 +186,8 @@ object Kokpit2InstRenderer {
         val pctW = w("%", 17f, false)
         t(c, "%", rx, base, 17f, UNIT, false, Paint.Align.RIGHT)
         t(c, "W′", rx, base - 17f * CAP - 4f, 16f, UNIT, false, Paint.Align.RIGHT)
-        val wLeft = rx - pctW - 3f - w(wTxt, 50f)
-        t(c, wTxt, rx - pctW - 3f, base, 50f, wCol, true, Paint.Align.RIGHT)
+        val wLeft = rx - pctW - 3f - w(wTxt, 42f)
+        t(c, wTxt, rx - pctW - 3f, base, 42f, wCol, true, Paint.Align.RIGHT)
 
         // predkosc i moc tej samej wielkosci: najwieksza, przy ktorej V miesci sie za biegiem, a W przed W'
         val v10 = d.speedKmh?.let { kotlin.math.round(it * 10f).toInt() }
@@ -198,26 +198,30 @@ object Kokpit2InstRenderer {
         val zone = if (pw != null && cp != null && cp > 0f) { val r = pw / cp; var i = 0; for (kk in PZ.indices) if (r >= PZ[kk].first) i = kk; i } else null
         fun vBlock(sz: Float) = w(sInt, sz) + (if (sDec.isNotEmpty()) w(sDec, sz / 2f) else 0f) + 3f + 22f
         fun wBlock(sz: Float) = w(pv, sz) + 3f + unitWWidth(zone)
-        var vs = 76f
-        while (vs > 44f && (cx - g - vBlock(vs) < gearRight + 6f || cx + g + wBlock(vs) > wLeft - 6f)) vs -= 1f
+        // V i W niezaleznie: kazda liczba tak duza, jak pozwala jej polowa (min. 8 px od biegu / od W')
+        var vsV = 76f
+        while (vsV > 44f && cx - g - vBlock(vsV) < gearRight + 8f) vsV -= 1f
+        var vsW = 76f
+        while (vsW > 44f && cx + g + wBlock(vsW) > wLeft - 8f) vsW -= 1f
         val spCol = if (d.speedKmh != null) WHITE else NONE
-        val digitTop = base - vs * CAP
-        val ds = vs / 2f
+        val topV = base - vsV * CAP
+        val ds = vsV / 2f
         var x = cx - g
-        if (sDec.isNotEmpty()) { t(c, sDec, x, digitTop + ds * CAP, ds, spCol, true, Paint.Align.RIGHT); x -= w(sDec, ds) }
-        t(c, sInt, x, base, vs, spCol, true, Paint.Align.RIGHT); x -= w(sInt, vs)
-        unitV(c, x - 3f, digitTop, base)
+        if (sDec.isNotEmpty()) { t(c, sDec, x, topV + ds * CAP, ds, spCol, true, Paint.Align.RIGHT); x -= w(sDec, ds) }
+        t(c, sInt, x, base, vsV, spCol, true, Paint.Align.RIGHT); x -= w(sInt, vsV)
+        unitV(c, x - 3f, topV, base)
         // moc: od srodka w prawo, kolor z oceny tempa (PacingEngine)
         val pCol = if (d.powerW == null) NONE else d.powerColor
-        t(c, pv, cx + g, base, vs, pCol)
-        unitW(c, cx + g + w(pv, vs) + 3f, digitTop, base, zone)
+        t(c, pv, cx + g, base, vsW, pCol)
+        unitW(c, cx + g + w(pv, vsW) + 3f, base - vsW * CAP, base, zone)
     }
 
     /** szerokosc bloku piorun + numer strefy (W pod spodem jest wezsze) */
     private fun unitWWidth(zone: Int?): Float {
         val bh = 33f
-        return bh * 15f / 22f + 1f + (if (zone != null) w((zone + 1).toString(), bh / CAP) else 0f)
+        return bh * 15f / 22f + 1f + (if (zone != null) w((zone + 1).toString(), bh / CAP) * ZSX else 0f)
     }
+    private const val ZSX = 0.8f
 
     /** V nad km/h; prawa krawedz kolumny = right; gora = gorna krawedz cyfr */
     private fun unitV(c: Canvas, right: Float, top: Float, base: Float) {
@@ -233,7 +237,7 @@ object Kokpit2InstRenderer {
         val bh = 33f
         val zc = if (zone != null) Color.parseColor(PZ[zone].second) else UNIT
         bolt(c, left, top, bh, zc)
-        if (zone != null) t(c, (zone + 1).toString(), left + bh * 15f / 22f + 1f, top + bh, bh / CAP, zc)
+        if (zone != null) { tp.textScaleX = ZSX; t(c, (zone + 1).toString(), left + bh * 15f / 22f + 1f, top + bh, bh / CAP, zc); tp.textScaleX = 1f }
         t(c, "W", left + 1f, base, 17f, UNIT, false)
     }
 
