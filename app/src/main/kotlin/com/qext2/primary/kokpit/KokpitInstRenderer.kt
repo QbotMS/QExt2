@@ -17,6 +17,8 @@ data class KokpitInstData(
     val cpW: Float? = null,
     val cpe5W: Float? = null,
     val powerColor: Int = Color.WHITE,
+    /** tlo alarmu mocy (> pulap tempa > 30 s), 0 = brak; kolor cyfry jest wtedy kontrastowy (czarny) */
+    val powerBg: Int = 0,
     val speedKmh: Float? = null,
     val avgSpeedKmh: Float? = null,
     val speedColor: Int = Color.parseColor("#F2C230"),

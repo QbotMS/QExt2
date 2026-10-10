@@ -314,6 +314,8 @@ object Kokpit2InstRenderer {
         tp.textScaleX = sxW
         tp.letterSpacing = lsW
         // moc: do srodka z lewej, kolor z oceny tempa (PacingEngine)
+        // ALARM (> pulap > 30 s): czerwone tlo pod cyframi, cyfry kontrastowe (bez tla bylyby czarne na ciemnym)
+        if (d.powerBg != 0 && d.powerW != null) { val pw0 = w(pv, vs); fp.color = d.powerBg; c.drawRoundRect(RectF(cx - g - pw0 - 5f, top - 5f, cx - g + 4f, base + 4f), 8f, 8f, fp) }
         t(c, pv, cx - g, base, vs, pCol, true, Paint.Align.RIGHT)
         tp.textScaleX = sxV
         tp.letterSpacing = lsV

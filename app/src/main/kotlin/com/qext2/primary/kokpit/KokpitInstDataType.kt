@@ -155,6 +155,7 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
             if5 = s.ifEff5Live.takeIf { it > 0f },
             wbalTrend = s.wBalanceTrend,
             powerColor = p.powerColor,
+            powerBg = p.powerBgColor,
             speedKmh = speed,
             avgSpeedKmh = (agg?.getKarooAvgSpeedKmh()?.toFloat()?.takeIf { it > 0f }
                 ?: (if (s.movingElapsedSec > 60L) s.distanceKm / (s.movingElapsedSec / 3600f) else null))?.takeIf { it >= 1f },
