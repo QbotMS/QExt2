@@ -208,7 +208,7 @@ object Kokpit2InstRenderer {
     private fun draw(c: Canvas, d: KokpitInstData, vw: Float, ext: Float) {
         val cx = vw / 2f
         val base = 123f + ext      // dolny wiersz 3 px od dolnej krawedzi (belka zostaje u gory)
-        val g = 5f
+        val g = 9f   // odstep mocy i predkosci od kreski srodkowej (byl 5)
         val lx0 = 6f
         val rx = vw - 4f
 
@@ -552,7 +552,7 @@ object Kokpit2NavRenderer {
         // manewr moze z niego korzystac; stoi 6 px przed wzorcem nachylenia
         // zmierzone na Karoo (build 290): najszersza pogoda (burza 80% 15') konczy sie 13 px przed koncem wzorca,
         // najszersze nachylenie (-12 %) zaczyna sie 17 px za poczatkiem wzorca -> manewr: 8 px od pogody, 6 px od nachylenia
-        val turnL = xWx + wxRef - 13f + 8f
+        val turnL = xWx + wxRef - 13f + 18f   // 18 px od najszerszej pogody (bylo 8)
         val turnR = xGr + 17f - 6f
         val turn = turnItem(c, d, base, vs, turnR - turnL)
         val xTurn = turnL
