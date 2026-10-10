@@ -550,8 +550,12 @@ object Kokpit2NavRenderer {
         // manewr odsuniety od pogody (18 px), stoi tuz przed nachyleniem
         // wzorce pogody/nachylenia maja ok. 13 px zapasu (zmierzone na Karoo: burza 80% 15' konczy sie 13 px przed wzorcem) -
         // manewr moze z niego korzystac; stoi 6 px przed wzorcem nachylenia
-        val turn = turnItem(c, d, base, vs, xGr - (xWx + wxRef) + 4f)
-        val xTurn = xGr - 6f - turn.width
+        // zmierzone na Karoo (build 290): najszersza pogoda (burza 80% 15') konczy sie 13 px przed koncem wzorca,
+        // najszersze nachylenie (-12 %) zaczyna sie 17 px za poczatkiem wzorca -> manewr: 8 px od pogody, 6 px od nachylenia
+        val turnL = xWx + wxRef - 13f + 8f
+        val turnR = xGr + 17f - 6f
+        val turn = turnItem(c, d, base, vs, turnR - turnL)
+        val xTurn = turnL
         // nachylenie zakotwiczone do prawej krawedzi (jak temperatura do lewej)
         drawG(tempG, xTemp, 4f); drawG(wx, xWx, 4f); turn.draw(xTurn); drawG(grG, vw - 8f - gw(grG, 4f), 4f)
     }
