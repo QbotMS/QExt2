@@ -72,19 +72,51 @@ Czas: pilny sam 20 s, potem na zmianę co 8 s z kolejnymi; min. 5 s na komunikat
 ## Demo
 Zwykła jazda w normie; co minutę 10 s alarmu (moc > pułap, Z5, W′ 14%, spadek CP, ostrzeżenie w komunikacie, czerwone serce; od 40. s serce pomarańczowe).
 
-## KOKPIT 2 (2026-10-10, budowa 246)
-Nowe pola produkcyjne (stare KOKPIT bez zmian na czas testow):
-- `qext2-kokpit2-nav` — **QExt2 KOKPIT 2 nav** (gorne), `qext2-kokpit2-instr` — **QExt2 KOKPIT 2 instr** (dolne).
-- Kod: `kokpit/Kokpit2.kt` (Kokpit2NavRenderer, Kokpit2InstRenderer, Kokpit2Route, Kokpit2Demo); dane z tych samych
-  `KokpitNavDataType` / `KokpitInstDataType` z parametrem `v2 = true`.
-- Mockup: kanwa „QExt2 — pola Karoo”, plansza **„KOKPIT — v10 ROBOCZA”** (`Kokpit9.dc.html`) + „Komunikat — tlo wg waznosci” (`Komunikaty.dc.html`).
-- Demo: przelacznik w SETUP „KOKPIT 2: dane demo” (pref `kokpit2_demo`, domyslnie wyl.), dziala po ponownym wejsciu na strone z polami.
+## KOKPIT 2 (stan na 2026-10-10, build 299)
+Pola produkcyjne (stare KOKPIT zostają jako testowe, bez demo):
+- `qext2-kokpit2-nav` – **QExt2 KOKPIT 2 nav** (górne), `qext2-kokpit2-instr` – **QExt2 KOKPIT 2 instr** (dolne).
+- Kod: `kokpit/Kokpit2.kt` (Kokpit2NavRenderer, Kokpit2InstRenderer, Kokpit2Route, Kokpit2Demo, TurnClassifier, Kokpit2Fonts),
+  `kokpit/Kokpit2Config.kt` (ustawienia z QBota); dane: `KokpitNavDataType` / `KokpitInstDataType` z `v2 = true`.
+- Demo: SETUP „KOKPIT 2 i STATS v2: dane demo” (pref `kokpit2_demo`) – dotyczy też produkcyjnego STATS v2; działa po ponownym
+  wejściu na stronę z polami. Demo nav: rotacja pogody co 8 s (6 scenariuszy, temp. ujemne, śnieg, burza, mgła) i manewrów co 5 s.
 
-Uklad (474x126, wieksze pole = ta sama skala):
-- nav: komunikat 41 px (tlo: krytyczne bordo #8B0A1A / ostrzezenie zolte #FFC21A z czarnym tekstem / informacja #1E2731),
-  wiersz pogody (temp + opad/niebo | wiatr | nachylenie), wiersz DST/DTD/ETA na dolnej krawedzi (pionowe podpisy).
-- instr: belka trasy na gorze (przejechane #2E7BFF, asfalt #F2F4F7, szuter #FFB300, trudny #FF2A2A, postoje #FF3DF5,
-  pozycja = limonkowe kolo #39FF14), KAD | sr. predkosc | NP 5 | tetno, na dole BIEG (blat maly, koronka duza) | V | W | W′.
-- Moc: kolor liczby z PacingEngine (jak PRIMARY); obok W piorun + nr strefy wg CP, oba w kolorze strefy. Bez lukow.
-- Strzalka wiatru: czerwona = wiatr w twarz (skladowa czolowa >= 3 m/s i >= 70% wiatru), zielona = w plecy, biala = boczny/slaby
-  (`getHeadwindSignedMps`, + w twarz).
+### Wygląd (pole 478×143 na ekranie jazdy, 474×126 na ekranie profilu; skala = szerokość/474)
+- **Czcionka:** Saira Semi Condensed (OFL, `assets/fonts`): SemiBold – wartości, Bold – moc i prędkość; podpisy systemowe
+  (sans-serif-condensed). Odrzucone: Roboto (zwężana), Saira Condensed, Oswald. `CAP = 0.688` (capHeight fontu).
+- **Zasada stałości:** wielkości i pozycje liczone z WZORCÓW najszerszych wartości (moc 888, prędkość 88.8, W′ 88, bieg 52×52,
+  temperatura −18°, nachylenie −18 %) – nic nie „faluje” między klatkami; wartość szersza niż wzorzec jest tylko zwężana.
+- **Nav – pasek komunikatów** u góry; wysokość rośnie z nadmiarem pola. Tło wg poziomu: informacja #1E2731, ostrzeżenie #FFC21A
+  (tekst czarny), krytyczny #8B0A1A. Poziom z ustawień QBota (domyślnie: W′, zjazd = krytyczny; deszcz, jedzenie, zmrok = ostrzeżenie;
+  centrala wg ważności nadawcy).
+- **Nav – wiersz górny (zmienne):** temperatura (termometr graficzny) | pogoda/opad (32/18 px) | **manewr** | nachylenie (do prawej
+  krawędzi). Temperatura i nachylenie 42 px na sztywno; manewr dopasowany do miejsca między pogodą (18 px) a nachyleniem.
+- **Nav – wiersz dolny (stabilne):** DST (z częścią dziesiętną) | DTD (bez „km”) | ETA (pionowe podpisy) | wiatr (do prawej krawędzi;
+  strzałka = kierunek wiatru względem jazdy, m/s jako ułamek). Bez długości trasy.
+- **Instr:** belka trasy na górze (przejechane #2E7BFF, asfalt #F2F4F7, szuter #FFB300, trudne #FF2A2A, postoje #FF3DF5, pozycja –
+  limonkowe koło #39FF14 z czarną obwódką); wiersz: tętno (serce = dryf) | NP 5 | ⌀ prędkość | KAD; dół: W′ % (52 px, podpis nad) |
+  ⚡+strefa (stałe miejsce przy W′) MOC | PRĘDKOŚĆ (żółta #F2C230) V km/h (stałe miejsce przy biegu) | bieg (blat szary 36 px, koronka 52 px).
+  Moc i prędkość tej samej wielkości: cała wysokość pod górnym wierszem + 10 px na sztywno.
+- **Alarm mocy** (> pułap tempa > 30 s): czerwone tło #FF5252 pod cyframi mocy (`KokpitInstData.powerBg`), cyfry czarne.
+
+### Manewry (następny skręt)
+- Odległość: `DataType.Type.DISTANCE_TO_NEXT_TURN` Karoo (agregator: `distToTurnRef`, świeżość 15 s).
+- Rodzaj: `TurnClassifier.classify(RouteLine, pozycja + odległość)` – kierunek drogi 40 m przed / 40 m za punktem:
+  < 20° prosto, < 45° lekko, < 135° skręt, < 160° ostro, ≥ 160° nawrót; **rondo**, gdy na ±35 m droga skręca w obie strony
+  (≥ 40° każda). Test vs Valhalla (trasa 55957534): 19/23 zgodnie, 2 ta sama strona, 2 rondo przy starcie (próg 60° → 40°).
+- Wyświetlanie: ikona + dystans (≤ 950 m w metrach co 10 m, < 100 m co 5 m, wyżej km z przecinkiem); ostro/nawrót na żółto
+  (wyłączalne w ustawieniach). „Prosto” = punkt nawigacji, który przejeżdżasz na wprost (przełącznik ukrywania – do decyzji po testach).
+
+### Ustawienia z QBota (Setup > QExt2 (Karoo))
+- `/ride-readiness` (mcp_server.py, q-bot.service) zwraca `qext2Config`; QExt2 zapisuje (`AthleteDataStore.saveQext2Config`) i ładuje do
+  `Kokpit2Config`. Stosowane: wł/wył i progi komunikatów, kolejność (precedencja), poziom tła, rotacja paska, próg i zasięg zjazdu,
+  reguły kolorów (moc tempo/strefy, W′ trend/poziom, tętno strefa/bpm, prędkość żółta/biała, wiatr progi/biała, manewr, progi ETA).
+  Brak ustawień = dotychczasowe zachowanie. Dok. po stronie QBota: `/opt/qbot/app/docs/QEXT2_CONFIG.md`.
+
+### STATS v2 (ujednolicony z KOKPIT 2)
+- Ta sama czcionka (Saira Semi Condensed), belka trasy w kolorach KOKPIT 2, demo z tego samego przełącznika.
+
+### Dziennik jazdy (`ride_log.txt`, 2 MB + 1 rotacja)
+`START`, `RIDE_STATE`, `VIEW`, `READINESS_FETCH/OK/FAIL`, `QEXT2_CONFIG`, `HTTP_FAIL <usługa> reason=…`, `EF_TYPICAL(_FAIL)`,
+`WX_OK / WX_FAIL / WX_ERR (timeout|http|parse|onError)`, nawierzchnia i POI (`SURFACE_*`, `POI_FETCH*`), `HEADWIND`, `MSG`,
+`TURN_RAW` (surowa odległość od Karoo) i `TURN … kind=` (rozpoznanie), `POWER_ALARM on/off`, `RENDER_FAIL`.
+Znane: pierwsze zapytanie EF po starcie pada (`karoo_system_not_ready`), ponowienie przechodzi.
