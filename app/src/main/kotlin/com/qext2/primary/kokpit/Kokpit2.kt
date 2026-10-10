@@ -213,15 +213,18 @@ object Kokpit2InstRenderer {
         // cala wysokosc pod gornym wierszem; zwezenie najwyzej do 0.72, inaczej nizej
         var vs = ((base - topRowBottom - 5f) / CAP).coerceAtLeast(vs0)
         while (vs > vs0 && minOf(availV / digV(vs), availW / w(pv, vs)) < 0.72f) vs -= 1f
-        val sx = minOf(1f, availV / digV(vs), availW / w(pv, vs)).coerceIn(0.72f, 1f)
+        // zwezenie osobno dla mocy i predkosci - kazda wykorzystuje cala swoja polowe
+        val sxV = minOf(1f, availV / digV(vs)).coerceIn(0.72f, 1f)
+        val sxW = minOf(1f, availW / w(pv, vs)).coerceIn(0.72f, 1f)
         val top = base - vs * CAP
         val pCol = if (d.powerW == null) NONE else d.powerColor
         // predkosc zolta (jak w starych polach: domyslny kolor predkosci #F2C230), moc biala - latwo odroznic
         val spCol = if (d.speedKmh != null) SPEED else NONE
-        tp.textScaleX = sx
+        tp.textScaleX = sxW
         // moc: do srodka z lewej, kolor z oceny tempa (PacingEngine)
         t(c, pv, cx - g, base, vs, pCol, true, Paint.Align.RIGHT)
         val pWid = w(pv, vs)
+        tp.textScaleX = sxV
         // predkosc: od srodka w prawo, czesc dziesietna mniejsza (gora rowno z cyframi)
         var x = cx + g
         t(c, sInt, x, base, vs, spCol); x += w(sInt, vs)
