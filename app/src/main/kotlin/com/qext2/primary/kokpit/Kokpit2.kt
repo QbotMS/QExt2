@@ -201,20 +201,20 @@ object Kokpit2InstRenderer {
         val wb = d.wbalPct
         val wTxt = wb?.toString() ?: "—"
         val wCol = when { wb == null -> NONE; d.wbalTrend == "rising" -> GOOD; d.wbalTrend == "falling" || d.wbalTrend == "plummeting" -> BAD; else -> WHITE }
-        t(c, wTxt, lx0, base, 44f, wCol)   // jak liczba koronki
-        t(c, "W′%", lx0, base - 44f * CAP - 7f, 16f, UNIT, false)
-        val wRight = lx0 + maxOf(w(wTxt, 44f), w("W′%", 16f, false))
+        t(c, wTxt, lx0, base, 52f, wCol)   // jak liczba koronki
+        t(c, "W′%", lx0, base - 52f * CAP - 7f, 16f, UNIT, false)
+        val wRight = lx0 + maxOf(w(wTxt, 52f), w("W′%", 16f, false))
 
         // bieg: maly blat, duza koronka, wyrownany do prawej
-        t(c, "BIEG", rx, base - 44f * CAP - 5f, 15f, UNIT, false, Paint.Align.RIGHT)   // nad cyframi biegu, niezaleznie od czcionki
+        t(c, "BIEG", rx, base - 52f * CAP - 5f, 15f, UNIT, false, Paint.Align.RIGHT)   // nad cyframi biegu, niezaleznie od czcionki
         val gearLeft: Float
         if (d.gearFront != null && d.gearRear != null) {
             var x = rx
-            val r1 = d.gearRear.toString(); t(c, r1, x, base, 44f, WHITE, true, Paint.Align.RIGHT); x -= w(r1, 44f)
+            val r1 = d.gearRear.toString(); t(c, r1, x, base, 52f, WHITE, true, Paint.Align.RIGHT); x -= w(r1, 52f)
             t(c, "×", x, base, 20f, UNIT, true, Paint.Align.RIGHT); x -= w("×", 20f)
-            val f1 = d.gearFront.toString(); t(c, f1, x, base, 30f, WHITE, true, Paint.Align.RIGHT); x -= w(f1, 30f)
+            val f1 = d.gearFront.toString(); t(c, f1, x, base, 36f, WHITE, true, Paint.Align.RIGHT); x -= w(f1, 36f)
             gearLeft = x
-        } else { t(c, "—", rx, base, 44f, NONE, true, Paint.Align.RIGHT); gearLeft = rx - w("—", 44f) }
+        } else { t(c, "—", rx, base, 52f, NONE, true, Paint.Align.RIGHT); gearLeft = rx - w("—", 52f) }
 
         // moc i predkosc: zawsze ta sama, najwieksza mozliwa wielkosc (start 90 px)
         val v10 = d.speedKmh?.let { kotlin.math.round(it * 10f).toInt() }
@@ -230,8 +230,8 @@ object Kokpit2InstRenderer {
         // WIELKOSC STALA: liczona dla najszerszego przypadku (moc 888, strefa 6, predkosc 88.8, W' 100, bieg 52x52),
         // nie dla biezacych wartosci - cyfry nie zmieniaja wielkosci ani szerokosci miedzy klatkami
         val uWRef = unitWWidth(5)
-        val wRightRef = lx0 + maxOf(w("100", 44f), w("W′%", 16f, false))
-        val gearLeftRef = rx - w("52", 44f) - w("×", 20f) - w("52", 30f)
+        val wRightRef = lx0 + maxOf(w("100", 52f), w("W′%", 16f, false))
+        val gearLeftRef = rx - w("52", 52f) - w("×", 20f) - w("52", 36f)
         heavy = true
         fun digVRef(sz: Float) = w("88", sz) + w(".8", sz * DEC)
         val availV = gearLeftRef - 6f - (cx + g) - 1f - unitVW
@@ -248,20 +248,26 @@ object Kokpit2InstRenderer {
         fun digV(sz: Float) = w(sInt, sz) + (if (sDec.isNotEmpty()) w(sDec, sz * DEC) else 0f)
         val sxV = minOf(sxV0, availV / digV(vs)).coerceAtLeast(0.6f)
         val sxW = minOf(sxW0, availW / w(pv, vs)).coerceAtLeast(0.6f)
+        // luz po bokach (wzorzec wezszy niz miejsce) -> wiekszy odstep miedzy cyframi; wartosc stala dla pola
+        val lsW = if (sxW0 >= 1f && sxW >= sxW0) ((availW - w("888", vs)) / (3f * vs)).coerceIn(0f, 0.10f) else 0f
+        val lsV = if (sxV0 >= 1f && sxV >= sxV0) ((availV - digVRef(vs)) / (3f * vs)).coerceIn(0f, 0.10f) else 0f
         val top = base - vs * CAP
         val pCol = if (d.powerW == null) NONE else d.powerColor
         // predkosc zolta (jak w starych polach: domyslny kolor predkosci #F2C230), moc biala - latwo odroznic
         val spCol = if (d.speedKmh != null) SPEED else NONE
         tp.textScaleX = sxW
+        tp.letterSpacing = lsW
         // moc: do srodka z lewej, kolor z oceny tempa (PacingEngine)
         t(c, pv, cx - g, base, vs, pCol, true, Paint.Align.RIGHT)
         val pWid = w(pv, vs)
         tp.textScaleX = sxV
+        tp.letterSpacing = lsV
         // predkosc: od srodka w prawo, czesc dziesietna mniejsza (gora rowno z cyframi)
         var x = cx + g
         t(c, sInt, x, base, vs, spCol); x += w(sInt, vs)
         if (sDec.isNotEmpty()) { val ds = vs * DEC; t(c, sDec, x, top + ds * CAP, ds, spCol); x += w(sDec, ds) }
         tp.textScaleX = 1f
+        tp.letterSpacing = 0f
         heavy = false
         // jednostki stalej wielkosci: piorun+strefa (W pod spodem) z lewej mocy, V km/h z prawej predkosci; gora = gora cyfr
         unitW(c, cx - g - pWid - 3f - uW, top, base, zone)
