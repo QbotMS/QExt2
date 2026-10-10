@@ -173,11 +173,11 @@ object Kokpit2InstRenderer {
         var gearRight: Float
         if (d.gearFront != null && d.gearRear != null) {
             var x = 6f
-            val f1 = d.gearFront.toString(); t(c, f1, x, base, 22f, WHITE); x += w(f1, 22f)
-            t(c, "×", x, base, 18f, UNIT); x += w("×", 18f)
-            val r1 = d.gearRear.toString(); t(c, r1, x, base, 34f, WHITE); x += w(r1, 34f)
+            val f1 = d.gearFront.toString(); t(c, f1, x, base, 28f, WHITE); x += w(f1, 28f)
+            t(c, "×", x, base, 20f, UNIT); x += w("×", 20f)
+            val r1 = d.gearRear.toString(); t(c, r1, x, base, 44f, WHITE); x += w(r1, 44f)
             gearRight = x
-        } else { t(c, "—", 6f, base, 34f, NONE); gearRight = 6f + w("—", 34f) }
+        } else { t(c, "—", 6f, base, 44f, NONE); gearRight = 6f + w("—", 44f) }
 
         // W' (prawy dol): % i W' nad nim
         val wb = d.wbalPct
@@ -196,7 +196,7 @@ object Kokpit2InstRenderer {
         val pv = d.powerW?.toString() ?: "—"
         val cp = d.cpW; val pw = d.powerW
         val zone = if (pw != null && cp != null && cp > 0f) { val r = pw / cp; var i = 0; for (kk in PZ.indices) if (r >= PZ[kk].first) i = kk; i } else null
-        fun vBlock(sz: Float) = w(sInt, sz) + (if (sDec.isNotEmpty()) w(sDec, sz * 0.42f) else 0f) + 3f + 22f
+        fun vBlock(sz: Float) = w(sInt, sz) + (if (sDec.isNotEmpty()) w(sDec, sz * 0.42f) else 0f) + 2f + 14f
         fun wBlock(sz: Float) = w(pv, sz) + 3f + unitWWidth(zone)
         // V i W niezaleznie: kazda liczba tak duza, jak pozwala jej polowa (min. 8 px od biegu / od W')
         // moc i predkosc dominuja: start 90 px, zmniejszane tylko do szerokosci
@@ -204,17 +204,19 @@ object Kokpit2InstRenderer {
         while (vsV > 44f && cx - g - vBlock(vsV) < gearRight + 6f) vsV -= 1f
         var vsW = 90f
         while (vsW > 44f && cx + g + wBlock(vsW) > wLeft - 6f) vsW -= 1f
+        // predkosc i moc zawsze tej samej wielkosci (mniejsza z dwoch dopasowanych)
+        vsV = minOf(vsV, vsW); vsW = vsV
         val spCol = if (d.speedKmh != null) WHITE else NONE
         val topV = base - vsV * CAP
         val ds = vsV * 0.42f
         var x = cx - g
         if (sDec.isNotEmpty()) { t(c, sDec, x, topV + ds * CAP, ds, spCol, true, Paint.Align.RIGHT); x -= w(sDec, ds) }
         t(c, sInt, x, base, vsV, spCol, true, Paint.Align.RIGHT); x -= w(sInt, vsV)
-        unitV(c, x - 3f, topV, base)
+        unitV(c, x - 2f, topV, base)
         // moc: od srodka w prawo, kolor z oceny tempa (PacingEngine)
         val pCol = if (d.powerW == null) NONE else d.powerColor
         t(c, pv, cx + g, base, vsW, pCol)
-        unitW(c, cx + g + w(pv, vsW) + 3f, base - vsW * CAP, base, zone)
+        unitW(c, cx + g + w(pv, vsW) + 3f, base - vsW * CAP - 8f, base, zone)   // piorun+strefa 8 px nad gorna krawedzia cyfr
     }
 
     /** szerokosc bloku piorun + numer strefy (W pod spodem jest wezsze) */
@@ -226,11 +228,11 @@ object Kokpit2InstRenderer {
 
     /** V nad km/h; prawa krawedz kolumny = right; gora = gorna krawedz cyfr */
     private fun unitV(c: Canvas, right: Float, top: Float, base: Float) {
-        val colW = 22f
+        val colW = 14f
         val mx = right - colW / 2f
-        t(c, "V", mx, top + 30f * CAP, 30f, UNIT, true, Paint.Align.CENTER)
-        t(c, "km", mx, base - 13f * 0.95f, 13f, UNIT, false, Paint.Align.CENTER)
-        t(c, "/h", mx, base, 13f, UNIT, false, Paint.Align.CENTER)
+        t(c, "V", mx, top + 22f * CAP, 22f, UNIT, true, Paint.Align.CENTER)
+        t(c, "km", mx, base - 11f * 0.95f, 11f, UNIT, false, Paint.Align.CENTER)
+        t(c, "/h", mx, base, 11f, UNIT, false, Paint.Align.CENTER)
     }
 
     /** piorun + numer strefy (oba w kolorze strefy), pod nimi W; lewa krawedz = left; gora = gorna krawedz cyfr */
@@ -376,7 +378,6 @@ object Kokpit2NavRenderer {
         val fg = if (warn) BLACK else WHITE
         fp.color = bg; c.drawRect(0f, 0f, vw, h, fp)
         var x = 8f
-        if (!crit && !warn) { fp.color = UNIT; c.drawRect(8f, 8f, 12f, 33f, fp); x = 20f }
         val demoW = if (d.demo) w("DEMO", 18f) + 8f else 0f
         val right = vw - 8f - demoW
         val leadCol = if (crit || warn) fg else if (m.kind == MsgKind.NONE) UNIT else WHITE
