@@ -173,6 +173,7 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
         val hw = agg?.getHeadwindRel()
         val ahead = if (segs.isNotEmpty() && total != null) segs.sortedBy { it.kmStart }.filter { it.kmEnd > pos }
             .map { (it.kmEnd - maxOf(it.kmStart, pos)) to RouteMessageEngine.surfColor(it.surface) } else null
+        val nt = agg?.getNextTurn()
         return KokpitNavData(
             msg = msg, doneKm = pos, totalKm = total, leftKm = if (total != null) dtdKm else null,
             duskMs = if (twMs > now) twMs else null, twilightLabel = twLabel, etaMs = eta, ahead = ahead,
@@ -188,6 +189,7 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
             windRelDeg = hw?.first,
             windSignedMps = agg?.getHeadwindSignedMps(),   // KOKPIT 2: kolor strzalki (+ w twarz)
             windTotalMps = agg?.getKarooWindMps(),
+            turnDistM = nt?.first, turnKind = nt?.second,
             sky = rw?.sky?.name,
         )
     }

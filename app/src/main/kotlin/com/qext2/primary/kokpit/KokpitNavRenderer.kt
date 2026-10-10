@@ -32,6 +32,9 @@ data class KokpitNavData(
     /** KOKPIT 2: wiatr czolowy ze znakiem (+ w twarz, - w plecy) i calkowity, m/s - kolor strzalki */
     val windSignedMps: Float? = null,
     val windTotalMps: Float? = null,
+    /** KOKPIT 2: nastepny manewr - odleglosc (m) i rodzaj (LEFT, RIGHT, SLIGHT_*, SHARP_*, UTURN, STRAIGHT, RB_R/RB_S/RB_L/RB_U) */
+    val turnDistM: Double? = null,
+    val turnKind: String? = null,
     /** etykieta nastepnego zdarzenia: "zmrok" albo "świt" (godzina w duskMs) */
     val twilightLabel: String = "zmrok",
     /** postoje >= 10 min: km na trasie */

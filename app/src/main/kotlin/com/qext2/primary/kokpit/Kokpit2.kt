@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.RectF
 import android.graphics.Typeface
 import com.qext2.primary.engine.RideDataAggregator
 import com.qext2.primary.model.StatsRideSnapshot
@@ -68,7 +69,7 @@ object Kokpit2Demo {
     fun nav(d0: KokpitNavData): KokpitNavData {
         // rotacja scenariuszy pogody co 8 s - takze najszersze wartosci (temp. ujemna 2-cyfrowa, wiatr 2-cyfrowy, nachylenie -12%)
         val now = System.currentTimeMillis()
-        val d = when (((now / 8000L) % 6L).toInt()) {
+        val d1 = when (((now / 8000L) % 6L).toInt()) {
             0 -> d0.copy(tempC = 24f, rainNowMmH = null, rainSoon = null, sky = "CLEAR", windMps = 4f)
             1 -> d0.copy(tempC = -7f, rainNowMmH = null, rainSoon = RainSoon(25, 70, 1.5f, "SNOW", 8f), windMps = 6f)
             2 -> d0.copy(tempC = 8f, rainNowMmH = 2.4f, rainSoon = null, windMps = 9f)
@@ -76,6 +77,11 @@ object Kokpit2Demo {
             4 -> d0.copy(tempC = 31f, rainNowMmH = null, rainSoon = RainSoon(15, 80, 6f, "STORM", 4f), windMps = 12f, gradePct = -12f)
             else -> d0.copy(tempC = -12f, rainNowMmH = null, rainSoon = null, sky = "FOG", windMps = 14f, gradePct = 12f)
         }
+        // manewry co 5 s (wszystkie rodzaje, odleglosci w m i km)
+        val tk = listOf("LEFT", "RB_R", "UTURN", "SLIGHT_RIGHT", "SHARP_LEFT", "RB_S", "RIGHT", "RB_L", "STRAIGHT", "SHARP_RIGHT", "SLIGHT_LEFT", "RB_U")
+        val td = listOf(300.0, 1240.0, 80.0, 650.0, 150.0, 450.0, 25.0, 2400.0, 900.0, 60.0, 1800.0, 220.0)
+        val ti = ((now / 5000L) % tk.size).toInt()
+        val d = d1.copy(turnKind = tk[ti], turnDistM = td[ti])
         val rel = d.windRelDeg ?: return d
         val ws = d.windMps ?: 4f
         // strzalka = kierunek wiatru wzgledem jazdy: w gore (0 st.) wieje w plecy, w dol w twarz -> czolowy = -ws*cos
@@ -83,6 +89,42 @@ object Kokpit2Demo {
     }
 }
 
+
+/** Rodzaj manewru z geometrii trasy w punkcie skretu (odleglosc wzdluz trasy w m). */
+object TurnClassifier {
+    private fun bearing(a: Pair<Double, Double>, b: Pair<Double, Double>): Double {
+        val la1 = Math.toRadians(a.first); val la2 = Math.toRadians(b.first); val dl = Math.toRadians(b.second - a.second)
+        val y = kotlin.math.sin(dl) * kotlin.math.cos(la2)
+        val x = kotlin.math.cos(la1) * kotlin.math.sin(la2) - kotlin.math.sin(la1) * kotlin.math.cos(la2) * kotlin.math.cos(dl)
+        return (Math.toDegrees(kotlin.math.atan2(y, x)) + 360.0) % 360.0
+    }
+    private fun diff(a: Double, b: Double): Double { var d = b - a; while (d > 180.0) d -= 360.0; while (d <= -180.0) d += 360.0; return d }
+
+    /** LEFT/RIGHT, SLIGHT_*, SHARP_*, UTURN, STRAIGHT; rondo: RB_R / RB_S / RB_L / RB_U (+ = w prawo) */
+    fun classify(line: com.qext2.primary.weather.RouteLine, at: Double): String? {
+        val len = line.lengthM
+        if (len < 100.0) return null
+        val t = at.coerceIn(0.0, len)
+        val net = diff(bearing(line.at(t - 40.0), line.at(t - 5.0)), bearing(line.at(t + 5.0), line.at(t + 40.0)))
+        // rondo: na +-35 m droga skreca w obie strony (wjazd w prawo, objazd w lewo, wyjazd w prawo)
+        var left = 0.0; var right = 0.0; var prev: Double? = null
+        var s = t - 35.0
+        while (s < t + 35.0) {
+            val h = bearing(line.at(s), line.at(s + 5.0))
+            prev?.let { val dd = diff(it, h); if (dd > 0.0) right += dd else left -= dd }
+            prev = h; s += 5.0
+        }
+        val a = abs(net)
+        return if (left >= 60.0 && right >= 60.0) when { a >= 150.0 -> "RB_U"; net > 30.0 -> "RB_R"; net < -30.0 -> "RB_L"; else -> "RB_S" }
+        else when {
+            a < 20.0 -> "STRAIGHT"
+            a < 45.0 -> if (net > 0.0) "SLIGHT_RIGHT" else "SLIGHT_LEFT"
+            a < 135.0 -> if (net > 0.0) "RIGHT" else "LEFT"
+            a < 160.0 -> if (net > 0.0) "SHARP_RIGHT" else "SHARP_LEFT"
+            else -> "UTURN"
+        }
+    }
+}
 
 /** Czcionka KOKPIT 2: Saira Semi Condensed (OFL, assets/fonts) dla wartosci - SemiBold, moc i predkosc - Bold; podpisy systemowe. */
 object Kokpit2Fonts {
@@ -551,10 +593,11 @@ object Kokpit2NavRenderer {
         val dDec = "." + (d10 % 10).toString()
         val dds = vs * 0.55f
         groups.add(listOf(vlabel(c, "DST", base, capH), txt((d10 / 10).toString(), vs, WHITE, base),
-            Item(w(dDec, dds)) { x -> t(c, dDec, x, base - capH + dds * CAP, dds, WHITE) },
-            txt(d.totalKm?.let { "/" + fmt("%.0f", it) } ?: "km", 22f, UNIT, base, false)))
-        groups.add(d.leftKm?.let { listOf(vlabel(c, "DTD", base, capH), txt(fmt("%.0f", it), vs, WHITE, base), txt("km", 20f, UNIT, base, false)) }
+            Item(w(dDec, dds)) { x -> t(c, dDec, x, base - capH + dds * CAP, dds, WHITE) }))
+        // DTD bez "km" (oczywiste przy pionowym podpisie) - miejsce na znak manewru
+        groups.add(d.leftKm?.let { listOf(vlabel(c, "DTD", base, capH), txt(fmt("%.0f", it), vs, WHITE, base)) }
             ?: listOf(vlabel(c, "DTD", base, capH), txt("—", vs, NONE, base)))
+        groups.add(listOf(turnItem(c, d, base, vs)))
         val eta = d.etaMs; val dl = d.deadlineMs
         val etaCol = if (eta != null && dl != null) when {
             eta > dl -> RED
@@ -565,6 +608,53 @@ object Kokpit2NavRenderer {
         groups.add(if (eta != null) listOf(vlabel(c, "ETA", base, capH), txt(clock(eta), vs, etaCol, base))
             else listOf(vlabel(c, "ETA", base, capH), txt("—", vs, NONE, base)))
         place(groups, 8f, vw - 8f, 2f)
+    }
+
+    /** znak nastepnego manewru: ikona + odleglosc (ta sama wielkosc co wartosci wiersza); szerokosc stala - uklad nie skacze */
+    private fun turnItem(c: Canvas, d: KokpitNavData, base: Float, vs: Float): Item {
+        val iconS = 36f
+        val fullW = iconS + 3f + w("888", vs) + 2f + w("km", 20f, false)
+        val kind = d.turnKind; val dist = d.turnDistM
+        if (kind == null || dist == null) return Item(fullW) { }
+        val warn = kind == "UTURN" || kind == "RB_U" || kind.startsWith("SHARP")
+        val col = if (warn) MSG_WARN else WHITE
+        val num: String; val unit: String
+        if (dist < 950.0) {
+            val m = if (dist < 100.0) (Math.round(dist / 5.0) * 5L) else (Math.round(dist / 10.0) * 10L)
+            num = m.toString(); unit = "m"
+        } else { num = fmt("%.1f", dist / 1000.0).replace('.', ','); unit = "km" }
+        return Item(fullW) { x ->
+            turnIcon(c, kind, x, base - iconS + 1f, iconS, col)
+            t(c, num, x + iconS + 3f, base, vs, col)
+            t(c, unit, x + iconS + 3f + w(num, vs) + 2f, base, 20f, UNIT, false)
+        }
+    }
+
+    /** ikona manewru w kwadracie s x s (siatka 32), lewy-gorny rog (x, y) */
+    private fun turnIcon(c: Canvas, kind: String, x: Float, y: Float, s: Float, col: Int) {
+        val k = s / 32f
+        sp.color = col; sp.strokeWidth = 4f * k; sp.strokeCap = Paint.Cap.ROUND; sp.strokeJoin = Paint.Join.ROUND
+        fun ln(vararg xy: Float) {
+            val p = Path(); p.moveTo(x + xy[0] * k, y + xy[1] * k)
+            var i = 2; while (i < xy.size) { p.lineTo(x + xy[i] * k, y + xy[i + 1] * k); i += 2 }
+            c.drawPath(p, sp)
+        }
+        fun ring(cx: Float, cy: Float) = c.drawCircle(x + cx * k, y + cy * k, 7f * k, sp)
+        when (kind) {
+            "LEFT" -> { val p = Path(); p.moveTo(x + 21f * k, y + 31f * k); p.lineTo(x + 21f * k, y + 15f * k); p.quadTo(x + 21f * k, y + 9f * k, x + 15f * k, y + 9f * k); p.lineTo(x + 5f * k, y + 9f * k); c.drawPath(p, sp); ln(11f, 3f, 5f, 9f, 11f, 15f) }
+            "RIGHT" -> { val p = Path(); p.moveTo(x + 11f * k, y + 31f * k); p.lineTo(x + 11f * k, y + 15f * k); p.quadTo(x + 11f * k, y + 9f * k, x + 17f * k, y + 9f * k); p.lineTo(x + 27f * k, y + 9f * k); c.drawPath(p, sp); ln(21f, 3f, 27f, 9f, 21f, 15f) }
+            "SLIGHT_LEFT" -> { ln(20f, 31f, 20f, 19f, 8f, 7f); ln(7f, 17f, 7f, 6f, 18f, 6f) }
+            "SLIGHT_RIGHT" -> { ln(12f, 31f, 12f, 19f, 24f, 7f); ln(25f, 17f, 25f, 6f, 14f, 6f) }
+            "SHARP_LEFT" -> { ln(22f, 31f, 22f, 7f, 7f, 22f); ln(6f, 12f, 6f, 23f, 17f, 23f) }
+            "SHARP_RIGHT" -> { ln(10f, 31f, 10f, 7f, 25f, 22f); ln(26f, 12f, 26f, 23f, 15f, 23f) }
+            "UTURN" -> { val p = Path(); p.moveTo(x + 23f * k, y + 31f * k); p.lineTo(x + 23f * k, y + 12f * k); p.arcTo(RectF(x + 9f * k, y + 5f * k, x + 23f * k, y + 19f * k), 0f, -180f, false); p.lineTo(x + 9f * k, y + 25f * k); c.drawPath(p, sp); ln(3f, 19f, 9f, 25f, 15f, 19f) }
+            "STRAIGHT" -> { ln(16f, 31f, 16f, 3f); ln(10f, 9f, 16f, 3f, 22f, 9f) }
+            "RB_R" -> { ring(14f, 15f); ln(14f, 31f, 14f, 22f); ln(21f, 15f, 30f, 15f); ln(25f, 10f, 30f, 15f, 25f, 20f) }
+            "RB_S" -> { ring(16f, 17f); ln(16f, 31f, 16f, 24f); ln(16f, 10f, 16f, 1f); ln(11f, 6f, 16f, 1f, 21f, 6f) }
+            "RB_L" -> { ring(18f, 15f); ln(18f, 31f, 18f, 22f); ln(11f, 15f, 2f, 15f); ln(7f, 10f, 2f, 15f, 7f, 20f) }
+            else -> { ring(16f, 12f); ln(20f, 31f, 20f, 18f); ln(12f, 18f, 12f, 30f); ln(7f, 25f, 12f, 30f, 17f, 25f) }   // RB_U
+        }
+        sp.strokeJoin = Paint.Join.MITER
     }
 
     /** trzy litery jedna pod druga: od gornej krawedzi cyfr do linii bazowej */

@@ -115,6 +115,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val civilDawnMsRef = AtomicReference(0L)
     // KOKPIT: pogoda po trasie
     private val routeLineRef = AtomicReference<com.qext2.primary.weather.RouteLine?>(null)
+    private val distToTurnRef = AtomicReference<Double?>(null)
+    private val distToTurnMsRef = AtomicReference(0L)
+    @Volatile private var lastTurnLogKey = ""
     private val routeWxRef = AtomicReference<com.qext2.primary.weather.RouteWx?>(null)
     private val lastWxLatRef = AtomicReference<Double?>(null)
     private val lastWxLonRef = AtomicReference<Double?>(null)
@@ -519,6 +522,22 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 }
             )
         )
+
+        // KOKPIT 2: odleglosc do nastepnego manewru nawigacji (Karoo decyduje, co jest skretem)
+        try {
+            consumerIds.add(
+                karooSystem.addConsumer<OnStreamState>(
+                    params = OnStreamState.StartStreaming(DataType.Type.DISTANCE_TO_NEXT_TURN),
+                    onEvent = { event ->
+                        val s = event.state
+                        if (s is StreamState.Streaming) {
+                            val v = (s.dataPoint.values[DataType.Field.DISTANCE_TO_NEXT_TURN] as? Double)
+                            if (v != null && v.isFinite() && v >= 0.0) { distToTurnRef.set(v); distToTurnMsRef.set(System.currentTimeMillis()) }
+                        }
+                    }
+                )
+            )
+        } catch (e: Exception) { com.qext2.primary.util.RideFileLog.append("TURN_SUB_FAIL ${e.message}") }
 
         consumerIds.add(
             karooSystem.addConsumer<OnStreamState>(
@@ -1708,6 +1727,19 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         val sp = headwindSpeedMpsRef.get() ?: return null
         if (!sp.isFinite() || kotlin.math.abs(sp) > 60.0) return null
         return (((d % 360.0) + 360.0) % 360.0).toInt() to kotlin.math.abs(sp).toFloat()
+    }
+
+    /** KOKPIT 2: nastepny manewr = (odleglosc m z DISTANCE_TO_NEXT_TURN Karoo, rodzaj z geometrii trasy); null = brak */
+    fun getNextTurn(): Pair<Double, String>? {
+        if (System.currentTimeMillis() - distToTurnMsRef.get() > 15_000L) return null
+        val dist = distToTurnRef.get() ?: return null
+        if (dist > 100_000.0) return null
+        val line = routeLineRef.get() ?: return null
+        val pos = getRoutePositionM() ?: return null
+        val kind = try { com.qext2.primary.kokpit.TurnClassifier.classify(line, pos + dist) } catch (_: Exception) { null } ?: return null
+        val key = "${((pos + dist) / 20.0).toInt()}|$kind"
+        if (key != lastTurnLogKey) { lastTurnLogKey = key; com.qext2.primary.util.RideFileLog.append("TURN at=${(pos + dist).toInt()}m dist=${dist.toInt()}m kind=$kind") }
+        return dist to kind
     }
 
     fun getLongStopsKm(): List<Double> = try { etaEngine.longStopsKm() } catch (_: Exception) { emptyList() }
