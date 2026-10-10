@@ -226,30 +226,29 @@ object Kokpit2InstRenderer {
         val zone = if (pw != null && cp != null && cp > 0f) { val r = pw / cp; var i = 0; for (kk in PZ.indices) if (r >= PZ[kk].first) i = kk; i } else null
         // 1) wielkosc dopasowana do szerokosci, 2) cyfry wyzsze o 8 px (gora tam, gdzie byl piorun+strefa),
         // 3) gdy po powiekszeniu brakuje szerokosci -> cyfry zwezone (textScaleX, min. 0.75), nie nizsze
-        val unitVW = w("V", 22f) + 1f + w("km", 11f, false)
-        val uW = unitWWidth(zone)
-        // WIELKOSC STALA: liczona dla najszerszego przypadku (moc 888, strefa 6, predkosc 88.8, W' 100, bieg 52x52),
-        // nie dla biezacych wartosci - cyfry nie zmieniaja wielkosci ani szerokosci miedzy klatkami
+        // JEDNOSTKI NA STALE (nie ruszaja sie z wartoscia): piorun+strefa przyklejone do W',
+        // V km/h przyklejone do biegu (km/h wchodzi nad cyfry blatu)
         val uWRef = unitWWidth(5)
         val wRightRef = lx0 + maxOf(w("88", 52f), w("W′%", 16f, false))
         val gearLeftRef = rx - w("52", 52f) - w("×", 20f) - w("52", 36f)
+        val xUnitW = wRightRef + 4f
+        val xUnitV = gearLeftRef - 2f - w("V", 22f)
         heavy = true
+        // WIELKOSC STALA dla pola: wzorzec najszerszego przypadku (moc 888, predkosc 88.8), nie biezace wartosci
         fun digVRef(sz: Float) = w("88", sz) + w(".8", sz * DEC)
-        val availV = gearLeftRef - 6f - (cx + g) - 1f - unitVW
-        val availW = (cx - g) - (wRightRef + 6f) - 3f - uWRef
-        var vs0 = 90f
-        val availV0 = availV + unitVW - 15f
-        while (vs0 > 44f && (digVRef(vs0) > availV0 || w("888", vs0) > availW)) vs0 -= 1f
+        val availW = (cx - g) - (xUnitW + uWRef + 4f)
+        val availV = (xUnitV - 4f) - (cx + g)
         val topRowBottom = capTop + big * CAP
-        var vs = ((base - topRowBottom - 5f) / CAP).coerceAtLeast(vs0)
-        while (vs > vs0 && minOf(availV / digVRef(vs), availW / w("888", vs)) < 0.80f) vs -= 1f
-        val sxV0 = minOf(1f, availV / digVRef(vs)).coerceIn(0.80f, 1f)
-        val sxW0 = minOf(1f, availW / w("888", vs)).coerceIn(0.80f, 1f)
+        var vs = (base - topRowBottom - 5f) / CAP
+        while (vs > 44f && minOf(availV / digVRef(vs), availW / w("888", vs)) < 0.80f) vs -= 1f
+        vs += 5f   // na sztywno +5 px (decyzja Michala 2026-10-10)
+        val sxV0 = minOf(1f, availV / digVRef(vs)).coerceAtLeast(0.70f)
+        val sxW0 = minOf(1f, availW / w("888", vs)).coerceAtLeast(0.70f)
         // tylko wartosc szersza niz wzorzec (np. moc 4-cyfrowa) jest dodatkowo zwezona; wielkosc bez zmian
         fun digV(sz: Float) = w(sInt, sz) + (if (sDec.isNotEmpty()) w(sDec, sz * DEC) else 0f)
         val sxV = minOf(sxV0, availV / digV(vs)).coerceAtLeast(0.6f)
         val sxW = minOf(sxW0, availW / w(pv, vs)).coerceAtLeast(0.6f)
-        // luz po bokach (wzorzec wezszy niz miejsce) -> wiekszy odstep miedzy cyframi; wartosc stala dla pola
+        // luz po bokach -> wiekszy odstep miedzy cyframi; wartosc stala dla pola
         val lsW = if (sxW0 >= 1f && sxW >= sxW0) ((availW - w("888", vs)) / (3f * vs)).coerceIn(0f, 0.10f) else 0f
         val lsV = if (sxV0 >= 1f && sxV >= sxV0) ((availV - digVRef(vs)) / (3f * vs)).coerceIn(0f, 0.10f) else 0f
         val top = base - vs * CAP
@@ -260,19 +259,17 @@ object Kokpit2InstRenderer {
         tp.letterSpacing = lsW
         // moc: do srodka z lewej, kolor z oceny tempa (PacingEngine)
         t(c, pv, cx - g, base, vs, pCol, true, Paint.Align.RIGHT)
-        val pWid = w(pv, vs)
         tp.textScaleX = sxV
         tp.letterSpacing = lsV
         // predkosc: od srodka w prawo, czesc dziesietna mniejsza (gora rowno z cyframi)
         var x = cx + g
         t(c, sInt, x, base, vs, spCol); x += w(sInt, vs)
-        if (sDec.isNotEmpty()) { val ds = vs * DEC; t(c, sDec, x, top + ds * CAP, ds, spCol); x += w(sDec, ds) }
+        if (sDec.isNotEmpty()) { val ds = vs * DEC; t(c, sDec, x, top + ds * CAP, ds, spCol) }
         tp.textScaleX = 1f
         tp.letterSpacing = 0f
         heavy = false
-        // jednostki stalej wielkosci: piorun+strefa (W pod spodem) z lewej mocy, V km/h z prawej predkosci; gora = gora cyfr
-        unitW(c, cx - g - pWid - 3f - uW, top, base, zone)
-        unitV(c, x + 1f, top, base)
+        unitW(c, xUnitW, top, base, zone)
+        unitV(c, xUnitV, top, base)
     }
 
     /** szerokosc bloku piorun + numer strefy (W pod spodem jest wezsze) */
