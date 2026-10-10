@@ -392,7 +392,7 @@ object StatsV2Renderer {
                 fp.color = Color.parseColor("#FF3DF5"); c.drawRect(sx0 - F(3f), bt, sx0 + F(3f), bb, fp)   // postoje - magenta jak KOKPIT 2
             }
             // pozycja: limonkowe kolo z czarna obwodka - jak KOKPIT 2
-            val mr = (bb - bt) / 2f + F(6f); val mx = fx.coerceIn(l + mr, rr - mr)
+            val mr = (bb - bt) * 0.36f; val mx = fx.coerceIn(l + mr, rr - mr)   // kolo mniejsze niz wysokosc belki
             fp.color = PILL; c.drawCircle(mx, (bt + bb) / 2f, mr, fp)
             fp.color = Color.parseColor("#39FF14"); c.drawCircle(mx, (bt + bb) / 2f, mr - F(3f), fp)
         } else {
