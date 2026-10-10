@@ -541,7 +541,7 @@ object Kokpit2NavRenderer {
         val xTemp = 8f
         val xWx = xTemp + tempRef + 6f
         val xGr = vw - 8f - grRef
-        val turn = turnItem(c, d, base, vs, xGr - (xWx + wxRef) - 16f)   // min. 8 px odstepu z obu stron
+        val turn = turnItem(c, d, base, vs, xGr - (xWx + wxRef) - 4f)   // wielkosc jak nachylenie (42 px), min. 2 px od wzorcow sasiadow
         val xTurn = ((xWx + wxRef) + xGr) / 2f - turn.width / 2f
         // nachylenie zakotwiczone do prawej krawedzi (jak temperatura do lewej)
         drawG(tempG, xTemp, 4f); drawG(wx, xWx, 4f); turn.draw(xTurn); drawG(grG, vw - 8f - gw(grG, 4f), 4f)
