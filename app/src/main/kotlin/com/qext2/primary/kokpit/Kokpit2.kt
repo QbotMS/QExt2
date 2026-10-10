@@ -501,7 +501,13 @@ object Kokpit2NavRenderer {
 
     // ---------- gorny wiersz (zmienne): temperatura | pogoda | manewr | nachylenie - STALE KOLUMNY ----------
     private fun rowWeather(c: Canvas, d: KokpitNavData, vw: Float, base: Float) {
-        val vs = 42f
+        // JEDNA wielkosc dla temperatury, manewru i nachylenia: najwieksza (do 42 px), przy ktorej wzorce
+        // najszerszych wartosci mieszcza sie w wierszu - liczona raz z wzorcow, nie z biezacych wartosci
+        val wxRef0 = 30f + 4f + w("88%", 32f) + 4f + w("88′", 18f)
+        fun rowW(sz: Float) = (16f + 4f + w("-88°", sz)) + 6f + wxRef0 + 8f +
+            (30f + 3f + w("888", sz) + 2f + w("km", 16f, false)) + 8f + (26f + 4f + w("-88", sz) + 4f + w("%", 20f, false))
+        var vs = 42f
+        while (vs > 28f && rowW(vs) > vw - 16f) vs -= 1f
         val capH = vs * CAP
         val tempG = listOf(Item(16f) { x -> thermo(c, x, base, 16f, capH, LBL) },
             if (d.tempC != null) txt(fmt("%.0f", d.tempC) + "°", vs, WHITE, base) else txt("—", vs, NONE, base))
