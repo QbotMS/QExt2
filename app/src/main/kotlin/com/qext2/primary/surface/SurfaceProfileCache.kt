@@ -17,6 +17,9 @@ import java.net.URL
 import kotlin.math.abs
 
 private const val TAG = "QEXT_SURFACE"
+/** wpis do logcat i do dziennika jazdy (ride_log) - przebieg pobierania nawierzchni i POI z QBota */
+private fun logR(m: String) { Log.i(TAG, m); com.qext2.primary.util.RideFileLog.append(m) }
+private fun logW(m: String) { Log.w(TAG, m); com.qext2.primary.util.RideFileLog.append(m) }
 
 /**
  * Segment nawierzchni z profilu QBota.
@@ -85,7 +88,7 @@ class SurfaceProfileCache(
         val newHash = polyline.hashCode()
         if (newHash == lastPolylineHash) return  // ta sama trasa, nic nie rób
 
-        Log.i(TAG, "SURFACE_CACHE new polyline hash=$newHash route='$routeName'")
+        logR("SURFACE_CACHE new polyline hash=$newHash route='$routeName'")
         clearCache()
         lastPolylineHash = newHash
 
@@ -145,10 +148,9 @@ class SurfaceProfileCache(
     ) {
         val url = "$qbotBaseUrl/api/poi/by-name?name=" + java.net.URLEncoder.encode(routeName, "UTF-8")
         httpGet(url, mapOf("Authorization" to "Bearer $qbotBearer")) { code, body ->
-            if (gen != generation) { Log.i(TAG, "POI_FETCH stale gen=$gen"); return@httpGet }
+            if (gen != generation) { logR("POI_FETCH stale gen=$gen"); return@httpGet }
             if (code != 200 || body == null) {
-                Log.w(TAG, "POI_FETCH failed status=$code attempt=$attempt")
-                com.qext2.primary.util.RideFileLog.append("POI_FETCH failed status=$code attempt=$attempt")
+                logW("POI_FETCH failed status=$code attempt=$attempt")
                 if (attempt + 1 < MAX_ATTEMPTS) retryScope.launch {
                     delay(retryDelayMs(attempt))
                     if (gen == generation) fetchPoisViaKaroo(routeName, httpGet, gen, attempt + 1)
@@ -163,9 +165,9 @@ class SurfaceProfileCache(
                     out.add(PoiPoint(o.getDouble("km").toFloat(), o.optString("cat"), o.optString("name"), if (o.isNull("today")) null else o.optString("today")))
                 }
                 pois = out.sortedBy { it.km }
-                Log.i(TAG, "POI_FETCH OK pois=${pois.size} route='$routeName'")
+                logR("POI_FETCH OK pois=${pois.size} route='$routeName'")
             } catch (e: Exception) {
-                Log.w(TAG, "POI_FETCH parse_error msg=${e.message}")
+                logW("POI_FETCH parse_error msg=${e.message}")
             }
         }
     }
@@ -190,7 +192,7 @@ class SurfaceProfileCache(
         hasQBotData = false
         lastPolylineHash = null
         _currentSurface.update { SurfaceType.PAVED }
-        Log.i(TAG, "SURFACE_CACHE cleared")
+        logR("SURFACE_CACHE cleared")
     }
 
     private fun fetchViaKaroo(
@@ -201,9 +203,9 @@ class SurfaceProfileCache(
     ) {
         val url = "$qbotBaseUrl/api/surface/by-name?name=" +
             java.net.URLEncoder.encode(routeName, "UTF-8")
-        Log.i(TAG, "SURFACE_FETCH via_karoo start route='$routeName'")
+        logR("SURFACE_FETCH via_karoo start route='$routeName'")
         httpGet(url, mapOf("Authorization" to "Bearer $qbotBearer")) { code, body ->
-            if (gen != generation) { Log.i(TAG, "SURFACE_FETCH stale gen=$gen"); return@httpGet }
+            if (gen != generation) { logR("SURFACE_FETCH stale gen=$gen"); return@httpGet }
             val ok = code == 200 && body != null && parseSurfaceJson(body).isNotEmpty()
             com.qext2.primary.util.RideFileLog.append("SURFACE_FETCH status=$code ok=$ok attempt=$attempt route='$routeName'")
             if (!ok && attempt + 1 < MAX_ATTEMPTS) retryScope.launch {
@@ -212,15 +214,15 @@ class SurfaceProfileCache(
                 if (gen == generation) fetchViaKaroo(routeName, httpGet, gen, attempt + 1)
             }
             if (code != 200 || body == null) {
-                Log.w(TAG, "SURFACE_FETCH via_karoo failed status=$code")
+                logW("SURFACE_FETCH via_karoo failed status=$code")
             } else {
                 val parsed = parseSurfaceJson(body)
                 if (parsed.isNotEmpty()) {
                     segments = parsed.sortedBy { it.kmStart }
                     hasQBotData = true
-                    Log.i(TAG, "SURFACE_FETCH OK segments=${segments.size} route='$routeName'")
+                    logR("SURFACE_FETCH OK segments=${segments.size} route='$routeName'")
                 } else {
-                    Log.w(TAG, "SURFACE_FETCH via_karoo empty_profile")
+                    logW("SURFACE_FETCH via_karoo empty_profile")
                 }
             }
         }
@@ -242,13 +244,13 @@ class SurfaceProfileCache(
                 }
                 val code = conn.responseCode
                 if (code == 202) {
-                    Log.i(TAG, "SURFACE_FETCH not_ready attempt=$attempt, retry in 30s")
+                    logR("SURFACE_FETCH not_ready attempt=$attempt, retry in 30s")
                     conn.disconnect()
                     delay(30_000L)
                     continue
                 }
                 if (code != 200) {
-                    Log.w(TAG, "SURFACE_FETCH HTTP $code attempt=$attempt")
+                    logW("SURFACE_FETCH HTTP $code attempt=$attempt")
                     conn.disconnect()
                     if (attempt < retryCount) delay(5_000L)
                     continue
@@ -259,7 +261,7 @@ class SurfaceProfileCache(
                 if (parsed.isNotEmpty()) {
                     segments = parsed.sortedBy { it.kmStart }
                     hasQBotData = true
-                    Log.i(TAG, "SURFACE_FETCH OK segments=${segments.size} route='$routeName'")
+                    logR("SURFACE_FETCH OK segments=${segments.size} route='$routeName'")
                 }
                 break
             } catch (e: Exception) {

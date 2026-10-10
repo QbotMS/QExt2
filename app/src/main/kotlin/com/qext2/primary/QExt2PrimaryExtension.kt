@@ -377,6 +377,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
     ) {
         val system = _karooSystem
         if (system == null) {
+            com.qext2.primary.util.RideFileLog.append("HTTP_FAIL ${url.substringBefore('?').substringAfterLast('/')} reason=karoo_system_not_ready")
             onDone(-1, null)
             return
         }
@@ -389,7 +390,8 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                 body = null,
                 waitForConnection = true,
             ),
-            onError = { _ ->
+            onError = { err ->
+                com.qext2.primary.util.RideFileLog.append("HTTP_FAIL ${url.substringBefore('?').substringAfterLast('/')} reason=onError msg=$err")
                 id?.let { system.removeConsumer(it) }
                 onDone(-1, null)
             },
@@ -442,11 +444,11 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         val authHeaders = BuildConfig.QEXT_READINESS_TOKEN.takeIf { it.isNotBlank() }
             ?.let { mapOf("Authorization" to "Bearer $it") } ?: emptyMap()
         if (!isRetry) postCassetteReport(system, baseUrl, authHeaders, cassOvr == "1", cassCogs)
-        Log.i(TAG, "QEXT_READINESS_FETCH_START url=$url retry=$isRetry")
+        Log.i(TAG, "QEXT_READINESS_FETCH_START url=$url retry=$isRetry"); com.qext2.primary.util.RideFileLog.append("READINESS_FETCH start retry=$isRetry")
         fetchConsumerId = system.addConsumer<OnHttpResponse>(
             params = OnHttpResponse.MakeHttpRequest(method = "GET", url = url, headers = authHeaders, waitForConnection = true),
             onError = { msg ->
-                Log.w(TAG, "QEXT_READINESS_FETCH_FAILED reason=onError msg=$msg")
+                Log.w(TAG, "QEXT_READINESS_FETCH_FAILED reason=onError msg=$msg"); com.qext2.primary.util.RideFileLog.append("READINESS_FAIL onError msg=$msg")
                 scheduleReadinessRetry(system, "onError")
             },
             onEvent = { resp ->
@@ -526,12 +528,13 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                             _aggregator?.updateAthleteData(adjusted)
                             AthleteDataStore.saveLastRefresh()
                             Log.i(TAG, "QEXT_READINESS_FETCH_SAVED source=$url wPrimeKj=${data.wPrimeKj} ltpWatts=${data.ltpWatts} ftpWatts=${data.ftp} factor=${adjusted.todayFactor}")
+                            com.qext2.primary.util.RideFileLog.append("READINESS_OK cp=${data.ftp} ltp=${data.ltpWatts} wp=${data.wPrimeKj} form=${adjusted.todayFactor} warn=${data.warningReasons.take(80)}")
                         } catch (e: Exception) {
-                            Log.w(TAG, "QEXT_READINESS_FETCH_FAILED reason=parse_error msg=${e.message}")
+                            Log.w(TAG, "QEXT_READINESS_FETCH_FAILED reason=parse_error msg=${e.message}"); com.qext2.primary.util.RideFileLog.append("READINESS_FAIL parse ${e.javaClass.simpleName} msg=${e.message}")
                             scheduleReadinessRetry(system, "parse_error")
                         }
                     } else {
-                        Log.w(TAG, "QEXT_READINESS_FETCH_FAILED reason=http_status status=${s.statusCode} error=${s.error ?: "no body"}")
+                        Log.w(TAG, "QEXT_READINESS_FETCH_FAILED reason=http_status status=${s.statusCode} error=${s.error ?: "no body"}"); com.qext2.primary.util.RideFileLog.append("READINESS_FAIL http=${s.statusCode} err=${s.error ?: "no body"}")
                         scheduleReadinessRetry(system, "http_${s.statusCode}")
                     }
                 }

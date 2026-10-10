@@ -140,7 +140,7 @@ object RouteWeatherClient {
                 val id = system.addConsumer<OnHttpResponse>(
                     params = OnHttpResponse.MakeHttpRequest(method = "GET", url = u, waitForConnection = true),
                     onError = { msg ->
-                        Log.w(TAG, "QEXT_ROUTE_WX_FAILED reason=onError msg=$msg")
+                        Log.w(TAG, "QEXT_ROUTE_WX_FAILED reason=onError msg=$msg"); com.qext2.primary.util.RideFileLog.append("WX_ERR onError msg=$msg")
                         if (settled.compareAndSet(false, true)) { cleanup(); cont.resume(null) }
                     },
                     onEvent = { resp ->
@@ -151,8 +151,8 @@ object RouteWeatherClient {
                                 val body = s.body
                                 val r = if (s.statusCode == 200 && body != null) try {
                                     parse(String(body), pts, System.currentTimeMillis())
-                                } catch (e: Exception) { Log.w(TAG, "QEXT_ROUTE_WX_FAILED reason=parse msg=${e.message}"); null }
-                                else { Log.w(TAG, "QEXT_ROUTE_WX_FAILED status=${s.statusCode}"); null }
+                                } catch (e: Exception) { Log.w(TAG, "QEXT_ROUTE_WX_FAILED reason=parse msg=${e.message}"); com.qext2.primary.util.RideFileLog.append("WX_ERR parse ${e.javaClass.simpleName} msg=${e.message}"); null }
+                                else { Log.w(TAG, "QEXT_ROUTE_WX_FAILED status=${s.statusCode}"); com.qext2.primary.util.RideFileLog.append("WX_ERR http=${s.statusCode} err=${s.error ?: "-"}"); null }
                                 cont.resume(r)
                             }
                         }

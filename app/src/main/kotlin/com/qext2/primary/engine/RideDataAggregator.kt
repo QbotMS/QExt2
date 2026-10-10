@@ -532,7 +532,12 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                         val s = event.state
                         if (s is StreamState.Streaming) {
                             val v = (s.dataPoint.values[DataType.Field.DISTANCE_TO_NEXT_TURN] as? Double)
-                            if (v != null && v.isFinite() && v >= 0.0) { distToTurnRef.set(v); distToTurnMsRef.set(System.currentTimeMillis()) }
+                            if (v != null && v.isFinite() && v >= 0.0) {
+                                val prev = distToTurnRef.get()
+                                // pierwsza wartosc i kazdy nowy manewr (odleglosc skacze w gore) - czy Karoo w ogole podaje skrety
+                                if (prev == null || v > prev + 100.0) com.qext2.primary.util.RideFileLog.append("TURN_RAW dist=${v.toInt()}m prev=${prev?.toInt()}")
+                                distToTurnRef.set(v); distToTurnMsRef.set(System.currentTimeMillis())
+                            }
                         }
                     }
                 )
@@ -2184,12 +2189,14 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
             if (powerAlarmOverSinceMs == 0L) powerAlarmOverSinceMs = nowMs
             if (!powerAlarmActive && nowMs - powerAlarmOverSinceMs >= POWER_ALARM_HOLD_MS) {
                 powerAlarmActive = true
+                com.qext2.primary.util.RideFileLog.append("POWER_ALARM on power=$power ceiling=${ceiling.toInt()} over_s=${(nowMs - powerAlarmOverSinceMs) / 1000}")
             }
         } else {
             powerAlarmOverSinceMs = 0L
             if (powerAlarmUnderSinceMs == 0L) powerAlarmUnderSinceMs = nowMs
             if (powerAlarmActive && nowMs - powerAlarmUnderSinceMs >= POWER_RELEASE_MS) {
                 powerAlarmActive = false
+                com.qext2.primary.util.RideFileLog.append("POWER_ALARM off power=$power ceiling=${ceiling.toInt()}")
             }
         }
 
