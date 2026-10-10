@@ -182,7 +182,7 @@ object Kokpit2InstRenderer {
         t(c, cv, rx, bigBase, big, if (d.cadence != null) WHITE else NONE, true, Paint.Align.RIGHT)
         t(c, "KAD", rx - w(cv, big) - 5f, capTop + 15f * CAP, 15f, UNIT, false, Paint.Align.RIGHT)
 
-        val ref = 36f
+        val ref = 38f
         val refBase = capTop + ref * CAP
         val npTxt = d.cpe5W?.let { kotlin.math.round(it).toInt().toString() } ?: "—"
         t(c, npTxt, cx - g, refBase, ref, if (d.cpe5W != null) WHITE else NONE, true, Paint.Align.RIGHT)
@@ -213,7 +213,7 @@ object Kokpit2InstRenderer {
             var x = rx
             val r1 = d.gearRear.toString(); t(c, r1, x, base, 52f, WHITE, true, Paint.Align.RIGHT); x -= w(r1, 52f)
             t(c, "×", x, base, 20f, UNIT, true, Paint.Align.RIGHT); x -= w("×", 20f)
-            val f1 = d.gearFront.toString(); t(c, f1, x, base, 36f, WHITE, true, Paint.Align.RIGHT); x -= w(f1, 36f)
+            val f1 = d.gearFront.toString(); t(c, f1, x, base, 36f, Color.parseColor("#AEB8C4"), true, Paint.Align.RIGHT)   // blat szary - rzadko sie zmienia; x -= w(f1, 36f)
             gearLeft = x
         } else { t(c, "—", rx, base, 52f, NONE, true, Paint.Align.RIGHT); gearLeft = rx - w("—", 52f) }
 
