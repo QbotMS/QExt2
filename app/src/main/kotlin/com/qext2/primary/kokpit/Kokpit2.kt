@@ -546,7 +546,12 @@ object Kokpit2NavRenderer {
         val vs = 46f
         val capH = vs * CAP
         val groups = ArrayList<List<Item>>()
-        groups.add(listOf(vlabel(c, "DST", base, capH), txt(fmt("%.0f", d.doneKm), vs, WHITE, base),
+        // przejechane km z mniejsza czescia dziesietna (jak predkosc: gora rowno z gora cyfr)
+        val d10 = kotlin.math.floor(d.doneKm.coerceAtLeast(0f) * 10f).toInt()
+        val dDec = "." + (d10 % 10).toString()
+        val dds = vs * 0.55f
+        groups.add(listOf(vlabel(c, "DST", base, capH), txt((d10 / 10).toString(), vs, WHITE, base),
+            Item(w(dDec, dds)) { x -> t(c, dDec, x, base - capH + dds * CAP, dds, WHITE) },
             txt(d.totalKm?.let { "/" + fmt("%.0f", it) } ?: "km", 22f, UNIT, base, false)))
         groups.add(d.leftKm?.let { listOf(vlabel(c, "DTD", base, capH), txt(fmt("%.0f", it), vs, WHITE, base), txt("km", 20f, UNIT, base, false)) }
             ?: listOf(vlabel(c, "DTD", base, capH), txt("—", vs, NONE, base)))
