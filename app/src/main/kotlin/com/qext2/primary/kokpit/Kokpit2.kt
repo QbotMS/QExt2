@@ -90,6 +90,7 @@ object Kokpit2InstRenderer {
     private val SUB = Color.parseColor("#C9D2DC")
     private val YEL = Color.parseColor("#FACC15")
     private val ORANGE = Color.parseColor("#FB923C")
+    private val SPEED = Color.parseColor("#F2C230")
     private val WHITE = Color.WHITE
     private val BLACK = Color.BLACK
     private val PZ = listOf(0.00f to "#9AA3AE", 0.55f to "#6FA8FF", 0.75f to "#22C55E", 0.90f to "#EAB308", 1.05f to "#F97316", 1.20f to "#EF4444")
@@ -174,11 +175,11 @@ object Kokpit2InstRenderer {
         val wTxt = wb?.toString() ?: "—"
         val wCol = when { wb == null -> NONE; d.wbalTrend == "rising" -> GOOD; d.wbalTrend == "falling" || d.wbalTrend == "plummeting" -> BAD; else -> WHITE }
         t(c, wTxt, lx0, base, 38f, wCol)
-        t(c, "W′%", lx0, base - 38f * CAP - 5f, 16f, UNIT, false)
+        t(c, "W′%", lx0, base - 38f * CAP - 7f, 16f, UNIT, false)
         val wRight = lx0 + maxOf(w(wTxt, 38f), w("W′%", 16f, false))
 
         // bieg: maly blat, duza koronka, wyrownany do prawej
-        t(c, "BIEG", rx, 90f, 15f, UNIT, false, Paint.Align.RIGHT)
+        t(c, "BIEG", rx, 88f, 15f, UNIT, false, Paint.Align.RIGHT)
         val gearLeft: Float
         if (d.gearFront != null && d.gearRear != null) {
             var x = rx
@@ -205,7 +206,8 @@ object Kokpit2InstRenderer {
         t(c, pv, cx - g, base, vs, pCol, true, Paint.Align.RIGHT)
         unitW(c, cx - g - w(pv, vs) - 3f - unitWWidth(zone), top - 8f, base, zone)
         // predkosc: od srodka w prawo, czesc dziesietna mniejsza (gora rowno z cyframi), V km/h po prawej
-        val spCol = if (d.speedKmh != null) WHITE else NONE
+        // predkosc zolta (jak w starych polach: domyslny kolor predkosci #F2C230), moc biala - latwo odroznic
+        val spCol = if (d.speedKmh != null) SPEED else NONE
         var x = cx + g
         t(c, sInt, x, base, vs, spCol); x += w(sInt, vs)
         if (sDec.isNotEmpty()) { val ds = vs * 0.42f; t(c, sDec, x, top + ds * CAP, ds, spCol); x += w(sDec, ds) }
