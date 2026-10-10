@@ -548,8 +548,10 @@ object Kokpit2NavRenderer {
         val xWx = xTemp + tempRef + 6f
         val xGr = vw - 8f - grRef
         // manewr odsuniety od pogody (18 px), stoi tuz przed nachyleniem
-        val turn = turnItem(c, d, base, vs, xGr - (xWx + wxRef) - 20f)   // do 42 px, jak temperatura
-        val xTurn = xGr - 8f - turn.width
+        // wzorce pogody/nachylenia maja ok. 13 px zapasu (zmierzone na Karoo: burza 80% 15' konczy sie 13 px przed wzorcem) -
+        // manewr moze z niego korzystac; stoi 6 px przed wzorcem nachylenia
+        val turn = turnItem(c, d, base, vs, xGr - (xWx + wxRef) + 4f)
+        val xTurn = xGr - 6f - turn.width
         // nachylenie zakotwiczone do prawej krawedzi (jak temperatura do lewej)
         drawG(tempG, xTemp, 4f); drawG(wx, xWx, 4f); turn.draw(xTurn); drawG(grG, vw - 8f - gw(grG, 4f), 4f)
     }
@@ -621,10 +623,10 @@ object Kokpit2NavRenderer {
     /** znak nastepnego manewru: ikona + odleglosc (ta sama wielkosc co wartosci wiersza); szerokosc stala - uklad nie skacze */
     private fun turnItem(c: Canvas, d: KokpitNavData, base: Float, vs0: Float, maxW: Float = Float.MAX_VALUE): Item {
         // wielkosc dopasowana raz do stalej kolumny (wzorzec 888 km) - nie zalezy od biezacej wartosci
-        fun fw(sz: Float) = 30f * sz / vs0 + 6f + w("888", sz) + 2f + w("km", 16f * sz / vs0, false)
+        fun fw(sz: Float) = 28f * sz / vs0 + 6f + w("888", sz) + 2f + w("km", 16f * sz / vs0, false)
         var vs = vs0
         while (vs > 24f && fw(vs) > maxW) vs -= 1f
-        val iconS = 30f * vs / vs0
+        val iconS = 28f * vs / vs0
         val us = 16f * vs / vs0
         val fullW = fw(vs)
         val kind = d.turnKind; val dist = d.turnDistM
