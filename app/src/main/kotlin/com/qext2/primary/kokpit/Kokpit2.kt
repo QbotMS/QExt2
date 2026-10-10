@@ -141,9 +141,9 @@ object Kokpit2InstRenderer {
         fp.color = DIV; c.drawRect(cx - 1f, 24f, cx + 1f, 126f + ext, fp)
 
         // --- gorny wiersz: tetno (lewo), NP 5 | srednia predkosc (przy srodku), KAD (prawo)
-        // gorny wiersz rosnie z nadmiarem wysokosci
-        val capTop = 29f + ext * 0.25f
-        val big = 44f + ext * 0.5f
+        // gorny wiersz staly; nadmiar wysokosci idzie do dolnego wiersza (moc i predkosc)
+        val capTop = 29f
+        val big = 44f
         val bigBase = capTop + big * CAP
         val z = d.hrZone
         val showZone = d.hrShowZone && z != null
@@ -157,7 +157,7 @@ object Kokpit2InstRenderer {
         t(c, cv, rx, bigBase, big, if (d.cadence != null) WHITE else NONE, true, Paint.Align.RIGHT)
         t(c, "KAD", rx - w(cv, big) - 5f, capTop + 15f * CAP, 15f, UNIT, false, Paint.Align.RIGHT)
 
-        val ref = 36f + ext * 0.25f
+        val ref = 36f
         val refBase = capTop + ref * CAP
         val npTxt = d.cpe5W?.let { kotlin.math.round(it).toInt().toString() } ?: "—"
         t(c, npTxt, cx - g, refBase, ref, if (d.cpe5W != null) WHITE else NONE, true, Paint.Align.RIGHT)
@@ -198,21 +198,33 @@ object Kokpit2InstRenderer {
         val pv = d.powerW?.toString() ?: "—"
         val cp = d.cpW; val pw = d.powerW
         val zone = if (pw != null && cp != null && cp > 0f) { val r = pw / cp; var i = 0; for (kk in PZ.indices) if (r >= PZ[kk].first) i = kk; i } else null
-        fun vBlock(sz: Float) = w(sInt, sz) + (if (sDec.isNotEmpty()) w(sDec, sz * DEC) else 0f) + 1f + 14f
-        fun wBlock(sz: Float) = w(pv, sz) + 3f + unitWWidth(zone)
-        var vs = 90f
-        while (vs > 44f && (cx + g + vBlock(vs) > gearLeft - 6f || cx - g - wBlock(vs) < wRight + 6f)) vs -= 1f
+        // 1) wielkosc dopasowana do szerokosci, 2) cyfry wyzsze o 8 px (gora tam, gdzie byl piorun+strefa),
+        // 3) gdy po powiekszeniu brakuje szerokosci -> cyfry zwezone (textScaleX, min. 0.75), nie nizsze
+        val unitVW = w("V", 22f) + 1f + w("km", 11f, false)
+        val uW = unitWWidth(zone)
+        fun digV(sz: Float) = w(sInt, sz) + (if (sDec.isNotEmpty()) w(sDec, sz * DEC) else 0f)
+        val availV = gearLeft - 6f - (cx + g) - 1f - unitVW
+        val availW = (cx - g) - (wRight + 6f) - 3f - uW
+        var vs0 = 90f
+        while (vs0 > 44f && (digV(vs0) > availV || w(pv, vs0) > availW)) vs0 -= 1f
+        val topRowBottom = capTop + big * CAP
+        val vs = minOf(vs0 + 8f / CAP, (base - topRowBottom - 4f) / CAP).coerceAtLeast(vs0)
+        val sx = minOf(1f, availV / digV(vs), availW / w(pv, vs)).coerceIn(0.75f, 1f)
         val top = base - vs * CAP
-        // moc: do srodka z lewej, kolor z oceny tempa (PacingEngine); piorun+strefa po lewej, 8 px nad cyframi
         val pCol = if (d.powerW == null) NONE else d.powerColor
-        t(c, pv, cx - g, base, vs, pCol, true, Paint.Align.RIGHT)
-        unitW(c, cx - g - w(pv, vs) - 3f - unitWWidth(zone), top - 8f, base, zone)
-        // predkosc: od srodka w prawo, czesc dziesietna mniejsza (gora rowno z cyframi), V km/h po prawej
         // predkosc zolta (jak w starych polach: domyslny kolor predkosci #F2C230), moc biala - latwo odroznic
         val spCol = if (d.speedKmh != null) SPEED else NONE
+        tp.textScaleX = sx
+        // moc: do srodka z lewej, kolor z oceny tempa (PacingEngine)
+        t(c, pv, cx - g, base, vs, pCol, true, Paint.Align.RIGHT)
+        val pWid = w(pv, vs)
+        // predkosc: od srodka w prawo, czesc dziesietna mniejsza (gora rowno z cyframi)
         var x = cx + g
         t(c, sInt, x, base, vs, spCol); x += w(sInt, vs)
         if (sDec.isNotEmpty()) { val ds = vs * DEC; t(c, sDec, x, top + ds * CAP, ds, spCol); x += w(sDec, ds) }
+        tp.textScaleX = 1f
+        // jednostki stalej wielkosci: piorun+strefa (W pod spodem) z lewej mocy, V km/h z prawej predkosci; gora = gora cyfr
+        unitW(c, cx - g - pWid - 3f - uW, top, base, zone)
         unitV(c, x + 1f, top, base)
     }
 
@@ -225,10 +237,11 @@ object Kokpit2InstRenderer {
 
     /** V nad km/h; prawa krawedz kolumny = right; gora = gorna krawedz cyfr */
     private fun unitV(c: Canvas, left: Float, top: Float, base: Float) {
-        // V nad km/h, wyrownane do lewej = tuz przy wartosci predkosci
+        // V, a bezposrednio po prawej km nad /h (ta sama wysokosc co V); gora = gorna krawedz cyfr
         t(c, "V", left, top + 22f * CAP, 22f, UNIT, true)
-        t(c, "km", left, base - 11f * 0.95f, 11f, UNIT, false)
-        t(c, "/h", left, base, 11f, UNIT, false)
+        val kx = left + w("V", 22f) + 1f
+        t(c, "km", kx, top + 11f * CAP, 11f, UNIT, false)
+        t(c, "/h", kx, top + 22f * CAP, 11f, UNIT, false)
     }
 
     /** piorun + numer strefy (oba w kolorze strefy), pod nimi W; lewa krawedz = left; gora = gorna krawedz cyfr */
