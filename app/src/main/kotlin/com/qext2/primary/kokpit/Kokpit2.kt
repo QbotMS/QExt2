@@ -241,7 +241,7 @@ object Kokpit2InstRenderer {
         val topRowBottom = capTop + big * CAP
         var vs = (base - topRowBottom - 5f) / CAP
         while (vs > 44f && minOf(availV / digVRef(vs), availW / w("888", vs)) < 0.80f) vs -= 1f
-        vs += 5f   // na sztywno +5 px (decyzja Michala 2026-10-10)
+        vs += 8f   // na sztywno +8 px (decyzja Michala 2026-10-10: +5, potem +3)
         val sxV0 = minOf(1f, availV / digVRef(vs)).coerceAtLeast(0.70f)
         val sxW0 = minOf(1f, availW / w("888", vs)).coerceAtLeast(0.70f)
         // tylko wartosc szersza niz wzorzec (np. moc 4-cyfrowa) jest dodatkowo zwezona; wielkosc bez zmian
