@@ -514,8 +514,8 @@ object Kokpit2NavRenderer {
         val rn = d.rainNowMmH; val rs = d.rainSoon
         if (rn != null && rn >= 0.1f) {
             wx.add(Item(22f) { x -> drop(c, x, base, 22f, 26f, BLUE) })
-            wx.add(txt(fmt("%.1f", rn).replace('.', ','), 32f, BLUE, base))
-            wx.add(txt("mm", 18f, BLUE, base, false))
+            wx.add(txt(fmt("%.1f", rn).replace('.', ','), 36f, BLUE, base))
+            wx.add(txt("mm", 20f, BLUE, base, false))
         } else if (rs != null && rs.probPct >= 30 && rs.kind != "FOG") {
             val cl = when (rs.kind) { "STORM" -> RED; "SNOW" -> Color.parseColor("#BFDBFE"); else -> BLUE }
             when (rs.kind) {
@@ -523,8 +523,8 @@ object Kokpit2NavRenderer {
                 "SNOW" -> wx.add(Item(26f) { x -> snow(c, x, base, 26f, cl) })
                 else -> wx.add(Item(22f) { x -> drop(c, x, base, 22f, 26f, cl) })
             }
-            wx.add(txt("${rs.probPct}%", 32f, cl, base))
-            wx.add(txt("${rs.minutes}′", 18f, cl, base))
+            wx.add(txt("${rs.probPct}%", 36f, cl, base))
+            wx.add(txt("${rs.minutes}′", 20f, cl, base))
         } else d.sky?.let { sk ->
             when (sk) {
                 "CLEAR" -> wx.add(Item(30f) { x -> sun(c, x + 15f, base - capH / 2f, 8f, Color.parseColor("#FACC15")) })
@@ -540,14 +540,15 @@ object Kokpit2NavRenderer {
         val grG = if (gr == null) listOf(Item(26f) { x -> tri(c, x, base, 26f, capH, 3f, NONE) }, txt("—", vs, NONE, base))
             else listOf(Item(26f) { x -> tri(c, x, base, 26f, capH, gr, gradeColor(gr)) }, txt(fmt("%.0f", gr), vs, WHITE, base), txt("%", 20f, UNIT, base, false))
         // pozycje z wzorcow najszerszych wartosci (nie z biezacych) - kolumny stoja w miejscu
-        val tempRef = 16f + 4f + w("-88°", vs)
-        val wxRef = 30f + 4f + w("88%", 32f) + 4f + w("88′", 18f)
-        val grRef = 26f + 4f + w("-88", vs) + 4f + w("%", 20f, false)
+        // wzorce = realne maksima (temp. i nachylenie do -18, opad do 88% za 88 min) - zmierzone na zrzucie z Karoo
+        val tempRef = 16f + 4f + w("-18°", vs)
+        val wxRef = 30f + 4f + w("88%", 36f) + 4f + w("88′", 20f)
+        val grRef = 26f + 4f + w("-18", vs) + 4f + w("%", 20f, false)
         val xTemp = 8f
         val xWx = xTemp + tempRef + 6f
         val xGr = vw - 8f - grRef
         // manewr odsuniety od pogody (18 px), stoi tuz przed nachyleniem
-        val turn = turnItem(c, d, base, vs, xGr - (xWx + wxRef) - 20f)
+        val turn = turnItem(c, d, base, vs, xGr - (xWx + wxRef) - 20f)   // do 42 px, jak temperatura
         val xTurn = xGr - 8f - turn.width
         // nachylenie zakotwiczone do prawej krawedzi (jak temperatura do lewej)
         drawG(tempG, xTemp, 4f); drawG(wx, xWx, 4f); turn.draw(xTurn); drawG(grG, vw - 8f - gw(grG, 4f), 4f)
