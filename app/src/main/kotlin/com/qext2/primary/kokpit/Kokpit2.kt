@@ -115,7 +115,7 @@ object TurnClassifier {
             prev = h; s += 5.0
         }
         val a = abs(net)
-        return if (left >= 60.0 && right >= 60.0) when { a >= 150.0 -> "RB_U"; net > 30.0 -> "RB_R"; net < -30.0 -> "RB_L"; else -> "RB_S" }
+        return if (left >= 40.0 && right >= 40.0) when { a >= 150.0 -> "RB_U"; net > 30.0 -> "RB_R"; net < -30.0 -> "RB_L"; else -> "RB_S" }
         else when {
             a < 20.0 -> "STRAIGHT"
             a < 45.0 -> if (net > 0.0) "SLIGHT_RIGHT" else "SLIGHT_LEFT"
