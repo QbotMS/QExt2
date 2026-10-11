@@ -132,7 +132,7 @@ object RouteWeatherClient {
         if (pts.isEmpty()) return null
         val u = url(pts)
         Log.i(TAG, "QEXT_ROUTE_WX_FETCH points=${pts.size}")
-        return withTimeoutOrNull(10_000L) {
+        return withTimeoutOrNull(20_000L) {   // 20 s - przez telefon 10 s bywalo za malo
             suspendCancellableCoroutine { cont ->
                 val idRef = java.util.concurrent.atomic.AtomicReference<String?>(null)
                 val settled = java.util.concurrent.atomic.AtomicBoolean(false)
@@ -161,7 +161,7 @@ object RouteWeatherClient {
                 idRef.set(id)
                 if (settled.get()) cleanup()
                 cont.invokeOnCancellation {
-                    if (!settled.get()) com.qext2.primary.util.RideFileLog.append("WX_ERR timeout 10 s - brak odpowiedzi (siec / telefon)")
+                    if (!settled.get()) com.qext2.primary.util.RideFileLog.append("WX_ERR timeout 20 s - brak odpowiedzi (siec / telefon)")
                     cleanup()
                 }
             }

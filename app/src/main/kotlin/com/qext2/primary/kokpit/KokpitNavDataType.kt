@@ -168,7 +168,7 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
                 else -> "#FFFFFF"
             },
         ) else rotator.next(now, cands)
-        val key = msg.kind.name + "|" + msg.lead + "|" + msg.accent
+        val key = msg.kind.name + "|" + msg.accent + "|" + msg.cfgId   // bez odleglosci w lead - jeden wpis na komunikat, nie co 100 m
         if (key != lastMsgLogged) { lastMsgLogged = key; com.qext2.primary.util.RideFileLog.append("MSG ${msg.kind} ${msg.lead} ${msg.accent}") }
         val hw = agg?.getHeadwindRel()
         val ahead = if (segs.isNotEmpty() && total != null) segs.sortedBy { it.kmStart }.filter { it.kmEnd > pos }

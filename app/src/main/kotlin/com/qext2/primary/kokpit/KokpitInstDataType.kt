@@ -129,6 +129,25 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
         return when { pct < 0.81f -> 1; pct < 0.90f -> 2; pct < 0.95f -> 3; pct < 1.06f -> 4; else -> 5 }
     }
 
+    // filtr biegu: nowy bieg pokazywany, gdy utrzyma sie >= 1 s; zmiany i "mruganie" do dziennika jazdy
+    private var gShown: Pair<Int?, Int?> = Pair(null, null)
+    private var gCand: Pair<Int?, Int?> = Pair(null, null)
+    private var gCandSince = 0L
+    private var gFlapLogMs = 0L
+    private fun gearStable(f: Int?, r: Int?): Pair<Int?, Int?> {
+        val now = System.currentTimeMillis(); val g = Pair(f, r)
+        if (g == gShown) {
+            if (gCand != gShown && now - gFlapLogMs > 10_000L) { gFlapLogMs = now; com.qext2.primary.util.RideFileLog.append("GEAR_FLAP ${gCand.first}x${gCand.second} trwal ${now - gCandSince} ms, zostaje ${f}x${r}") }
+            gCand = g; return gShown
+        }
+        if (g != gCand) { gCand = g; gCandSince = now }
+        if (now - gCandSince >= 1000L || gShown.second == null) {
+            com.qext2.primary.util.RideFileLog.append("GEAR ${gShown.first}x${gShown.second} -> ${f}x${r}")
+            gShown = g
+        }
+        return gShown
+    }
+
     private fun toData(agg: RideDataAggregator?, p: PrimaryRideSnapshot, s: StatsRideSnapshot, hrAvg: Int?): KokpitInstData {
         val power = if (p.powerFreshnessMs < 8_000L) p.power3s else null
         val cp = s.cpEffW.takeIf { it > 0f } ?: agg?.getEffectiveLtpWatts()?.takeIf { it > 0f }
@@ -167,7 +186,7 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
             cadence = cad,
             cadenceAvg = s.cadenceAvg.takeIf { it > 0 },
             optCadLow = low, optCadHigh = high,
-            gearFront = front, gearRear = rear,
+            gearFront = gearStable(front, rear).first, gearRear = gShown.second,   // nowy bieg dopiero po 1 s (bez mrugania)
             cogs = cogs, recCog = rec,
             hrShowZone = AthleteDataStore.loadHrZoneMode(),
             powerCeilingW = pc?.takeIf { it.isActive }?.ceilingW,

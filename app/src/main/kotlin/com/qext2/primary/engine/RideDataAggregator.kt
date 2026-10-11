@@ -1497,6 +1497,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         weatherSourceRef.set(data.source)
     }
 
+    /** wynik ostatniej proby pobrania pogody (false = ponow za 1 min, nawet gdy stare dane sa jeszcze swieze) */
+    @Volatile var lastWxAttemptOk = true
+
     suspend fun fetchWeatherIfNeeded() {
         val lat = AthleteDataStore.loadLocationLat() ?: return
         val lon = AthleteDataStore.loadLocationLon() ?: return
@@ -1516,6 +1519,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         val wx = try { com.qext2.primary.weather.RouteWeatherClient.fetch(karooSystem, pts) } catch (e: Exception) {
             Log.w(TAG, "QEXT_ROUTE_WX_CRASH msg=${e.message}"); null
         }
+        lastWxAttemptOk = wx != null
         com.qext2.primary.util.RideFileLog.append(if (wx == null) "WX_FAIL points=${pts.size} (proba ponowna za 1 min)" else "WX_OK points=${wx.points} sky=${wx.sky} now=${wx.nowKind} temp=${wx.tempC} event=${wx.event?.kind}@${wx.event?.minutes}min/${wx.event?.kmAhead}km p=${wx.event?.probPct}")
         if (wx != null) {
             routeWxRef.set(wx); lastWxLatRef.set(lat); lastWxLonRef.set(lon); lastWxMsRef.set(now)

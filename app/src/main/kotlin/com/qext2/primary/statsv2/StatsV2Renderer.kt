@@ -117,7 +117,7 @@ object StatsV2Renderer {
         val g = 2f
         // uklad (mockup "STATS - PRZEBIEG"): NP/IF/VI 116, PRZEBIEG 136, RSRV/XSS/KCAL 100, TRASA z nawierzchnia 198,
         // PRZEWYZSZENIE 92, dolny rzad reszta (~108)
-        val rows = floatArrayOf(116f, 136f, 100f, 198f, 92f)
+        val rows = floatArrayOf(113f, 136f, 100f, 201f, 92f)   // 2026-10-11: wiersz NP -3, TRASA +3
         var y = 0f
         val col3 = (BW - 2 * g) / 3f
         // 1: NP / IF / VI
@@ -339,17 +339,61 @@ object StatsV2Renderer {
         return fmt("%02d:%02d", cal.get(java.util.Calendar.HOUR_OF_DAY), cal.get(java.util.Calendar.MINUTE))
     }
 
+    // nawierzchnia w TRASA (kolory jak w StatsV2DataType / KOKPIT 2)
+    private val C_ASF = Color.parseColor("#F2F4F7")
+    private val C_GRV = Color.parseColor("#FFB300")
+    private val C_BAD = Color.parseColor("#FF2A2A")
+    private val ROAD = "ROAD"
+    private val ip = Paint(Paint.ANTI_ALIAS_FLAG)
+
+    /** ikona drogi (rysowana): asfalt w perspektywie, biale krawedzie, zolta przerywana linia; kwadrat s x s */
+    private fun roadIcon(c: Canvas, x: Float, y: Float, s: Float) {
+        val p = android.graphics.Path()
+        p.moveTo(x + s * 0.31f, y + s * 0.05f); p.lineTo(x + s * 0.69f, y + s * 0.05f); p.lineTo(x + s, y + s * 0.95f); p.lineTo(x, y + s * 0.95f); p.close()
+        ip.style = Paint.Style.FILL
+        ip.shader = android.graphics.LinearGradient(0f, y, 0f, y + s, Color.parseColor("#7A818C"), Color.parseColor("#383D45"), android.graphics.Shader.TileMode.CLAMP)
+        c.drawPath(p, ip); ip.shader = null
+        ip.style = Paint.Style.STROKE; ip.strokeCap = Paint.Cap.ROUND
+        ip.color = Color.WHITE; ip.strokeWidth = s * 0.045f
+        c.drawLine(x + s * 0.33f, y + s * 0.06f, x + s * 0.05f, y + s * 0.94f, ip)
+        c.drawLine(x + s * 0.67f, y + s * 0.06f, x + s * 0.95f, y + s * 0.94f, ip)
+        ip.color = Color.parseColor("#FFD43B")
+        ip.strokeWidth = s * 0.035f; c.drawLine(x + s * 0.5f, y + s * 0.10f, x + s * 0.5f, y + s * 0.20f, ip)
+        ip.strokeWidth = s * 0.048f; c.drawLine(x + s * 0.5f, y + s * 0.31f, x + s * 0.5f, y + s * 0.48f, ip)
+        ip.strokeWidth = s * 0.06f; c.drawLine(x + s * 0.5f, y + s * 0.62f, x + s * 0.5f, y + s * 0.88f, ip)
+        ip.style = Paint.Style.FILL
+    }
+
+    /** emoji systemowe (🪨 / 💩); gdy Karoo nie ma glifu - kolko w kolorze nawierzchni */
+    private fun emoji(c: Canvas, e: String, x: Float, cy: Float, size: Float, fallback: Int) {
+        val old = tp.typeface
+        tp.typeface = Typeface.DEFAULT; tp.textSize = size * 0.92f; tp.textAlign = Paint.Align.LEFT
+        if (tp.hasGlyph(e)) { val fm = tp.fontMetrics; tp.color = Color.WHITE; c.drawText(e, x, cy - (fm.ascent + fm.descent) / 2f, tp) }
+        else { fp.color = fallback; c.drawCircle(x + size / 2f, cy, size * 0.36f, fp) }
+        tp.typeface = old
+    }
+
     private fun drawRoute(c: Canvas, r: RectF, d: StatsV2Data) {
         cell(c, r)
-        val lb = label(c, r, listOf(P_ROUTE), "TRASA", "km", material = true)
-        // nad ETA: najblizszy zmierzch albo swit (mniejszy), DEMO obok
-        val tw = ArrayList<Triple<String, Float, Int>>()
-        if (d.demo) tw.add(Triple("DEMO", 20f, AMBER))
-        d.twilightMs?.let { tw.add(Triple(if (d.twilightDawn) "świt" else "zmrok", 20f, SUB)); tw.add(Triple(clock(it), 26f, WHITE)) }
-        if (tw.isNotEmpty()) rightLabel(c, r, tw)
+        label(c, r, listOf(P_ROUTE), "TRASA", "", material = true)
         val l = X(r.left) + F(10f); val rr = X(r.right) - F(10f)
-        // wiersz wartosci
-        val vcy = lb + F(32f)
+        val T = Y(r.top)
+        // naglowek: zmrok/swit miedzy winieta a ETA; ETA duze po prawej
+        val etaTxt = d.etaMs?.let { clock(it) }
+        val etaS = F(46f); val etaCy = T + F(30f)
+        if (etaTxt != null) {
+            text(c, etaTxt, rr, etaCy, etaS, WHITE, Paint.Align.RIGHT)
+            text(c, "ETA", rr - textW(etaTxt, etaS) - F(6f), etaCy + F(6f), F(20f), SUB, Paint.Align.RIGHT)
+        } else text(c, "ETA —", rr, etaCy, F(24f), NONE, Paint.Align.RIGHT)
+        var tx = l + F(140f)
+        if (d.demo) { text(c, "DEMO", tx, T + F(21f), F(18f), AMBER); tx += textW("DEMO", F(18f)) + F(8f) }
+        d.twilightMs?.let {
+            val lbl = if (d.twilightDawn) "świt" else "zmrok"
+            text(c, lbl, tx, T + F(22f), F(19f), SUB); tx += textW(lbl, F(19f)) + F(6f)
+            text(c, clock(it), tx, T + F(21f), F(26f), WHITE)
+        }
+        // wiersz: przejechane / calosc (lewo) + ZOSTALO wg nawierzchni (prawo), w polowie miedzy ETA a belka
+        val vcy = T + F(80f)
         var x = l
         val done = fmt("%.0f", d.doneKm)
         text(c, done, x, vcy, F(58f), WHITE); x += textW(done, F(58f)) + F(8f)
@@ -359,40 +403,43 @@ object StatsV2Renderer {
             val tt = fmt("%.0f", total)
             text(c, tt, x, vcy + F(6f), F(40f), WHITE); x += textW(tt, F(40f)) + F(6f)
         }
-        text(c, "km", x, vcy + F(10f), F(22f), UNIT)
-        val etaTxt = d.etaMs?.let { clock(it) }
-        if (etaTxt != null) {
-            text(c, etaTxt, rr, vcy, F(58f), WHITE, Paint.Align.RIGHT)
-            text(c, "ETA", rr - textW(etaTxt, F(58f)) - F(8f), vcy + F(8f), F(24f), SUB, Paint.Align.RIGHT)
-        } else {
-            text(c, "ETA brak", rr, vcy + F(8f), F(24f), NONE, Paint.Align.RIGHT)
+        text(c, "km", x, vcy + F(10f), F(22f), UNIT); x += textW("km", F(22f))
+        val leftEnd = x
+        if (d.hasRoute) d.ahead?.takeIf { it.isNotEmpty() }?.let { segs ->
+            fun sum(col: Int) = segs.filter { it.second == col }.sumOf { it.first.toDouble() }.toFloat()
+            val parts = listOf(Triple(ROAD, sum(C_ASF), C_ASF), Triple("\uD83E\uDEA8", sum(C_GRV), C_GRV), Triple("\uD83D\uDCA9", sum(C_BAD), C_BAD))
+            // wielkosc bloku ikon: najwieksza mieszczaca sie obok "przejechane / calosc"
+            var k = 1f
+            fun blockW(k: Float) = parts.sumOf { (textW(fmt("%.0f", it.second), F(36f) * k) + F(5f) + F(32f) * k + F(16f)).toDouble() }.toFloat() - F(16f)
+            while (k > 0.7f && rr - blockW(k) < leftEnd + F(12f)) k -= 0.05f
+            var px = rr; val ns = F(36f) * k; val isz = F(32f) * k
+            for ((ic, km, col) in parts.reversed()) {
+                val v = fmt("%.0f", km); text(c, v, px, vcy, ns, WHITE, Paint.Align.RIGHT); px -= textW(v, ns) + F(5f)
+                if (ic == ROAD) roadIcon(c, px - isz, vcy - isz / 2f, isz) else emoji(c, ic, px - isz, vcy, isz, col)
+                px -= isz + F(16f)
+            }
         }
-        // pasek
-        val bt = Y(r.top) + Y(104f); val bb = bt + Y(44f)
+        // belka jak na polu mapy: odcinki nawierzchni w kolorach, bez liczb, grubsza
+        val bt = T + Y(113f); val bb = bt + Y(34f)
         fp.color = TRACK; c.drawRect(l, bt, rr, bb, fp)
         if (d.hasRoute && total != null && total > 0f) {
             val frac = (d.doneKm / total).coerceIn(0f, 1f)
             val fx = l + (rr - l) * frac
-            fp.color = Color.parseColor("#2E7BFF"); c.drawRect(l, bt, fx, bb, fp)   // przejechane - jak belka KOKPIT 2
-            // pozostala czesc wg nawierzchni (jak w KOKPIT), liczby km w odcinkach
+            fp.color = Color.parseColor("#2E7BFF"); c.drawRect(l, bt, fx, bb, fp)
             d.ahead?.takeIf { it.isNotEmpty() }?.let { segs ->
                 val sum = segs.sumOf { it.first.toDouble() }.toFloat().coerceAtLeast(0.001f)
-                var x = fx
+                var sx = fx
                 for ((len, col) in segs) {
                     val ww = (rr - fx) * (len / sum)
-                    fp.color = col; c.drawRect(x + F(1f), bt, x + ww - F(1f), bb, fp)
-                    if (len >= 0.5f) barText(c, fmt("%.0f", len), x + ww / 2f, (bt + bb) / 2f, F(30f), ww - F(2f), col, Paint.Align.CENTER)
-                    x += ww
+                    fp.color = col; c.drawRect(sx + F(1f), bt, sx + ww - F(1f), bb, fp)
+                    sx += ww
                 }
             }
-            // postoje >= 10 min
-            for (k in d.stopsKm) {
-                val sx0 = l + (rr - l) * (k / total).coerceIn(0f, 1f)
-                fp.color = PILL; c.drawRect(sx0 - F(5f), bt, sx0 + F(5f), bb, fp)
-                fp.color = Color.parseColor("#FF3DF5"); c.drawRect(sx0 - F(3f), bt, sx0 + F(3f), bb, fp)   // postoje - magenta jak KOKPIT 2
+            for (km in d.stopsKm) {
+                val sx0 = l + (rr - l) * (km / total).coerceIn(0f, 1f)
+                fp.color = Color.parseColor("#FF3DF5"); c.drawRect(sx0 - F(3f), bt, sx0 + F(3f), bb, fp)
             }
-            // pozycja: limonkowe kolo z czarna obwodka - jak KOKPIT 2
-            val mr = (bb - bt) * 0.36f; val mx = fx.coerceIn(l + mr, rr - mr)   // kolo mniejsze niz wysokosc belki
+            val mr = (bb - bt) * 0.6f; val mx = fx.coerceIn(l + mr, rr - mr)
             fp.color = PILL; c.drawCircle(mx, (bt + bb) / 2f, mr, fp)
             fp.color = Color.parseColor("#39FF14"); c.drawCircle(mx, (bt + bb) / 2f, mr - F(3f), fp)
         } else {

@@ -568,7 +568,7 @@ object Kokpit2NavRenderer {
         val turn = turnItem(c, d, base, vs, turnR - turnL)
         val xTurn = turnL
         // nachylenie zakotwiczone do prawej krawedzi (jak temperatura do lewej)
-        drawG(tempG, xTemp, 4f); drawG(wx, xWx, 4f); turn.draw(xTurn); drawG(grG, vw - 8f - gw(grG, 4f), 4f)
+        drawG(tempG, xTemp, 4f); drawG(wx, xWx, 4f); /* manewr wylaczony 2026-10-11 (dubluje baner Karoo): turn.draw(xTurn) */ drawG(grG, vw - 8f - gw(grG, 4f), 4f)
     }
 
     /** logo QBot (jak favicon.svg serwisu): pomaranczowe Q z linia tetna, bez tla; kwadrat sz x sz, lewy-gorny rog (x, y) */

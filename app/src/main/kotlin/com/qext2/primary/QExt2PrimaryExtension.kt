@@ -350,7 +350,8 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
      * Czyści cache i fetchuje profil nawierzchni dla nowej trasy.
      */
     /** STATS v2 PRZEBIEG: typowe EF z QBota (mediana 90 dni). Bledy ciche - linia "typ." po prostu sie nie pokaze. */
-    private fun fetchTypicalEf() {
+    private fun fetchTypicalEf(attempt: Int = 0) {
+        if (_karooSystem == null && attempt < 6) { serviceScope.launch { kotlinx.coroutines.delay(5_000L); fetchTypicalEf(attempt + 1) }; return }
         try {
             karooHttpGet("${BuildConfig.QBOT_BASE_URL}/api/ef/typical", mapOf("Authorization" to "Bearer ${BuildConfig.QBOT_BEARER}")) { code, body ->
                 if (code == 200 && body != null) {
@@ -659,7 +660,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
             while (_aggregator != null) {
                 _aggregator?.fetchWeatherIfNeeded()
                 // 15 min = krok prognozy; po nieudanym pobraniu (np. brak polaczenia z telefonem) ponow za 1 min
-                kotlinx.coroutines.delay(if (_aggregator?.weatherIsFresh() == true) 900_000L else 60_000L)
+                kotlinx.coroutines.delay(if (_aggregator?.lastWxAttemptOk == false) 60_000L else if (_aggregator?.weatherIsFresh() == true) 900_000L else 60_000L)
             }
         }
     }
