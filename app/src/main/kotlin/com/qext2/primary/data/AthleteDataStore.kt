@@ -16,7 +16,6 @@ data class AthleteData(
     val maxHr: Int = 180,
     val lthrBpm: Int = 132,
     val bodyWeightKg: Float = 75f,
-    val xertStatus: String = "--",
     val hrvToday: Int = 0,
     val hrvBaseline30d: Float = 0f,
     val hrvDeviation30d: Float = 0f,
@@ -134,7 +133,6 @@ private const val KEY_MAX_HR = "max_hr"
 private const val KEY_LTHR = "lthr_bpm"
 private const val KEY_WEIGHT = "weight"
 private const val KEY_FETCH_TS = "fetch_ts"
-private const val KEY_XERT_STATUS = "xert_status"
 private const val KEY_HRV_TODAY = "hrv_today"
 private const val KEY_HRV_BASELINE = "hrv_baseline"
 private const val KEY_HRV_DEV = "hrv_dev"
@@ -176,7 +174,6 @@ object AthleteDataStore {
             maxHr = p.getInt(KEY_MAX_HR, 180),
             lthrBpm = p.getInt(KEY_LTHR, 132),
             bodyWeightKg = p.getFloat(KEY_WEIGHT, 75f),
-            xertStatus = p.getString(KEY_XERT_STATUS, "--") ?: "--",
             hrvToday = p.getInt(KEY_HRV_TODAY, 0),
             hrvBaseline30d = p.getFloat(KEY_HRV_BASELINE, 0f),
             hrvDeviation30d = p.getFloat(KEY_HRV_DEV, 0f),
@@ -207,7 +204,6 @@ object AthleteDataStore {
             putInt(KEY_MAX_HR, data.maxHr)
             putInt(KEY_LTHR, data.lthrBpm)
             putFloat(KEY_WEIGHT, data.bodyWeightKg)
-            putString(KEY_XERT_STATUS, data.xertStatus)
             putInt(KEY_HRV_TODAY, data.hrvToday)
             putFloat(KEY_HRV_BASELINE, data.hrvBaseline30d)
             putFloat(KEY_HRV_DEV, data.hrvDeviation30d)
@@ -567,8 +563,6 @@ object AthleteDataStore {
     fun loadEtaStopsMinPerKm(): Double =
         (prefs?.getFloat("eta_stops_min_km", 0f) ?: 0f).toDouble()
 
-    fun saveHeadwindUnit(u: Int) { prefs?.edit()?.putInt("headwind_unit", u.coerceIn(0, 3))?.apply() }
-    fun loadHeadwindUnit(): Int = 0   // SETUP v3: karoo-headwind w km/h (ustawienie Michala)
     /** zapas prognozy na brak sieci (WeatherCache, 2026-10-14) */
     fun saveWxCache(s: String) { prefs?.edit()?.putString("wx_cache_v1", s)?.apply() }
     fun loadWxCache(): String? = prefs?.getString("wx_cache_v1", null)

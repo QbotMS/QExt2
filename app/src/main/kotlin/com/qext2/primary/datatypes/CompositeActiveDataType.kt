@@ -101,11 +101,6 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
     private var intensityFactor = 0.0
     private var avgSpeed = 0.0
     private var temperature = 0.0
-    private var lastDirectionDeg = Double.NaN
-    private var lastDirectionPriority = Int.MAX_VALUE
-    private var lastWindSpeedMs = Double.NaN
-    private var lastHeadwindSpeedMs = Double.NaN
-    private var lastWindUpdateMs = 0L
     private var hasPowerData = false
     private var lastRenderMs = 0L
     private var lastRenderSignature = ""
@@ -394,71 +389,6 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
             )
         )
 
-        consumerIds.add(
-            system.addConsumer<OnStreamState>(
-                params = OnStreamState.StartStreaming(DataType.dataTypeId("karoo-headwind", "headwind")),
-                onEvent = { event ->
-                    val v = (event.state as? StreamState.Streaming)?.dataPoint?.singleValue
-                    if (v != null) {
-                        applyWindSample("headwind", v)
-                        emitUpdate(emitter, context)
-                    }
-                }
-            )
-        )
-
-        consumerIds.add(
-            system.addConsumer<OnStreamState>(
-                params = OnStreamState.StartStreaming(DataType.dataTypeId("karoo-headwind", "headwindSpeed")),
-                onEvent = { event ->
-                    val v = (event.state as? StreamState.Streaming)?.dataPoint?.singleValue
-                    if (v != null) {
-                        applyWindSample("headwindSpeed", v)
-                        emitUpdate(emitter, context)
-                    }
-                }
-            )
-        )
-
-        consumerIds.add(
-            system.addConsumer<OnStreamState>(
-                params = OnStreamState.StartStreaming(DataType.dataTypeId("karoo-headwind", "headwindDirection")),
-                onEvent = { event ->
-                    val v = (event.state as? StreamState.Streaming)?.dataPoint?.singleValue
-                    if (v != null) {
-                        applyWindSample("headwindDirection", v)
-                        emitUpdate(emitter, context)
-                    }
-                }
-            )
-        )
-
-        consumerIds.add(
-            system.addConsumer<OnStreamState>(
-                params = OnStreamState.StartStreaming(DataType.dataTypeId("karoo-headwind", "windDirection")),
-                onEvent = { event ->
-                    val v = (event.state as? StreamState.Streaming)?.dataPoint?.singleValue
-                    if (v != null) {
-                        applyWindSample("windDirection", v)
-                        emitUpdate(emitter, context)
-                    }
-                }
-            )
-        )
-
-        consumerIds.add(
-            system.addConsumer<OnStreamState>(
-                params = OnStreamState.StartStreaming(DataType.dataTypeId("karoo-headwind", "windSpeed")),
-                onEvent = { event ->
-                    val v = (event.state as? StreamState.Streaming)?.dataPoint?.singleValue
-                    if (v != null) {
-                        applyWindSample("windSpeed", v)
-                        emitUpdate(emitter, context)
-                    }
-                }
-            )
-        )
-
         Log.d(TAG, "all subscribers: ${consumerIds.size}")
     }
 
@@ -624,56 +554,6 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
         val agg = QExt2PrimaryExtension.instance?.aggregator ?: return ""
         val rel = agg.getHeadwindRel()?.first ?: return if (agg.getKarooWindMps() == null) "" else "↑"
         return arrayOf("↑", "↗", "→", "↘", "↓", "↙", "←", "↖")[((rel + 22.5) % 360).toInt() / 45]
-    }
-
-    private fun currentWindSpeedMs(): Double {
-        if (!lastWindSpeedMs.isNaN()) return lastWindSpeedMs
-        if (!lastHeadwindSpeedMs.isNaN()) return kotlin.math.abs(lastHeadwindSpeedMs)
-        return Double.NaN
-    }
-
-    private fun applyWindSample(source: String, rawValue: Double) {
-        val absValue = kotlin.math.abs(rawValue)
-        when (source) {
-            "headwindDirection" -> {
-                updateDirection(rawValue, priority = 1)
-                if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "wind sample $source=$rawValue -> dir=$lastDirectionDeg")
-            }
-            "headwindSpeed" -> {
-                if (com.qext2.primary.util.WindUnits.toMps(absValue) <= 60.0) {
-                    lastHeadwindSpeedMs = rawValue
-                    lastWindUpdateMs = System.currentTimeMillis()
-                }
-                if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "wind sample $source=$rawValue -> headwindSpeed=$lastHeadwindSpeedMs")
-            }
-            "headwind" -> {
-                updateDirection(rawValue, priority = 3)
-                if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "wind sample $source=$rawValue -> dir=$lastDirectionDeg")
-            }
-            "windDirection" -> {
-                updateDirection(rawValue, priority = 4)
-                if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "wind sample $source=$rawValue -> dir=$lastDirectionDeg")
-            }
-            "windSpeed" -> {
-                if (com.qext2.primary.util.WindUnits.toMps(absValue) <= 60.0) {
-                    lastWindSpeedMs = kotlin.math.abs(rawValue)
-                    lastWindUpdateMs = System.currentTimeMillis()
-                }
-                if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "wind sample $source=$rawValue -> windSpeed=$lastWindSpeedMs")
-            }
-        }
-    }
-
-    private fun updateDirection(rawValue: Double, priority: Int) {
-        if (rawValue !in 0.0..360.0) return
-        val now = System.currentTimeMillis()
-        val stale = (now - lastWindUpdateMs) > 10_000L
-        val shouldReplace = lastDirectionDeg.isNaN() || stale || priority <= lastDirectionPriority
-        if (shouldReplace) {
-            lastDirectionDeg = rawValue
-            lastDirectionPriority = priority
-        }
-        lastWindUpdateMs = now
     }
 
     private fun setInitialValues(views: RemoteViews) {

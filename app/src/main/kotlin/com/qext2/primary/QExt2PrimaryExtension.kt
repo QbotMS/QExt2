@@ -81,7 +81,6 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         logBuildBaseline()
         runStartupSelfCheck()
         AthleteDataStore.init(this)
-        com.qext2.primary.util.WindUnits.sourceUnit = AthleteDataStore.loadHeadwindUnit()
         com.qext2.primary.engine.CadenceAdvisor.load(AthleteDataStore.loadCadenceModel())
         com.qext2.primary.eta.EtaSpeedTable.historyMinPerKm = AthleteDataStore.loadEtaStopsMinPerKm()
         com.qext2.primary.eta.EtaFileLog.init(getExternalFilesDir(null) ?: filesDir)
@@ -173,7 +172,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         if (recordingNow) {
             if (!rideRecording) {
                 val a = AthleteDataStore.load()
-                com.qext2.primary.util.RideFileLog.append("RIDE_START schema=$FIT_SCHEMA build=${BuildConfig.VERSION_CODE} cp=${a.ftp} ltp=${a.ltpWatts} wp=${a.wPrimeKj} form=${a.todayFactor} profileTs=${a.fetchTimestamp} bike=${_aggregator?.bikeKey()} windUnit=${com.qext2.primary.util.WindUnits.LABELS[com.qext2.primary.util.WindUnits.sourceUnit]}")
+                com.qext2.primary.util.RideFileLog.append("RIDE_START schema=$FIT_SCHEMA build=${BuildConfig.VERSION_CODE} cp=${a.ftp} ltp=${a.ltpWatts} wp=${a.wPrimeKj} form=${a.todayFactor} profileTs=${a.fetchTimestamp} bike=${_aggregator?.bikeKey()}")
             }
             rideRecording = true
             startRidePing()
@@ -494,7 +493,6 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                                 // Serwer wysyla klucz "weightKg" -- alias konieczny, inaczej
                                 // waga leciala na domyslne 75 kg i zanizala model zywienia.
                                 bodyWeightKg = json.optDouble("bodyWeightKg", json.optDouble("weightKg", 75.0)).toFloat(),
-                                xertStatus = sig?.optString("xertStatus", "--") ?: "--",
                                 hrvToday = sig?.optInt("hrvToday", 0) ?: 0,
                                 hrvBaseline30d = sig?.optDouble("hrvBaseline30d", 0.0)?.toFloat() ?: 0f,
                                 hrvDeviation30d = sig?.optDouble("hrvDeviation30d", 0.0)?.toFloat() ?: 0f,
@@ -513,7 +511,6 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                             AthleteDataStore.save(data)
                             if (AthleteDataStore.importSettingsOnce(json.optJSONObject("deviceSettings"))) {
                                 com.qext2.primary.util.RideFileLog.append("SETTINGS_RESTORED z serwera")
-                                com.qext2.primary.util.WindUnits.sourceUnit = AthleteDataStore.loadHeadwindUnit()
                                 refreshDeadlineConfig()
                             } else pushSettings()
                             json.optJSONObject("cadenceModel")?.toString()?.let {
@@ -706,7 +703,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
     }
 
     private fun startWeatherPolling() {
-        // Open-Meteo nie wymaga klucza (OpenWeather tylko jako zapas)
+        // Open-Meteo (bez klucza); brak sieci -> zapas prognozy WeatherCache
         if (weatherPollJob?.isActive == true) return
         weatherPollJob = serviceScope.launch {
             while (_aggregator != null) {

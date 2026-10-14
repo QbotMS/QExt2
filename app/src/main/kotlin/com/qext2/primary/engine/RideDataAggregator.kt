@@ -1551,23 +1551,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
             ))
             return
         }
-        // zapas: OpenWeather (jak dotad)
-        if (!WeatherClient.isKeyConfigured()) return
-        // Krotki retry: fetch OWM bywa wolny/kruchy (~12s przy limicie 15s).
-        // Bez tego jeden nieudany fetch = pelne 10 min ciszy do nastepnego pollingu.
-        // Retry przyciety (audyt baterii 2026-07-26): 2 proby zamiast 3, limit 8s/proba
-        // (WeatherClient). Wczesniej 3x15s waitForConnection trzymalo radio ~45s/cykl przy
-        // slabym zasiegu; teraz max ~16s/cykl, bez utraty pogody na marginalnym sygnale.
-        val backoffsMs = longArrayOf(0L, 12_000L)
-        for (i in backoffsMs.indices) {
-            if (backoffsMs[i] > 0L) kotlinx.coroutines.delay(backoffsMs[i])
-            val data = WeatherClient.fetch(karooSystem, lat, lon)
-            if (data != null) {
-                updateWeather(data)
-                return
-            }
-            Log.w(TAG, "QEXT_WEATHER_FETCH_RETRY attempt=${i + 1} failed")
-        }
+        // brak swiezej pogody -> zapas prognozy WeatherCache (OpenWeather usuniety 2026-10-14: tylko Open-Meteo + QBot)
     }
 
     /** Punkty pogody: biezaca pozycja + co 15 min jazdy wg ETA v2 (do 2 h, nie dalej niz meta).
