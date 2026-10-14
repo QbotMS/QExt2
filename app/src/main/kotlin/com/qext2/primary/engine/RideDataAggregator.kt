@@ -2206,6 +2206,18 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         lastUnifiedPowerBg = 0
     }
 
+    /** moc 3 s z ostatnich 30 s (kolor mocy liczony z p30 - stabilny; cyfra dalej pokazuje moc 3 s) */
+    private val powerColorBuf = ArrayDeque<Pair<Long, Int>>()
+    private var lastPowerColClass: String = ""
+
+    /**
+     * Kolor mocy (decyzja Michala 2026-10-14, po analizie jazdy 14.10: zielono tylko 20% czasu przy sredniej w pasmie,
+     * bo kolor liczony z mocy 3 s i waskie pasmo 85-100% sufitu):
+     *  - kolor z mocy 30 s (p30); sufit z PacingEngine (ten sam co liczba w KOKPIT)
+     *  - plasko: p30 < 75% LTP -> bialy (slabo); do sufitu -> zielony; nad sufitem -> zolty, > 10 s czerwony, > 30 s ALARM (tlo)
+     *  - podjazd (nachylenie > 2,5 %): wg zapasu W' - > 50 % zielony, 30-50 % zolty, < 30 % czerwony, > 30 s ALARM
+     * Zmiana klasy koloru -> wpis PWR_COL w dzienniku jazdy (p30, sufit, W', teren).
+     */
     private fun unifiedPowerColors(
         power: Int, effectiveLtp: Float, wBalancePct: Int,
         reserve: Int, elapsedHours: Float, remainingHours: Float,
@@ -2216,58 +2228,46 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
             lastUnifiedPowerBg = 0
             return Pair(Color.parseColor("#CBD5E1"), 0)
         }
-
-        // W' factor: tightens as W' depletes (short-term)
-        val wFrac = wBalancePct.coerceIn(0, 100) / 100f
-        val wFac = 1f + 0.20f * wFrac
-
-        // RSRV factor: tightens when projected finish RSRV is low (long-term)
-        val rsvFac = if (remainingHours > 0f && elapsedHours > 0.25f && reserve in 0..100) {
-            val drainRate = (100f - reserve.toFloat()) / elapsedHours
-            val projected = (reserve.toFloat() - drainRate * remainingHours).coerceIn(0f, 100f)
-            1f + 0.20f * (projected / 100f)
-        } else wFac  // no route or too early: fall back to W'-only
-
-        // HR decoupling factor: heart drifting up at same power = overheating/overreaching.
-        // <5% normal (1.0); 5-15% linear down to 0.90; >15% capped at 0.90.
-        val decFac = if (hasDecoupling && decouplingPct > 5f)
-            (1f - 0.01f * (decouplingPct - 5f)).coerceAtLeast(0.90f)
-        else 1f
-
-        // Binding constraint × riding mode × decoupling
-        // E2.6: ten sam sufit co liczba w KOKPIT (PacingEngine); brak profilu -> brak porady
         val pc = pacingContextRef.get()
         if (!pc.isActive) { lastUnifiedPowerBg = 0; return Pair(Color.parseColor("#CBD5E1"), 0) }
+        val p30 = synchronized(powerColorBuf) {
+            powerColorBuf.addLast(nowMs to power)
+            while (powerColorBuf.isNotEmpty() && nowMs - powerColorBuf.first().first > 30_000L) powerColorBuf.removeFirst()
+            powerColorBuf.sumOf { it.second }.toFloat() / powerColorBuf.size
+        }
         val ceiling = pc.ceilingW.toFloat()
-
-        val over = power >= ceiling.toInt()
-        if (over) {
+        val climbing = gradeRef.get() > 2.5
+        val overCond = if (climbing) wBalancePct in 0..29 else p30 >= ceiling
+        if (overCond) {
             powerAlarmUnderSinceMs = 0L
             if (powerAlarmOverSinceMs == 0L) powerAlarmOverSinceMs = nowMs
             if (!powerAlarmActive && nowMs - powerAlarmOverSinceMs >= POWER_ALARM_HOLD_MS) {
                 powerAlarmActive = true
-                com.qext2.primary.util.RideFileLog.append("POWER_ALARM on power=$power ceiling=${ceiling.toInt()} over_s=${(nowMs - powerAlarmOverSinceMs) / 1000}")
+                com.qext2.primary.util.RideFileLog.append("POWER_ALARM on p30=${p30.toInt()} ceiling=${ceiling.toInt()} wbal=$wBalancePct climb=$climbing")
             }
         } else {
             powerAlarmOverSinceMs = 0L
             if (powerAlarmUnderSinceMs == 0L) powerAlarmUnderSinceMs = nowMs
             if (powerAlarmActive && nowMs - powerAlarmUnderSinceMs >= POWER_RELEASE_MS) {
                 powerAlarmActive = false
-                com.qext2.primary.util.RideFileLog.append("POWER_ALARM off power=$power ceiling=${ceiling.toInt()}")
+                com.qext2.primary.util.RideFileLog.append("POWER_ALARM off p30=${p30.toInt()} ceiling=${ceiling.toInt()} wbal=$wBalancePct")
             }
         }
-
-        val overForMs = if (over) nowMs - powerAlarmOverSinceMs else 0L
-        val result = when {
-            powerAlarmActive -> {
-                val bg = 0xFFFF5252.toInt()
-                Pair(PrimaryRideSnapshot.contrastText(bg), bg)         // ALARM: jasne tlo
-            }
-            over && overForMs >= POWER_DIGIT_HOLD_MS
-                                               -> Pair(Color.parseColor("#FF5252"), 0) // utrwalone przekroczenie
-            over                               -> Pair(Color.WHITE, 0)                 // krotki zryw — tolerowany, bez oceny
-            power >= (ceiling * 0.85f).toInt() -> Pair(Color.parseColor("#4ADE80"), 0) // cel
-            else                               -> Pair(Color.WHITE, 0)                 // ponizej celu
+        val overForMs = if (overCond) nowMs - powerAlarmOverSinceMs else 0L
+        val cls = com.qext2.primary.active.PowerColorModel.classify(
+            p30 = p30, ltp = effectiveLtp, ceiling = ceiling, climbing = climbing, wbalPct = wBalancePct,
+            overForMs = overForMs, alarm = powerAlarmActive,
+        )
+        if (cls != lastPowerColClass) {
+            lastPowerColClass = cls
+            com.qext2.primary.util.RideFileLog.append("PWR_COL $cls p30=${p30.toInt()} ceil=${ceiling.toInt()} wbal=$wBalancePct ${if (climbing) "podjazd" else "plasko"}")
+        }
+        val result = when (cls) {
+            "ALARM" -> { val bg = 0xFFFF5252.toInt(); Pair(PrimaryRideSnapshot.contrastText(bg), bg) }
+            "RED" -> Pair(Color.parseColor("#FF5252"), 0)
+            "YELLOW" -> Pair(Color.parseColor("#FACC15"), 0)
+            "GREEN" -> Pair(Color.parseColor("#4ADE80"), 0)
+            else -> Pair(Color.WHITE, 0)
         }
         lastUnifiedPowerBg = result.second
         return result

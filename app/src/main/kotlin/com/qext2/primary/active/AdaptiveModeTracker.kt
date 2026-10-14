@@ -52,7 +52,8 @@ class AdaptiveModeTracker {
         fun factor(mode: Int): Float = when (mode) { -1 -> 0.88f; 1 -> 1.12f; else -> 1.00f }
         /** JEDNO mapowanie trybu z SETUP (0 ostrozny, 1 normalny, 2 ofensywny, 3 AUTO). */
         fun modeFactorFor(code: Int, autoFactor: Float): Float = when (code) {
-            0 -> 0.88f; 1 -> 1.00f; 2 -> 1.12f; else -> autoFactor
+            // AUTO: bez obnizki (x0.88) - spadek rezerwy obniza sufit juz w PacingEngine (bez podwojnej kary, 2026-10-14)
+            0 -> 0.88f; 1 -> 1.00f; 2 -> 1.12f; else -> autoFactor.coerceAtLeast(1.00f)
         }
     }
 }
