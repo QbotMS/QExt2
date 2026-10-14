@@ -1806,6 +1806,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
 
     private val lastRouteSeenMsRef = AtomicReference(0L)
     private val lastLocationSaveMs = AtomicReference(0L)
+    /** czas ostatniego zapisu pozycji z GPS (co ~30 s w czasie jazdy); 0 = brak */
+    fun lastGpsFixMs(): Long = lastLocationSaveMs.get()
     private val routeGraceMs = 12_000L
 
     fun getEffectiveRoute(): Boolean {

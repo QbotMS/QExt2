@@ -299,6 +299,10 @@ object KokpitNavRenderer {
         tg.add(if (d.tempC != null) Part(fmt("%.0f", d.tempC) + "°", 1f, WHITE, true) else Part("—", 0.8f, NONE, true))
         val rn = d.rainNowMmH; val rs = d.rainSoon
         if (rn != null && rn >= 0.1f) { tg.add(Part("", 0.42f, BLUE, false, IC_DROP)); tg.add(Part(fmt("%.1f", rn).replace('.', ','), 0.68f, BLUE, true)); tg.add(Part("mm", 0.36f, BLUE, false)) }
+        else if (rs != null && rs.radar) {
+            // radar QBota: natezenie w mm (nie %) + za ile minut
+            tg.add(Part("", 0.42f, BLUE, false, IC_DROP)); tg.add(Part(fmt("%.1f", rs.mmPerH).replace('.', ','), 0.68f, BLUE, true)); tg.add(Part("mm ${rs.minutes}′", 0.36f, BLUE, false))
+        }
         else if (rs != null && rs.probPct >= 30 && rs.kind != "FOG") {
             // opad po trasie w ciagu 2 h: burza czerwona, snieg jasnoniebieski, deszcz niebieski
             val (ic, cl) = when (rs.kind) { "STORM" -> IC_STORM to RED; "SNOW" -> IC_SNOW to Color.parseColor("#BFDBFE"); else -> IC_DROP to BLUE }

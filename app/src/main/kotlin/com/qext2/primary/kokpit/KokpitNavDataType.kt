@@ -139,7 +139,10 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
         // pogoda po trasie (Open-Meteo, co 15 min jazdy wg ETA, do 2 h)
         val rw = agg?.getRouteWeather()?.takeIf { com.qext2.primary.weather.RouteWeatherClient.isFresh(it) }
         // E5.3: "za X min" liczone od chwili pobrania prognozy, nie zamrozone
-        val rainSoon = rw?.event?.let { RainSoon((it.minutes - ((now - rw.fetchedAt) / 60_000L).toInt()).coerceAtLeast(0), it.probPct, it.mmPerH, it.kind.name, it.kmAhead) }
+        val rainSoonLocal = rw?.event?.let { RainSoon((it.minutes - ((now - rw.fetchedAt) / 60_000L).toInt()).coerceAtLeast(0), it.probPct, it.mmPerH, it.kind.name, it.kmAhead) }
+        // 2026-10-14: radar QBota (odpowiedz na sygnal jazdy) ma pierwszenstwo; lokalna prognoza = zapas / dalej niz 60 min
+        val mg = QbotRadar.merge(now, rainNow, rainSoonLocal)
+        val rainSoon = mg.soon
         // nastepne zdarzenie: swit przed wschodem, zmrok w dzien, po zmroku swit nastepnego dnia (SDK: CIVIL_DAWN / CIVIL_DUSK)
         val duskRaw = agg?.getCivilDuskMs() ?: 0L
         val dawnRaw = agg?.getCivilDawnMs() ?: 0L
@@ -183,7 +186,7 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
             ascLeft = if (s.routeClimbSourceReady) s.ascentLeftM else null,
             tempC = agg?.getKarooTemperatureC(),   // tylko czujnik Karoo (2026-10-08)
             deadlineMs = agg?.getDeadlineMs()?.takeIf { it > 0L },
-            rainNowMmH = rainNow, rainSoon = rainSoon,
+            rainNowMmH = mg.now, rainSoon = rainSoon,
             windMps = hw?.second,   // tylko headwind z karoo-headwind (2026-10-08); brak -> "wiatr —"
             windDirDeg = null,
             windRelDeg = hw?.first,

@@ -527,6 +527,12 @@ object Kokpit2NavRenderer {
             wx.add(Item(22f) { x -> drop(c, x, base, 22f, 26f, BLUE) })
             wx.add(txt(fmt("%.1f", rn).replace('.', ','), 36f, BLUE, base))
             wx.add(txt("mm", 20f, BLUE, base, false))
+        } else if (rs != null && rs.radar) {
+            // radar QBota: natezenie w mm (nie %) + za ile minut
+            wx.add(Item(22f) { x -> drop(c, x, base, 22f, 26f, BLUE) })
+            wx.add(txt(fmt("%.1f", rs.mmPerH).replace('.', ','), 32f, BLUE, base))
+            wx.add(txt("mm", 16f, BLUE, base, false))
+            wx.add(txt("${rs.minutes}′", 18f, BLUE, base))
         } else if (rs != null && rs.probPct >= 30 && rs.kind != "FOG") {
             val cl = when (rs.kind) { "STORM" -> RED; "SNOW" -> Color.parseColor("#BFDBFE"); else -> BLUE }
             when (rs.kind) {

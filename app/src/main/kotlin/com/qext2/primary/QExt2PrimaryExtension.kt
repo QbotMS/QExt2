@@ -67,6 +67,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
     // E1.1 (plan v2): obliczenia zyja od START do KONIEC nagrywania jazdy, niezaleznie od widocznosci pol.
     @Volatile private var rideRecording = false
     private var rideStateConsumerId: String? = null
+    private var ridePingJob: Job? = null
 
     companion object {
         var instance: QExt2PrimaryExtension? = null
@@ -175,6 +176,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                 com.qext2.primary.util.RideFileLog.append("RIDE_START schema=$FIT_SCHEMA build=${BuildConfig.VERSION_CODE} cp=${a.ftp} ltp=${a.ltpWatts} wp=${a.wPrimeKj} form=${a.todayFactor} profileTs=${a.fetchTimestamp} bike=${_aggregator?.bikeKey()} windUnit=${com.qext2.primary.util.WindUnits.LABELS[com.qext2.primary.util.WindUnits.sourceUnit]}")
             }
             rideRecording = true
+            startRidePing()
             stopJob?.cancel(); stopJob = null
             if (_aggregator != null && !aggregatorStreaming) {
                 _aggregator?.startStreaming()
@@ -184,6 +186,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         } else if (rideRecording) {
             // KONIEC jazdy: zamknij sesje (baza RSRV dnia, reset licznikow); pola widoczne -> czysty start na podglad.
             rideRecording = false
+            stopRidePing()
             _aggregator?.stopStreaming()
             aggregatorStreaming = false
             batteryPollJob?.cancel(); batteryPollJob = null
@@ -540,6 +543,55 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                     }
                 }
             }
+        )
+    }
+
+    /** 2026-10-14: sygnal jazdy do QBota co 5 min w czasie nagrywania (takze pauza) -> ostrzezenie o deszczu z radaru
+     *  w miejscu jazdy. POST /ride-readiness {"ping":{lat,lon}}; odpowiedz -> QbotRadar (KOKPIT: komunikat + pole OPAD). */
+    private fun startRidePing() {
+        if (ridePingJob?.isActive == true) return
+        com.qext2.primary.kokpit.QbotRadar.reset()
+        ridePingJob = serviceScope.launch {
+            while (true) {
+                try { sendRidePing() } catch (e: Exception) { com.qext2.primary.util.RideFileLog.append("PING_FAIL crash ${e.javaClass.simpleName}") }
+                delay(com.qext2.primary.kokpit.QbotRadar.PING_EVERY_MS)
+            }
+        }
+    }
+
+    private fun stopRidePing() {
+        ridePingJob?.cancel(); ridePingJob = null
+        com.qext2.primary.kokpit.QbotRadar.reset()
+    }
+
+    private fun sendRidePing() {
+        val system = _karooSystem ?: return
+        val tok = BuildConfig.QEXT_READINESS_TOKEN.takeIf { it.isNotBlank() }
+            ?: run { com.qext2.primary.util.RideFileLog.append("PING_SKIP brak klucza urzadzenia"); return }
+        val gpsAge = System.currentTimeMillis() - (_aggregator?.lastGpsFixMs() ?: 0L)
+        if (gpsAge > 120_000L) { com.qext2.primary.util.RideFileLog.append("PING_SKIP brak swiezego GPS"); return }
+        val lat = AthleteDataStore.loadLocationLat() ?: return
+        val lon = AthleteDataStore.loadLocationLon() ?: return
+        val url = BuildConfig.QEXT_READINESS_URL.ifBlank { "https://qbot.cytr.us/ride-readiness" }
+        val body = JSONObject().put("ping", JSONObject().put("lat", lat).put("lon", lon)).toString().toByteArray()
+        var id: String? = null
+        id = system.addConsumer<OnHttpResponse>(
+            params = OnHttpResponse.MakeHttpRequest(method = "POST", url = url,
+                headers = mapOf("Authorization" to "Bearer $tok", "X-QExt2-Token" to tok, "Content-Type" to "application/json"),
+                body = body, waitForConnection = false),
+            onError = { msg -> id?.let { system.removeConsumer(it) }; com.qext2.primary.util.RideFileLog.append("PING_FAIL onError msg=$msg") },
+            onEvent = { r ->
+                val s = r.state
+                if (s is HttpResponseState.Complete) {
+                    id?.let { system.removeConsumer(it) }
+                    val now = System.currentTimeMillis()
+                    val (ok, rain) = if (s.statusCode == 200 && s.body != null) com.qext2.primary.kokpit.QbotRadar.parse(String(s.body!!), now) else (false to null)
+                    if (ok) {
+                        com.qext2.primary.kokpit.QbotRadar.accept(now, rain)
+                        com.qext2.primary.util.RideFileLog.append("PING_OK rain=" + (rain?.let { "za=${it.zaMin} pada=${it.pada} mmh=${it.mmh} dur=${it.durMin}" } ?: "brak"))
+                    } else com.qext2.primary.util.RideFileLog.append("PING_FAIL http=${s.statusCode} err=${s.error ?: "-"}")
+                }
+            },
         )
     }
 

@@ -17,7 +17,9 @@ enum class SurfClass { PAVED, GRAVEL, LOOSE }
 data class SurfSeg(val kmStart: Float, val kmEnd: Float, val surface: SurfClass)
 data class ClimbInfo(val startKm: Float, val lengthKm: Float, val gradePct: Float)
 data class DescentInfo(val distAheadKm: Float, val gradePct: Float)
-data class RainSoon(val minutes: Int, val probPct: Int, val mmPerH: Float, val kind: String = "RAIN", val kmAhead: Float = 0f)
+/** radar=true: z radaru QBota (QbotRadar) - bez % (probPct=-1), sila slownie, durMin = czas trwania (gdy pada: ile jeszcze). */
+data class RainSoon(val minutes: Int, val probPct: Int, val mmPerH: Float, val kind: String = "RAIN", val kmAhead: Float = 0f,
+                    val radar: Boolean = false, val sila: String = "", val durMin: Int = 0)
 /** Punkt z QBota: cat = water | shop | food; today = godziny na dzis (np. "06:00–20:00", "zamknięte") albo null. */
 /** Stan W' (jak w ClimbPacingProducer): pct, stan (BOMBA m:ss / ODBUDOWA m:ss / TRZYMASZ! / PRZEPAŁ), krytyczny. */
 data class WPrimeInfo(val pct: Int, val state: String, val critical: Boolean)
@@ -98,7 +100,12 @@ object RouteMessageEngine {
             if (C.on("rain_now")) out.add(RouteMsg(MsgKind.RAIN, "pada:", String.format(java.util.Locale.US, "%.1f mm/h", rn).replace('.', ','), "#60A5FA", "rain_now"))
         } else {
             val rs = i.rainSoon
-            if (rs != null) {
+            if (rs != null && rs.radar) {
+                // radar QBota: pada / deszcz za X min, sila slownie + czas trwania (bez %)
+                if (rs.minutes <= 2) { if (C.on("rain_now")) out.add(RouteMsg(MsgKind.RAIN, "pada:", "${rs.sila} · jeszcze ~${rs.durMin} min", "#60A5FA", "rain_now")) }
+                else if (C.on("rain_soon") && rs.minutes <= C.pi("rain_soon", "lead_min", RAIN_SOON_MIN))
+                    out.add(RouteMsg(MsgKind.RAIN, "deszcz za ${rs.minutes} min:", "${rs.sila} · ~${rs.durMin} min", "#60A5FA", "rain_soon"))
+            } else if (rs != null) {
                 val where = if (rs.kmAhead >= 0.5f) " (${km(rs.kmAhead)} km)" else ""
                 when (rs.kind) {
                     "STORM" -> if (C.on("storm") && rs.minutes <= C.pi("storm", "lead_min", 60)) out.add(RouteMsg(MsgKind.RAIN, "burza za ${rs.minutes} min$where:", "${rs.probPct}%", "#FF8C8C", "storm"))
