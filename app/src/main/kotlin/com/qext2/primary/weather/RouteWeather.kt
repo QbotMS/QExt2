@@ -99,6 +99,8 @@ data class RouteWx(
     val event: WxEvent?,
     val points: Int,
     val fetchedAt: Long,
+    /** porywy wiatru m/s (2026-10-14, zamiast karoo-headwind) */
+    val gustMps: Float? = null,
 )
 
 object RouteWeatherClient {
@@ -160,7 +162,7 @@ object RouteWeatherClient {
         val la = pts.joinToString(",") { String.format(java.util.Locale.US, "%.4f", it.lat) }
         val lo = pts.joinToString(",") { String.format(java.util.Locale.US, "%.4f", it.lon) }
         return "https://api.open-meteo.com/v1/forecast?latitude=$la&longitude=$lo" +
-            "&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m" +
+            "&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m" +
             "&minutely_15=precipitation,rain,snowfall,weather_code&forecast_minutely_15=10" +
             "&hourly=precipitation_probability,weather_code&forecast_hours=3" +
             "&wind_speed_unit=ms&timeformat=unixtime&timezone=UTC"
@@ -274,6 +276,7 @@ object RouteWeatherClient {
             event = event,
             points = objs.size,
             fetchedAt = nowMs,
+            gustMps = cur?.optDouble("wind_gusts_10m", Double.NaN)?.takeIf { !it.isNaN() }?.toFloat(),
         )
         Log.i(TAG, "QEXT_ROUTE_WX points=${objs.size} sky=${r.sky} now=${r.nowKind} event=${event?.kind}@${event?.minutes}min/${event?.kmAhead}km p=${event?.probPct} up=${upEvent?.kind}@${upEvent?.minutes}min")
         return r

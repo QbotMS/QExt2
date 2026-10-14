@@ -614,27 +614,16 @@ class CompositeActiveDataType : DataTypeImpl("qext2", "qext2-active") {
         return round(c).toInt().toString()
     }
 
+    /** wiatr z QExt2 (prognoza + kierunek jazdy z Karoo, 2026-10-14; bez karoo-headwind) */
     private fun formatWind(): String {
-        val ageMs = System.currentTimeMillis() - lastWindUpdateMs
-        if (lastWindUpdateMs == 0L || ageMs > 10_000L) return "--"
-        val speedMs = currentWindSpeedMs()
-        if (speedMs.isNaN()) return "--"
-        if (com.qext2.primary.util.WindUnits.toMps(speedMs) > 60.0) return "--"
-        val speedRounded = round(com.qext2.primary.util.WindUnits.toMps(speedMs)).toInt().toString()
-        if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "formatWind: deg=$lastDirectionDeg windMs=$lastWindSpeedMs headwindMs=$lastHeadwindSpeedMs ms=$speedRounded")
-        return speedRounded
+        val v = QExt2PrimaryExtension.instance?.aggregator?.getKarooWindMps() ?: return "--"
+        return kotlin.math.round(v.toDouble()).toInt().toString()
     }
 
     private fun formatWindDir(): String {
-        val ageMs = System.currentTimeMillis() - lastWindUpdateMs
-        if (lastWindUpdateMs == 0L || ageMs > 10_000L) return ""
-        if (lastDirectionDeg.isNaN() || lastDirectionDeg < 0) {
-            if (currentWindSpeedMs().isNaN()) return ""
-            return "↑"
-        }
-        val arrows = arrayOf("↑", "↗", "→", "↘", "↓", "↙", "←", "↖")
-        val idx = ((lastDirectionDeg + 22.5) % 360).toInt() / 45
-        return arrows[idx]
+        val agg = QExt2PrimaryExtension.instance?.aggregator ?: return ""
+        val rel = agg.getHeadwindRel()?.first ?: return if (agg.getKarooWindMps() == null) "" else "↑"
+        return arrayOf("↑", "↗", "→", "↘", "↓", "↙", "←", "↖")[((rel + 22.5) % 360).toInt() / 45]
     }
 
     private fun currentWindSpeedMs(): Double {

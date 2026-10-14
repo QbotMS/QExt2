@@ -761,37 +761,24 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
             )
         )
 
-        // WIATR: JEDYNE zrodlo = rozszerzenie karoo-headwind (decyzja Michala 2026-10-08); predkosci przychodza
-        // w km/h (ustawienia rozszerzenia) i sa zamieniane na m/s przy odbiorze. "headwind" = kierunek wzgledem jazdy (stopnie); "headwindSpeed" = wiatr czolowy
-        // (skladowa wzdluz jazdy, zmienia sie przy skretach) -> KOKPIT, jak pole headwind rozszerzenia;
-        // ze znakiem: + w twarz, - w plecy (cos((kat+180)) x wiatr) -> tez sufit mocy (tylko czesc w twarz);
-        // "windSpeed" = predkosc wiatru; "windGusts" = porywy -> komunikat SILNY WIATR.
-        for ((field, ref) in listOf("headwind" to headwindDirDegRef, "headwindSpeed" to headwindSpeedMpsRef,
-                                    "windSpeed" to windSpeedMpsRef, "windGusts" to windGustsMpsRef)) {
-            try {
-                consumerIds.add(
-                    karooSystem.addConsumer<OnStreamState>(
-                        params = OnStreamState.StartStreaming(DataType.dataTypeId("karoo-headwind", field)),
-                        onEvent = { event ->
-                            val s = event.state
-                            if (s is StreamState.Streaming) {
-                                val v = s.dataPoint.singleValue ?: s.dataPoint.values.values.firstOrNull() as? Double
-                                if (v != null && v.isFinite() && !(field == "headwind" && (v < 0.0 || v > 360.0))) {
-                                    // E5.1: kody bledu kierunku (<0) odrzucone; predkosci z jednostki karoo-headwind (SETUP) na m/s
-                                    ref.set(if (field == "headwind") v else com.qext2.primary.util.WindUnits.toMps(v))
-                                    windChannelMs[field] = System.currentTimeMillis()
-                                    val nowHw = System.currentTimeMillis()
-                                    if (nowHw - headwindLoggedMsRef.get() > 300_000L) { headwindLoggedMsRef.set(nowHw); com.qext2.primary.util.RideFileLog.append("HEADWIND field=$field v=$v") }
-                                    headwindUpdatedMsRef.set(nowHw)
-                                }
-                            }
+        // WIATR (2026-10-14, decyzja Michala: bez karoo-headwind): wiatr z prognozy Open-Meteo (RouteWeather co 10 min;
+        // bez sieci - zapas WeatherCache) + kierunek jazdy z Karoo (HEADING) -> strzalka, wiatr w twarz, porywy, pacing.
+        consumerIds.add(
+            karooSystem.addConsumer<OnStreamState>(
+                params = OnStreamState.StartStreaming(DataType.Type.HEADING),
+                onEvent = { event ->
+                    val s = event.state
+                    if (s is StreamState.Streaming) {
+                        val v = (s.dataPoint.values[DataType.Field.HEADING] as? Double) ?: s.dataPoint.singleValue
+                        if (v != null && v.isFinite()) {
+                            headingDegRef.set(((v % 360.0) + 360.0) % 360.0); headingMsRef.set(System.currentTimeMillis())
+                            val nowH = System.currentTimeMillis()
+                            if (nowH - headwindLoggedMsRef.get() > 300_000L) { headwindLoggedMsRef.set(nowH); com.qext2.primary.util.RideFileLog.append("HEADING v=$v wind=${getWindNow()}") }
                         }
-                    )
-                )
-            } catch (e: Exception) {
-                Log.w(TAG, "QEXT_HEADWIND_SUB_FAIL field=$field msg=${e.message}")
-            }
-        }
+                    }
+                }
+            )
+        )
 
         consumerIds.add(
             karooSystem.addConsumer<OnStreamState>(
@@ -1546,6 +1533,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         com.qext2.primary.util.RideFileLog.append(if (wx == null) "WX_FAIL points=${pts.size} (proba ponowna za 1 min)" else "WX_OK points=${wx.points} sky=${wx.sky} now=${wx.nowKind} temp=${wx.tempC} event=${wx.event?.kind}@${wx.event?.minutes}min/${wx.event?.kmAhead}km p=${wx.event?.probPct}")
         if (wx != null) {
             routeWxRef.set(wx); lastWxLatRef.set(lat); lastWxLonRef.set(lon); lastWxMsRef.set(now)
+            try { maybeRefreshWeatherCache(lat, lon, now) } catch (e: Exception) { com.qext2.primary.util.RideFileLog.append("WX_CACHE_CRASH ${e.message}") }
             val cond = when (wx.nowKind) {
                 com.qext2.primary.weather.WxKind.STORM -> "Thunderstorm"
                 com.qext2.primary.weather.WxKind.SNOW -> "Snow"
@@ -1612,6 +1600,20 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
             out.add(com.qext2.primary.weather.WxPoint(ula, ulo, 0, 0f, scan = true, upwind = true))
         }
         return out
+    }
+
+    private val wxCacheKeyRef = AtomicReference("")
+
+    /** zapas prognozy (WeatherCache): przy nowej trasie / starcie jazdy i co godzine, gdy jest siec */
+    private suspend fun maybeRefreshWeatherCache(lat: Double, lon: Double, now: Long) {
+        val W = com.qext2.primary.weather.WeatherCache
+        val key = navRouteKeyRef.get() + "|" + rideStartWallMsRef.get()
+        val d = W.current()
+        if (d != null && key == wxCacheKeyRef.get() && now - d.fetchedAt < W.REFRESH_MS) return
+        val pts = W.points(routeLineRef.get(), lat, lon)
+        val ok = W.fetch(karooSystem, pts)
+        if (ok) wxCacheKeyRef.set(key)
+        com.qext2.primary.util.RideFileLog.append(if (ok) "WX_CACHE_OK points=${pts.size}" else "WX_CACHE_FAIL points=${pts.size}")
     }
 
     fun getRouteWeather(): com.qext2.primary.weather.RouteWx? = routeWxRef.get()
@@ -1743,15 +1745,42 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     /** Dryf tetna w % (jak w HrStrainAdvisor: baza 8-18 min vs ostatnie 8 min); 0 gdy jeszcze nie liczony. */
     fun getHrDecouplingPct(): Float = hrDecouplingPctRef.get()
 
-    /** Predkosc wiatru (m/s) z karoo-headwind: ostatnia wartosc, gdy rozszerzenie zyje (probka <= 15 s,
-     *  kierunek odswieza sie co chwile, predkosc tylko gdy sie zmieni -- jak ACTIVE); inaczej null. */
-    private fun fresh(ch: String): Boolean = System.currentTimeMillis() - (windChannelMs[ch] ?: 0L) <= 15_000L
+    private val headingDegRef = AtomicReference<Double?>(null)
+    private val headingMsRef = AtomicReference(0L)
+    private val windNowCache = AtomicReference<Pair<Long, WindNow?>>(0L to null)
+    @Volatile private var windCachedLogged = false
 
-    fun getKarooWindMps(): Float? {
-        if (!fresh("windSpeed")) return null
-        val sp = windSpeedMpsRef.get() ?: return null
-        return if (sp.isFinite() && kotlin.math.abs(sp) <= 60.0) kotlin.math.abs(sp).toFloat() else null
+    /** wiatr teraz: m/s, z kierunku (st.), porywy m/s, cached = z zapasu prognozy (brak swiezej pogody) */
+    data class WindNow(val mps: Float, val fromDeg: Int, val gustMps: Float?, val cached: Boolean)
+
+    /** Wiatr z QExt2 (2026-10-14, bez karoo-headwind): swieza pogoda RouteWeather, inaczej zapas WeatherCache; memo 5 s. */
+    fun getWindNow(): WindNow? {
+        val now = System.currentTimeMillis()
+        val c = windNowCache.get()
+        if (now - c.first < 5_000L) return c.second
+        val wx = routeWxRef.get()
+        var r: WindNow? = null
+        if (wx != null && com.qext2.primary.weather.RouteWeatherClient.isFresh(wx)) {
+            val v = wx.windMps; val d = wx.windDirDeg
+            if (v != null && d != null) r = WindNow(v, d, wx.gustMps, false)
+        }
+        if (r == null) com.qext2.primary.weather.WeatherCache.lookupHere(now)?.let { cw -> r = WindNow(cw.windMps, cw.windFromDeg, cw.gustMps, true) }
+        if (r?.cached == true && !windCachedLogged) { windCachedLogged = true; com.qext2.primary.util.RideFileLog.append("WX_CACHE wind used ${r}") }
+        if (r?.cached == false) windCachedLogged = false
+        windNowCache.set(now to r)
+        return r
     }
+
+    /** kierunek jazdy (st.) z Karoo, gdy swiezy i jedziesz (> 4 km/h); inaczej null */
+    private fun headingNow(): Double? {
+        if (System.currentTimeMillis() - headingMsRef.get() > 10_000L) return null
+        if (speedRef.get() < 4.0) return null
+        return headingDegRef.get()
+    }
+
+    fun windFromCache(): Boolean = getWindNow()?.cached == true
+
+    fun getKarooWindMps(): Float? = getWindNow()?.mps?.takeIf { it.isFinite() && it in 0f..60f }
 
     /** Wiatr czolowy ze znakiem (m/s) z karoo-headwind: + w twarz, - w plecy; null = brak swiezych danych. */
     private val headwindAheadCache = AtomicReference<Pair<Long, Float?>>(0L to null)
@@ -1769,9 +1798,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
 
     private fun computeHeadwindKmAhead(minMps: Float): Float? {
         val line = routeLineRef.get() ?: return null
-        val wx = routeWxRef.get()?.takeIf { com.qext2.primary.weather.RouteWeatherClient.isFresh(it) } ?: return null
-        val dir = wx.windDirDeg ?: return null
-        val v = wx.windMps ?: return null
+        val wn = getWindNow() ?: return null
+        val dir = wn.fromDeg
+        val v = wn.mps
         val dtd = distanceToDestinationMetersRef.get()
         if (dtd <= 0.0) return null
         val end = line.lengthM
@@ -1790,26 +1819,23 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         return (m / 1000.0).toFloat()
     }
 
+    /** Wiatr czolowy ze znakiem (m/s): + w twarz, - w plecy (wiatr x cos(kierunek wiatru - kierunek jazdy)); null = brak. */
     fun getHeadwindSignedMps(): Float? {
-        if (!fresh("headwindSpeed")) return null
-        val sp = headwindSpeedMpsRef.get() ?: return null
-        return if (sp.isFinite() && kotlin.math.abs(sp) <= 60.0) sp.toFloat() else null
+        val w = getWindNow() ?: return null
+        val h = headingNow() ?: return null
+        return (w.mps * kotlin.math.cos(Math.toRadians(w.fromDeg - h))).toFloat()
     }
 
-    /** Porywy wiatru (m/s) z karoo-headwind; null = brak swiezych danych. */
-    fun getKarooWindGustsMps(): Float? {
-        if (!fresh("windGusts")) return null
-        val g = windGustsMpsRef.get() ?: return null
-        return if (g.isFinite() && g in 0.0..80.0) g.toFloat() else null
-    }
+    /** Porywy wiatru (m/s) z prognozy; null = brak danych. */
+    fun getKarooWindGustsMps(): Float? = getWindNow()?.gustMps?.takeIf { it.isFinite() && it in 0f..80f }
 
-    /** KOKPIT: (kierunek wzgledny stopnie, wiatr czolowy m/s) z karoo-headwind, gdy swieze (<= 15 s); inaczej null */
+    /** KOKPIT: (kierunek wiatru wzgledem jazdy w st. - 0 = wieje w plecy/strzalka w gore, |wiatr czolowy| m/s); null = brak */
     fun getHeadwindRel(): Pair<Int, Float>? {
-        if (!fresh("headwind") || !fresh("headwindSpeed")) return null
-        val d = headwindDirDegRef.get() ?: return null
-        val sp = headwindSpeedMpsRef.get() ?: return null
-        if (!sp.isFinite() || kotlin.math.abs(sp) > 60.0) return null
-        return (((d % 360.0) + 360.0) % 360.0).toInt() to kotlin.math.abs(sp).toFloat()
+        val w = getWindNow() ?: return null
+        val h = headingNow() ?: return null
+        val rel = (((w.fromDeg + 180.0 - h) % 360.0) + 360.0) % 360.0
+        val head = w.mps * kotlin.math.cos(Math.toRadians(w.fromDeg - h))
+        return rel.toInt() to kotlin.math.abs(head).toFloat()
     }
 
     /** KOKPIT 2: nastepny manewr = (odleglosc m z DISTANCE_TO_NEXT_TURN Karoo, rodzaj z geometrii trasy); null = brak */

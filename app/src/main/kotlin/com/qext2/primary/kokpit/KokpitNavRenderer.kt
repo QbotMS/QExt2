@@ -46,6 +46,8 @@ data class KokpitNavData(
     val demo: Boolean = false,
     /** KOKPIT 2: pole dynamiczne (dol, 3. kolumna) */
     val dyn: DynItem? = null,
+    /** wiatr z zapasu prognozy (brak sieci) - znacznik "P" */
+    val windCached: Boolean = false,
 )
 
 /** Pole dynamiczne KOKPIT 2: kind = ATD | ASC | WIND | water | shop | food | AVG; warn 0 brak, 1 zolty, 2 czerwony. */

@@ -389,20 +389,16 @@ class BpActiveStaticDataType : DataTypeImpl("qext2", "qext2-active-static") {
         return round(c).toInt().toString()
     }
 
+    /** wiatr z QExt2 (prognoza + kierunek jazdy z Karoo, 2026-10-14; bez karoo-headwind) */
     private fun formatWind(): String {
-        val ageMs = System.currentTimeMillis() - lastWindUpdateMs
-        if (lastWindUpdateMs == 0L || ageMs > 10_000L) return "--"
-        val speedMs = currentWindSpeedMs()
-        val mps = com.qext2.primary.util.WindUnits.toMps(speedMs)
-        if (speedMs.isNaN() || mps > 60.0) return "--"
-        return round(mps).toInt().toString()
+        val v = QExt2PrimaryExtension.instance?.aggregator?.getKarooWindMps() ?: return "--"
+        return kotlin.math.round(v.toDouble()).toInt().toString()
     }
 
     private fun formatWindDir(): String {
-        val ageMs = System.currentTimeMillis() - lastWindUpdateMs
-        if (lastWindUpdateMs == 0L || ageMs > 10_000L) return ""
-        if (lastDirectionDeg.isNaN() || lastDirectionDeg < 0) return if (currentWindSpeedMs().isNaN()) "" else "↑"
-        return arrayOf("↑", "↗", "→", "↘", "↓", "↙", "←", "↖")[((lastDirectionDeg + 22.5) % 360).toInt() / 45]
+        val agg = QExt2PrimaryExtension.instance?.aggregator ?: return ""
+        val rel = agg.getHeadwindRel()?.first ?: return if (agg.getKarooWindMps() == null) "" else "↑"
+        return arrayOf("↑", "↗", "→", "↘", "↓", "↙", "←", "↖")[((rel + 22.5) % 360).toInt() / 45]
     }
 
     private fun currentWindSpeedMs(): Double = when {

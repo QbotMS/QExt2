@@ -139,7 +139,10 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
         // pogoda po trasie (Open-Meteo, co 15 min jazdy wg ETA, do 2 h)
         val rw = agg?.getRouteWeather()?.takeIf { com.qext2.primary.weather.RouteWeatherClient.isFresh(it) }
         // E5.3: "za X min" liczone od chwili pobrania prognozy, nie zamrozone
-        val rainSoonLocal = rw?.event?.let { RainSoon((it.minutes - ((now - rw.fetchedAt) / 60_000L).toInt()).coerceAtLeast(0), it.probPct, it.mmPerH, it.kind.name, it.kmAhead) }
+        // swieza pogoda (<= 35 min) -> prognoza po trasie; inaczej zapas prognozy (brak sieci, 2026-10-14)
+        val rainSoonLocal = if (com.qext2.primary.weather.RouteWeatherClient.isFresh(rw))
+            rw?.event?.let { RainSoon((it.minutes - ((now - rw.fetchedAt) / 60_000L).toInt()).coerceAtLeast(0), it.probPct, it.mmPerH, it.kind.name, it.kmAhead) }
+            else com.qext2.primary.weather.WeatherCache.rainSoonHere(now)
         // 2026-10-14: radar QBota (odpowiedz na sygnal jazdy) ma pierwszenstwo; lokalna prognoza = zapas / dalej niz 60 min
         val mg = QbotRadar.merge(now, rainNow, rainSoonLocal)
         val rainSoon = mg.soon
@@ -192,6 +195,7 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
             windRelDeg = hw?.first,
             windSignedMps = agg?.getHeadwindSignedMps(),   // KOKPIT 2: kolor strzalki (+ w twarz)
             windTotalMps = agg?.getKarooWindMps(),
+            windCached = agg?.windFromCache() == true,
             turnDistM = nt?.first, turnKind = nt?.second,
             sky = rw?.sky?.name,
             dyn = dynItem(now, s, agg, pos, dtdKm, total, eta, dusk ?: 0L, pois),   // granica: zmrok (nie swit)

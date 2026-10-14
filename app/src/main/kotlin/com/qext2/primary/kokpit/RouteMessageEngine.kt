@@ -19,7 +19,9 @@ data class ClimbInfo(val startKm: Float, val lengthKm: Float, val gradePct: Floa
 data class DescentInfo(val distAheadKm: Float, val gradePct: Float)
 /** radar=true: z radaru QBota (QbotRadar) - bez % (probPct=-1), sila slownie, durMin = czas trwania (gdy pada: ile jeszcze). */
 data class RainSoon(val minutes: Int, val probPct: Int, val mmPerH: Float, val kind: String = "RAIN", val kmAhead: Float = 0f,
-                    val radar: Boolean = false, val sila: String = "", val durMin: Int = 0)
+                    val radar: Boolean = false, val sila: String = "", val durMin: Int = 0,
+                    /** z zapasu prognozy (brak sieci) - znacznik "P" w polu OPAD */
+                    val cached: Boolean = false)
 /** Punkt z QBota: cat = water | shop | food; today = godziny na dzis (np. "06:00–20:00", "zamknięte") albo null. */
 /** Stan W' (jak w ClimbPacingProducer): pct, stan (BOMBA m:ss / ODBUDOWA m:ss / TRZYMASZ! / PRZEPAŁ), krytyczny. */
 data class WPrimeInfo(val pct: Int, val state: String, val critical: Boolean)

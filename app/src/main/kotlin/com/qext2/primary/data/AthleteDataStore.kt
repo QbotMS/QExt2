@@ -569,6 +569,9 @@ object AthleteDataStore {
 
     fun saveHeadwindUnit(u: Int) { prefs?.edit()?.putInt("headwind_unit", u.coerceIn(0, 3))?.apply() }
     fun loadHeadwindUnit(): Int = 0   // SETUP v3: karoo-headwind w km/h (ustawienie Michala)
+    /** zapas prognozy na brak sieci (WeatherCache, 2026-10-14) */
+    fun saveWxCache(s: String) { prefs?.edit()?.putString("wx_cache_v1", s)?.apply() }
+    fun loadWxCache(): String? = prefs?.getString("wx_cache_v1", null)
 
     fun saveCadenceModel(json: String) { prefs?.edit()?.putString("cadence_model", json)?.apply() }
     fun loadCadenceModel(): String? = prefs?.getString("cadence_model", null)

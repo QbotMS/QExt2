@@ -578,6 +578,7 @@ object Kokpit2NavRenderer {
                 else -> wx.add(Item(34f) { x -> cloud(c, x, base - capH * 0.75f, 34f, capH * 0.75f, UNIT) })
             }
         }
+        if (rs?.cached == true && wx.isNotEmpty()) wx.add(txt("P", 13f, UNIT, base, false))   // z zapasu prognozy (brak sieci)
         // wzorzec: opad do 88% za 88 min (zmierzone na Karoo); radar "8,8 mm 88'" miesci sie w nim
         return G(wx, 30f + 4f + w("88%", 36f) + 4f + w("88′", 20f), 4f)
     }
@@ -598,6 +599,7 @@ object Kokpit2NavRenderer {
         d.windRelDeg?.let { rel -> wg.add(Item(32f) { x -> arrow(c, x + 16f, base - capH / 2f, 32f, rel.toFloat(), wcol) }) }
         wg.add(txt(fmt("%.0f", wm), vs, WHITE, base))
         wg.add(Item(20f * capH / 28f) { x -> msUnit(c, x, base, capH) })
+        if (d.windCached) wg.add(txt("P", 13f, UNIT, base, false))   // z zapasu prognozy (brak sieci)
         return G(wg, ref, 4f)
     }
 
