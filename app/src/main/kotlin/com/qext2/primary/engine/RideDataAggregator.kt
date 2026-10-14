@@ -1559,12 +1559,14 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         }
     }
 
-    /** Punkty pogody: biezaca pozycja + co 15 min jazdy wg ETA v2 (do 2 h, nie dalej niz meta). */
+    /** Punkty pogody: biezaca pozycja + co 15 min jazdy wg ETA v2 (do 2 h, nie dalej niz meta).
+     *  Bez trasy: biezaca pozycja ze skanem kolejnych kwadransow (do 2 h) + punkt ~10 km pod wiatr
+     *  (kierunek i sila wiatru z poprzedniego pobrania; pierwszy raz bez niego). */
     private fun buildWxPoints(lat: Double, lon: Double): List<com.qext2.primary.weather.WxPoint> {
-        val out = arrayListOf(com.qext2.primary.weather.WxPoint(lat, lon, 0, 0f))
-        val line = routeLineRef.get() ?: return out
+        val line = routeLineRef.get()
         val dtd = distanceToDestinationMetersRef.get()
-        if (dtd <= 0.0) return out
+        if (line == null || dtd <= 0.0) return buildWxPointsNoRoute(lat, lon)
+        val out = arrayListOf(com.qext2.primary.weather.WxPoint(lat, lon, 0, 0f))
         val pos0 = (line.lengthM - dtd).coerceAtLeast(0.0)
         for (k in 1..8) {
             val sec = k * 15 * 60.0
@@ -1572,6 +1574,19 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
             if (d >= line.lengthM) break
             val (la, lo) = line.at(d)
             out.add(com.qext2.primary.weather.WxPoint(la, lo, k * 15, ((d - pos0) / 1000.0).toFloat()))
+        }
+        return out
+    }
+
+    private fun buildWxPointsNoRoute(lat: Double, lon: Double): List<com.qext2.primary.weather.WxPoint> {
+        val W = com.qext2.primary.weather.RouteWeatherClient
+        val out = arrayListOf(com.qext2.primary.weather.WxPoint(lat, lon, 0, 0f, scan = true))
+        val prev = routeWxRef.get()
+        val dir = prev?.windDirDeg
+        val v = prev?.windMps
+        if (dir != null && v != null && v >= W.UPWIND_MIN_MPS) {
+            val (ula, ulo) = W.upwindPoint(lat, lon, dir)
+            out.add(com.qext2.primary.weather.WxPoint(ula, ulo, 0, 0f, scan = true, upwind = true))
         }
         return out
     }

@@ -78,7 +78,12 @@ class RouteLine(private val lat: DoubleArray, private val lon: DoubleArray, priv
 /** Zjawiska od najmniej do najbardziej istotnego. */
 enum class WxKind(val severity: Int) { CLEAR(0), PARTLY(0), OVERCAST(0), FOG(1), DRIZZLE(2), RAIN(3), SNOW(4), STORM(5) }
 
-data class WxPoint(val lat: Double, val lon: Double, val minutes: Int, val kmAhead: Float)
+/**
+ * Punkt prognozy. Z trasa: punkt wg ETA (minutes = za ile min tam bedziesz).
+ * scan = true (jazda BEZ trasy): przegladaj kolejne kwadranse prognozy dla tego miejsca (do 2 h) i wez pierwszy z opadem.
+ * upwind = true: punkt ~10 km pod wiatr (stamtad nadciaga opad) - liczy sie tylko, gdy w Twoim miejscu nic nie ma.
+ */
+data class WxPoint(val lat: Double, val lon: Double, val minutes: Int, val kmAhead: Float, val scan: Boolean = false, val upwind: Boolean = false)
 
 /** Najgorsze zjawisko na trasie w horyzoncie ~2 h: kiedy (min), gdzie (km przed toba), szansa, natezenie. */
 data class WxEvent(val kind: WxKind, val minutes: Int, val probPct: Int, val mmPerH: Float, val kmAhead: Float)
@@ -98,6 +103,11 @@ data class RouteWx(
 
 object RouteWeatherClient {
     private const val FRESH_MAX_MS = 35 * 60_000L
+    /** Horyzont przegladania kwadransow dla jazdy bez trasy [min]. */
+    const val SCAN_MAX_MIN = 120
+    /** Odleglosc punktu pod wiatr [km] i minimalny wiatr, przy ktorym ma sens [m/s]. */
+    const val UPWIND_KM = 10.0
+    const val UPWIND_MIN_MPS = 2.0f
 
     fun isFresh(w: RouteWx?): Boolean = w != null && System.currentTimeMillis() - w.fetchedAt in 0..FRESH_MAX_MS
 
@@ -116,6 +126,34 @@ object RouteWeatherClient {
         2 -> WxKind.PARTLY
         45, 48 -> WxKind.FOG
         else -> WxKind.OVERCAST
+    }
+
+    /**
+     * Jazda bez trasy: pierwszy kwadrans z opadem (bez mgly) w horyzoncie maxMin.
+     * Open-Meteo minutely_15: wartosc o czasie T dotyczy kwadransa PRZED T (T-15..T),
+     * wiec biezacy kwadrans to pierwszy slot z T > teraz, a opad zaczyna sie o T-15 min.
+     * Zwraca (indeks slotu, za ile minut) albo null. Czysta funkcja (testowalna bez Androida).
+     */
+    fun scanFirst(slotTimesSec: LongArray, kinds: Array<WxKind?>, nowSec: Long, maxMin: Int = SCAN_MAX_MIN): Pair<Int, Int>? {
+        for (i in slotTimesSec.indices) {
+            val t = slotTimesSec[i]
+            if (t <= nowSec) continue
+            val startMin = ((t - 900L - nowSec) / 60L).toInt().coerceAtLeast(0)
+            if (startMin > maxMin) break
+            val k = kinds.getOrNull(i) ?: continue
+            if (k == WxKind.FOG) continue
+            return i to startMin
+        }
+        return null
+    }
+
+    /** Punkt ~UPWIND_KM km w strone, z ktorej wieje (kierunek meteorologiczny = skad wieje). */
+    fun upwindPoint(lat: Double, lon: Double, windFromDeg: Int, km: Double = UPWIND_KM): Pair<Double, Double> {
+        val d = km * 1000.0
+        val br = Math.toRadians(windFromDeg.toDouble())
+        val dLat = d * cos(br) / 111_320.0
+        val dLon = d * sin(br) / (111_320.0 * cos(Math.toRadians(lat)).coerceAtLeast(0.01))
+        return (lat + dLat) to (lon + dLon)
     }
 
     private fun url(pts: List<WxPoint>): String {
@@ -179,32 +217,52 @@ object RouteWeatherClient {
         val curCloud = cur?.optInt("cloud_cover", 0) ?: 0
         val curPrecip = cur?.optDouble("precipitation", 0.0) ?: 0.0
         var event: WxEvent? = null
+        var upEvent: WxEvent? = null
         for ((k, o) in objs.withIndex()) {
             val p = pts.getOrNull(k) ?: break
             val m = o.optJSONObject("minutely_15") ?: continue
             val tm = m.optJSONArray("time") ?: continue
-            val target = nowSec + p.minutes * 60L
-            var bi = -1; var bd = Long.MAX_VALUE
-            for (i in 0 until tm.length()) { val dd = kotlin.math.abs(tm.getLong(i) - target); if (dd < bd) { bd = dd; bi = i } }
-            if (bi < 0) continue
             val h = o.optJSONObject("hourly")
-            fun hourly(name: String): Int {
+            fun hourly(name: String, atSec: Long): Int {
                 val ht = h?.optJSONArray("time"); val hv = h?.optJSONArray(name)
                 if (ht == null || hv == null) return 0
                 var v = 0
-                for (i in 0 until ht.length()) if (ht.getLong(i) <= tm.getLong(bi)) v = hv.optInt(i, 0)
+                for (i in 0 until ht.length()) if (ht.getLong(i) <= atSec) v = hv.optInt(i, 0)
                 return v
             }
-            val code = m.optJSONArray("weather_code")?.optInt(bi, -1)?.takeIf { it >= 0 } ?: hourly("weather_code")
-            val pr = m.optJSONArray("precipitation")?.optDouble(bi, 0.0) ?: 0.0
-            val rn = m.optJSONArray("rain")?.optDouble(bi, 0.0) ?: 0.0
-            val sn = m.optJSONArray("snowfall")?.optDouble(bi, 0.0) ?: 0.0
-            val kind = classify(code, pr, rn, sn) ?: continue
-            val prob = hourly("precipitation_probability")   // E5.3: prawdopodobienstwo osobno od intensywnosci (bez sztucznych 50%)
-            val ev = WxEvent(kind, p.minutes, prob, (pr * 4.0).toFloat(), p.kmAhead)
-            val e0 = event
-            if (e0 == null || ev.kind.severity > e0.kind.severity) event = ev
+            fun kindAt(i: Int): WxKind? {
+                val code = m.optJSONArray("weather_code")?.optInt(i, -1)?.takeIf { it >= 0 } ?: hourly("weather_code", tm.getLong(i))
+                val pr = m.optJSONArray("precipitation")?.optDouble(i, 0.0) ?: 0.0
+                val rn = m.optJSONArray("rain")?.optDouble(i, 0.0) ?: 0.0
+                val sn = m.optJSONArray("snowfall")?.optDouble(i, 0.0) ?: 0.0
+                return classify(code, pr, rn, sn)
+            }
+            fun mmPerH(i: Int): Float = ((m.optJSONArray("precipitation")?.optDouble(i, 0.0) ?: 0.0) * 4.0).toFloat()
+            val ev: WxEvent = if (p.scan) {
+                // jazda bez trasy: kolejne kwadranse prognozy dla tego miejsca
+                val times = LongArray(tm.length()) { tm.getLong(it) }
+                val kinds = Array(tm.length()) { kindAt(it) }
+                val (bi, startMin) = scanFirst(times, kinds, nowSec) ?: continue
+                WxEvent(kinds[bi]!!, startMin, hourly("precipitation_probability", times[bi]), mmPerH(bi), p.kmAhead)
+            } else {
+                val target = nowSec + p.minutes * 60L
+                var bi = -1; var bd = Long.MAX_VALUE
+                for (i in 0 until tm.length()) { val dd = kotlin.math.abs(tm.getLong(i) - target); if (dd < bd) { bd = dd; bi = i } }
+                if (bi < 0) continue
+                val kind = kindAt(bi) ?: continue
+                val prob = hourly("precipitation_probability", tm.getLong(bi))   // E5.3: prawdopodobienstwo osobno od intensywnosci (bez sztucznych 50%)
+                WxEvent(kind, p.minutes, prob, mmPerH(bi), p.kmAhead)
+            }
+            if (p.upwind) {
+                val u0 = upEvent
+                if (u0 == null || ev.minutes < u0.minutes) upEvent = ev
+            } else {
+                val e0 = event
+                if (e0 == null || ev.kind.severity > e0.kind.severity) event = ev
+            }
         }
+        // pod wiatr liczy sie tylko, gdy w Twoim miejscu prognoza nic nie widzi
+        if (event == null) event = upEvent
         val r = RouteWx(
             tempC = cur?.optDouble("temperature_2m", Double.NaN)?.takeIf { !it.isNaN() }?.toFloat(),
             windMps = cur?.optDouble("wind_speed_10m", Double.NaN)?.takeIf { !it.isNaN() }?.toFloat(),
@@ -217,7 +275,7 @@ object RouteWeatherClient {
             points = objs.size,
             fetchedAt = nowMs,
         )
-        Log.i(TAG, "QEXT_ROUTE_WX points=${objs.size} sky=${r.sky} now=${r.nowKind} event=${event?.kind}@${event?.minutes}min/${event?.kmAhead}km p=${event?.probPct}")
+        Log.i(TAG, "QEXT_ROUTE_WX points=${objs.size} sky=${r.sky} now=${r.nowKind} event=${event?.kind}@${event?.minutes}min/${event?.kmAhead}km p=${event?.probPct} up=${upEvent?.kind}@${upEvent?.minutes}min")
         return r
     }
 }
