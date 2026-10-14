@@ -1731,6 +1731,42 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     }
 
     /** Wiatr czolowy ze znakiem (m/s) z karoo-headwind: + w twarz, - w plecy; null = brak swiezych danych. */
+    private val headwindAheadCache = AtomicReference<Pair<Long, Float?>>(0L to null)
+
+    /** KOKPIT 2 pole dynamiczne: km dalszej trasy z wiatrem w twarz >= minMps (wiatr z prognozy Open-Meteo dla biezacego
+     *  miejsca, kierunek trasy co 250 m); liczone co 60 s. null = brak trasy / pogody. */
+    fun getHeadwindKmAhead(minMps: Float): Float? {
+        val now = System.currentTimeMillis()
+        val c = headwindAheadCache.get()
+        if (now - c.first < 60_000L) return c.second
+        val r = try { computeHeadwindKmAhead(minMps) } catch (_: Exception) { null }
+        headwindAheadCache.set(now to r)
+        return r
+    }
+
+    private fun computeHeadwindKmAhead(minMps: Float): Float? {
+        val line = routeLineRef.get() ?: return null
+        val wx = routeWxRef.get()?.takeIf { com.qext2.primary.weather.RouteWeatherClient.isFresh(it) } ?: return null
+        val dir = wx.windDirDeg ?: return null
+        val v = wx.windMps ?: return null
+        val dtd = distanceToDestinationMetersRef.get()
+        if (dtd <= 0.0) return null
+        val end = line.lengthM
+        var d = (end - dtd).coerceIn(0.0, end)
+        var m = 0.0
+        while (d < end - 1.0) {
+            val e = minOf(end, d + 250.0)
+            val (la1, lo1) = line.at(d); val (la2, lo2) = line.at(e)
+            val p1 = Math.toRadians(la1); val p2 = Math.toRadians(la2); val dl = Math.toRadians(lo2 - lo1)
+            val b = Math.toDegrees(kotlin.math.atan2(kotlin.math.sin(dl) * kotlin.math.cos(p2),
+                kotlin.math.cos(p1) * kotlin.math.sin(p2) - kotlin.math.sin(p1) * kotlin.math.cos(p2) * kotlin.math.cos(dl)))
+            // wiatr "z kierunku dir": w twarz, gdy kierunek jazdy b ~ dir
+            if (v * kotlin.math.cos(Math.toRadians(dir - b)) >= minMps) m += e - d
+            d = e
+        }
+        return (m / 1000.0).toFloat()
+    }
+
     fun getHeadwindSignedMps(): Float? {
         if (!fresh("headwindSpeed")) return null
         val sp = headwindSpeedMpsRef.get() ?: return null

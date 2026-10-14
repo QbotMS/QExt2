@@ -81,7 +81,10 @@ object Kokpit2Demo {
         val tk = listOf("LEFT", "RB_R", "UTURN", "SLIGHT_RIGHT", "SHARP_LEFT", "RB_S", "RIGHT", "RB_L", "STRAIGHT", "SHARP_RIGHT", "SLIGHT_LEFT", "RB_U")
         val td = listOf(300.0, 1240.0, 80.0, 650.0, 150.0, 450.0, 25.0, 2400.0, 900.0, 60.0, 1800.0, 220.0)
         val ti = ((now / 5000L) % tk.size).toInt()
-        val d = d1.copy(turnKind = tk[ti], turnDistM = td[ti])
+        // pole dynamiczne co 4 s - wszystkie rodzaje, w tym najszersze (wymagana srednia zolta i czerwona)
+        val dyn = listOf(DynItem("ATD", "640", "m"), DynItem("WIND", "18", "km"), DynItem("shop", "12", "km"),
+            DynItem("water", "3,4", "km"), DynItem("AVG", "21,5", "km/h", 1), DynItem("AVG", "24,8", "km/h", 2))[((now / 4000L) % 6L).toInt()]
+        val d = d1.copy(turnKind = tk[ti], turnDistM = td[ti], dyn = dyn)
         val rel = d.windRelDeg ?: return d
         val ws = d.windMps ?: 4f
         // strzalka = kierunek wiatru wzgledem jazdy: w gore (0 st.) wieje w plecy, w dol w twarz -> czolowy = -ws*cos
@@ -511,16 +514,38 @@ object Kokpit2NavRenderer {
     private fun drawG(g: List<Item>, x0: Float, inner: Float) { var x = x0; for ((i, item) in g.withIndex()) { if (i > 0) x += inner; item.draw(x); x += item.width } }
 
     // ---------- gorny wiersz (zmienne): temperatura | pogoda | manewr | nachylenie - STALE KOLUMNY ----------
-    private fun rowWeather(c: Canvas, d: KokpitNavData, vw: Float, base: Float) {
-        // JEDNA wielkosc dla temperatury, manewru i nachylenia: najwieksza (do 42 px), przy ktorej wzorce
-        // najszerszych wartosci mieszcza sie w wierszu - liczona raz z wzorcow, nie z biezacych wartosci
-        val wxRef0 = 30f + 4f + w("88%", 32f) + 4f + w("88′", 18f)
-        fun rowW(sz: Float) = (16f + 4f + w("-88°", sz)) + 6f + wxRef0 + 18f +
-            (30f + 8f + w("888", sz) + 2f + w("km", 16f, false)) + 8f + (26f + 4f + w("-88", sz) + 4f + w("%", 20f, false))
-        val vs = 42f   // temperatura i nachylenie zawsze 42 px (decyzja Michala); manewr dopasowany do reszty miejsca
+    private class G(val items: List<Item>, val ref: Float, val inner: Float)
+
+    /** wiersz z kolumn o stalych szerokosciach (wzorce najszerszych wartosci): pierwsza do lewej, ostatnia do prawej, srodkowe rowno */
+    private fun row(gs: List<G>, vw: Float) {
+        val gap = ((vw - 16f) - gs.sumOf { it.ref.toDouble() }.toFloat()) / (gs.size - 1).coerceAtLeast(1)
+        var x = 8f
+        for ((i, g) in gs.withIndex()) {
+            if (i == gs.size - 1) drawG(g.items, vw - 8f - gw(g.items, g.inner), g.inner)
+            else { drawG(g.items, x, g.inner); x += g.ref + gap }
+        }
+    }
+    private fun rowGap(gs: List<G>, vw: Float) = ((vw - 16f) - gs.sumOf { it.ref.toDouble() }.toFloat()) / (gs.size - 1).coerceAtLeast(1)
+
+    private fun gDst(c: Canvas, d: KokpitNavData, base: Float, vs: Float): G {
         val capH = vs * CAP
-        val tempG = listOf(Item(16f) { x -> thermo(c, x, base, 16f, capH, LBL) },
+        val d10 = kotlin.math.floor(d.doneKm.coerceAtLeast(0f) * 10f).toInt()
+        val dDec = "." + (d10 % 10).toString()
+        val dds = vs * 0.55f
+        val g = listOf(vlabel(c, "DST", base, capH), txt((d10 / 10).toString(), vs, WHITE, base),
+            Item(w(dDec, dds)) { x -> t(c, dDec, x, base - capH + dds * CAP, dds, WHITE) })
+        return G(g, 10f + 2f + w("888", vs) + 2f + w(".8", dds), 2f)
+    }
+
+    private fun gTemp(c: Canvas, d: KokpitNavData, base: Float, vs: Float): G {
+        val capH = vs * CAP
+        val g = listOf(Item(16f) { x -> thermo(c, x, base, 16f, capH, LBL) },
             if (d.tempC != null) txt(fmt("%.0f", d.tempC) + "°", vs, WHITE, base) else txt("—", vs, NONE, base))
+        return G(g, 16f + 4f + w("-18°", vs), 4f)
+    }
+
+    private fun gWx(c: Canvas, d: KokpitNavData, base: Float, vs: Float): G {
+        val capH = vs * CAP
         val wx = ArrayList<Item>()
         val rn = d.rainNowMmH; val rs = d.rainSoon
         if (rn != null && rn >= 0.1f) {
@@ -553,28 +578,83 @@ object Kokpit2NavRenderer {
                 else -> wx.add(Item(34f) { x -> cloud(c, x, base - capH * 0.75f, 34f, capH * 0.75f, UNIT) })
             }
         }
+        // wzorzec: opad do 88% za 88 min (zmierzone na Karoo); radar "8,8 mm 88'" miesci sie w nim
+        return G(wx, 30f + 4f + w("88%", 36f) + 4f + w("88′", 20f), 4f)
+    }
+
+    private fun gWind(c: Canvas, d: KokpitNavData, base: Float, vs: Float): G {
+        val capH = vs * CAP
+        val wm = d.windMps
+        val ref = 32f + 4f + w("88", vs) + 4f + 20f * capH / 28f
+        if (wm == null) return G(listOf(txt("wiatr —", 20f, NONE, base, false)), ref, 4f)
+        val hs = d.windSignedMps
+        val wMin = Kokpit2Config.cp("wind", "min_mps", 3.0).toFloat()
+        val wShare = (Kokpit2Config.cp("wind", "share", 70.0) / 100.0).toFloat()
+        val wcol = if (hs == null || Kokpit2Config.color("wind", "headtail") == "white") WHITE else {
+            val tot = maxOf(d.windTotalMps ?: abs(hs), abs(hs))
+            when { hs >= wMin && hs >= wShare * tot -> RED; hs <= -wMin && -hs >= wShare * tot -> GREEN; else -> WHITE }
+        }
+        val wg = ArrayList<Item>()
+        d.windRelDeg?.let { rel -> wg.add(Item(32f) { x -> arrow(c, x + 16f, base - capH / 2f, 32f, rel.toFloat(), wcol) }) }
+        wg.add(txt(fmt("%.0f", wm), vs, WHITE, base))
+        wg.add(Item(20f * capH / 28f) { x -> msUnit(c, x, base, capH) })
+        return G(wg, ref, 4f)
+    }
+
+    private fun gGrade(c: Canvas, d: KokpitNavData, base: Float, vs: Float): G {
+        val capH = vs * CAP
         val gr = d.gradePct
-        val grG = if (gr == null) listOf(Item(26f) { x -> tri(c, x, base, 26f, capH, 3f, NONE) }, txt("—", vs, NONE, base))
+        val g = if (gr == null) listOf(Item(26f) { x -> tri(c, x, base, 26f, capH, 3f, NONE) }, txt("—", vs, NONE, base))
             else listOf(Item(26f) { x -> tri(c, x, base, 26f, capH, gr, gradeColor(gr)) }, txt(fmt("%.0f", gr), vs, WHITE, base), txt("%", 20f, UNIT, base, false))
-        // pozycje z wzorcow najszerszych wartosci (nie z biezacych) - kolumny stoja w miejscu
-        // wzorce = realne maksima (temp. i nachylenie do -18, opad do 88% za 88 min) - zmierzone na zrzucie z Karoo
-        val tempRef = 16f + 4f + w("-18°", vs)
-        val wxRef = 30f + 4f + w("88%", 36f) + 4f + w("88′", 20f)
-        val grRef = 26f + 4f + w("-18", vs) + 4f + w("%", 20f, false)
-        val xTemp = 8f
-        val xWx = xTemp + tempRef + 6f
-        val xGr = vw - 8f - grRef
-        // manewr odsuniety od pogody (18 px), stoi tuz przed nachyleniem
-        // wzorce pogody/nachylenia maja ok. 13 px zapasu (zmierzone na Karoo: burza 80% 15' konczy sie 13 px przed wzorcem) -
-        // manewr moze z niego korzystac; stoi 6 px przed wzorcem nachylenia
-        // zmierzone na Karoo (build 290): najszersza pogoda (burza 80% 15') konczy sie 13 px przed koncem wzorca,
-        // najszersze nachylenie (-12 %) zaczyna sie 17 px za poczatkiem wzorca -> manewr: 8 px od pogody, 6 px od nachylenia
-        val turnL = xWx + wxRef - 13f + 18f   // 18 px od najszerszej pogody (bylo 8)
-        val turnR = xGr + 17f - 6f
-        val turn = turnItem(c, d, base, vs, turnR - turnL)
-        val xTurn = turnL
-        // nachylenie zakotwiczone do prawej krawedzi (jak temperatura do lewej)
-        drawG(tempG, xTemp, 4f); drawG(wx, xWx, 4f); /* manewr wylaczony 2026-10-11 (dubluje baner Karoo): turn.draw(xTurn) */ drawG(grG, vw - 8f - gw(grG, 4f), 4f)
+        return G(g, 26f + 4f + w("-18", vs) + 4f + w("%", 20f, false), 4f)
+    }
+
+    private fun gDtd(c: Canvas, d: KokpitNavData, base: Float, vs: Float): G {
+        val capH = vs * CAP
+        val g = d.leftKm?.let { listOf(vlabel(c, "DTD", base, capH), txt(fmt("%.0f", it), vs, WHITE, base)) }
+            ?: listOf(vlabel(c, "DTD", base, capH), txt("—", vs, NONE, base))
+        return G(g, 10f + 2f + w("888", vs), 2f)
+    }
+
+    private fun gEta(c: Canvas, d: KokpitNavData, base: Float, vs: Float): G {
+        val capH = vs * CAP
+        val eta = d.etaMs; val dl = d.deadlineMs
+        val etaCol = if (eta != null && dl != null) when {
+            eta > dl -> RED
+            dl - eta >= Kokpit2Config.cp("eta", "green_min", 30.0).toLong() * 60_000L -> GREEN
+            dl - eta <= Kokpit2Config.cp("eta", "yellow_min", 10.0).toLong() * 60_000L -> Color.parseColor("#FACC15")
+            else -> WHITE
+        } else WHITE
+        val g = if (eta != null) listOf(vlabel(c, "ETA", base, capH), txt(clock(eta), vs, etaCol, base))
+            else listOf(vlabel(c, "ETA", base, capH), txt("—", vs, NONE, base))
+        return G(g, 10f + 2f + w("88:88", vs), 2f)
+    }
+
+    /** pole dynamiczne (2026-10-14): rotacja co 4 s (ATD przewyzszenie do konca / ASC zrobione bez trasy, wiatr w twarz km,
+     *  najblizszy sklep/woda/jedzenie) albo wymagana srednia, gdy ETA blisko granicy (zolta / czerwona) */
+    private fun gDyn(c: Canvas, d: KokpitNavData, base: Float, vs: Float): G {
+        val ds = vs * 0.8f; val capH = ds * CAP; val us = 16f
+        val ref = w("sklep", us, false) + 3f + w("88,8", ds) + 3f + w("km/h", us, false)
+        val di = d.dyn ?: return G(emptyList(), ref, 3f)
+        val col = when (di.warn) { 2 -> RED; 1 -> Color.parseColor("#FACC15"); else -> WHITE }
+        val g = ArrayList<Item>()
+        when (di.kind) {
+            "ATD", "ASC" -> g.add(vlabel(c, di.kind, base, capH))
+            "WIND" -> g.add(Item(24f) { x -> arrow(c, x + 12f, base - capH / 2f, 24f, 180f, RED) })
+            "water" -> g.add(Item(18f) { x -> drop(c, x, base, 18f, 22f, BLUE) })
+            "AVG" -> g.add(txt("śr.", us, LBL, base, false))
+            "shop" -> g.add(txt("sklep", us, LBL, base, false))
+            else -> g.add(txt("jedz.", us, LBL, base, false))
+        }
+        g.add(txt(di.value, ds, col, base))
+        g.add(txt(di.unit, us, UNIT, base, false))
+        return G(g, ref, 3f)
+    }
+
+    // ---------- gorny wiersz (2026-10-14): DST | temperatura | opad/niebo | wiatr - STALE KOLUMNY ----------
+    private fun rowWeather(c: Canvas, d: KokpitNavData, vw: Float, base: Float) {
+        val vs = 42f   // temperatura 42 px (decyzja Michala); DST i wiatr w tym wierszu ta sama wielkosc
+        row(listOf(gDst(c, d, base, vs), gTemp(c, d, base, vs), gWx(c, d, base, vs), gWind(c, d, base, vs)), vw)
     }
 
     /** logo QBot (jak favicon.svg serwisu): pomaranczowe Q z linia tetna, bez tla; kwadrat sz x sz, lewy-gorny rog (x, y) */
@@ -594,53 +674,14 @@ object Kokpit2NavRenderer {
         sp.strokeJoin = Paint.Join.MITER
     }
 
-    // ---------- wiersz km: DST | DTD | ETA ----------
-    // ---------- dolny wiersz (stabilne): DST | DTD | ETA | wiatr - STALE KOLUMNY ----------
+    // ---------- dolny wiersz (2026-10-14): DTD | ETA | pole dynamiczne | nachylenie - STALE KOLUMNY ----------
     private fun rowKm(c: Canvas, d: KokpitNavData, vw: Float, base: Float) {
-        val vs = 46f
-        val capH = vs * CAP
-        val d10 = kotlin.math.floor(d.doneKm.coerceAtLeast(0f) * 10f).toInt()
-        val dDec = "." + (d10 % 10).toString()
-        val dds = vs * 0.55f
-        val dstG = listOf(vlabel(c, "DST", base, capH), txt((d10 / 10).toString(), vs, WHITE, base),
-            Item(w(dDec, dds)) { x -> t(c, dDec, x, base - capH + dds * CAP, dds, WHITE) })
-        val dtdG = d.leftKm?.let { listOf(vlabel(c, "DTD", base, capH), txt(fmt("%.0f", it), vs, WHITE, base)) }
-            ?: listOf(vlabel(c, "DTD", base, capH), txt("—", vs, NONE, base))
-        val eta = d.etaMs; val dl = d.deadlineMs
-        val etaCol = if (eta != null && dl != null) when {
-            eta > dl -> RED
-            dl - eta >= Kokpit2Config.cp("eta", "green_min", 30.0).toLong() * 60_000L -> GREEN
-            dl - eta <= Kokpit2Config.cp("eta", "yellow_min", 10.0).toLong() * 60_000L -> Color.parseColor("#FACC15")
-            else -> WHITE
-        } else WHITE
-        val etaG = if (eta != null) listOf(vlabel(c, "ETA", base, capH), txt(clock(eta), vs, etaCol, base))
-            else listOf(vlabel(c, "ETA", base, capH), txt("—", vs, NONE, base))
-        val wm = d.windMps
-        val windG: List<Item> = if (wm == null) listOf(txt("wiatr —", 20f, NONE, base, false)) else {
-            val hs = d.windSignedMps
-            val wMin = Kokpit2Config.cp("wind", "min_mps", 3.0).toFloat()
-            val wShare = (Kokpit2Config.cp("wind", "share", 70.0) / 100.0).toFloat()
-            val wcol = if (hs == null || Kokpit2Config.color("wind", "headtail") == "white") WHITE else {
-                val tot = maxOf(d.windTotalMps ?: abs(hs), abs(hs))
-                when { hs >= wMin && hs >= wShare * tot -> RED; hs <= -wMin && -hs >= wShare * tot -> GREEN; else -> WHITE }
-            }
-            val wg = ArrayList<Item>()
-            d.windRelDeg?.let { rel -> wg.add(Item(32f) { x -> arrow(c, x + 16f, base - capH / 2f, 32f, rel.toFloat(), wcol) }) }
-            wg.add(txt(fmt("%.0f", wm), vs, WHITE, base))
-            wg.add(Item(20f * capH / 28f) { x -> msUnit(c, x, base, capH) })
-            wg
-        }
-        // kolumny z wzorcow najszerszych wartosci; odstepy rowne
-        val dstRef = 10f + 2f + w("888", vs) + 2f + w(".8", dds)
-        val dtdRef = 10f + 2f + w("888", vs)
-        val etaRef = 10f + 2f + w("88:88", vs)
-        val windRef = 32f + 4f + w("88", vs) + 4f + 20f * capH / 28f
-        val gap = ((vw - 16f) - (dstRef + dtdRef + etaRef + windRef)) / 3f
-        var x = 8f
-        drawG(dstG, x, 2f); x += dstRef + gap
-        drawG(dtdG, x, 2f); x += dtdRef + gap
-        drawG(etaG, x, 2f); x += etaRef + gap
-        drawG(windG, vw - 8f - gw(windG, 4f), 4f)   // wiatr zakotwiczony do prawej krawedzi (jak DST do lewej)
+        // 46 px; gdy kolumny sie nie mieszcza (odstep < 8 px) - mniejsze cyfry (min. 38 px)
+        var vs = 46f
+        fun build(v: Float) = listOf(gDtd(c, d, base, v), gEta(c, d, base, v), gDyn(c, d, base, v), gGrade(c, d, base, v))
+        var gs = build(vs)
+        while (vs > 38f && rowGap(gs, vw) < 8f) { vs -= 1f; gs = build(vs) }
+        row(gs, vw)
     }
 
     /** znak nastepnego manewru: ikona + odleglosc (ta sama wielkosc co wartosci wiersza); szerokosc stala - uklad nie skacze */

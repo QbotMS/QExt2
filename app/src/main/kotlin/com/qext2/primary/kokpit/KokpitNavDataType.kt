@@ -194,7 +194,36 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
             windTotalMps = agg?.getKarooWindMps(),
             turnDistM = nt?.first, turnKind = nt?.second,
             sky = rw?.sky?.name,
+            dyn = dynItem(now, s, agg, pos, dtdKm, total, eta, dusk ?: 0L, pois),   // granica: zmrok (nie swit)
         )
+    }
+
+    /** Pole dynamiczne KOKPIT 2 (2026-10-14, decyzja Michala): wymagana srednia, gdy ETA blisko granicy (godzina docelowa,
+     *  inaczej zmrok; prog = zolty prog ETA z Setup); poza tym rotacja co 4 s: przewyzszenie do konca (bez trasy: zrobione),
+     *  km dalszej trasy z wiatrem w twarz, najblizszy sklep / woda / jedzenie (bez zamknietych dzis). */
+    private fun dynItem(now: Long, s: com.qext2.primary.model.StatsRideSnapshot, agg: com.qext2.primary.engine.RideDataAggregator?,
+                        pos: Float, dtdKm: Float, total: Float?, eta: Long?, twMs: Long, pois: List<PoiInfo>): DynItem? {
+        fun f1(x: Double) = String.format(java.util.Locale.US, "%.1f", x).replace('.', ',')
+        val target = agg?.getDeadlineMs()?.takeIf { it > 0L } ?: twMs.takeIf { it > now }
+        if (eta != null && target != null && total != null && dtdKm > 0.1f) {
+            val yellow = Kokpit2Config.cp("eta", "yellow_min", 10.0).toLong() * 60_000L
+            if (target - eta <= yellow) {
+                val h = (target - now) / 3_600_000.0
+                return DynItem("AVG", if (h > 0.02) f1(dtdKm / h) else "—", "km/h", if (eta > target) 2 else 1)
+            }
+        }
+        val items = ArrayList<DynItem>()
+        if (total != null && s.routeClimbSourceReady) items.add(DynItem("ATD", s.ascentLeftM.toString(), "m"))
+        else if (total == null && s.ascentDoneM > 0) items.add(DynItem("ASC", s.ascentDoneM.toString(), "m"))
+        if (total != null) agg?.getHeadwindKmAhead(Kokpit2Config.cp("wind", "min_mps", 3.0).toFloat())?.takeIf { it >= 1f }
+            ?.let { items.add(DynItem("WIND", String.format(java.util.Locale.US, "%.0f", it), "km")) }
+        pois.filter { it.km > pos && it.cat in setOf("water", "shop", "food") && it.today?.startsWith("zamkn") != true }
+            .minByOrNull { it.km }?.let { p ->
+                val dk = (p.km - pos).toDouble()
+                items.add(DynItem(p.cat, if (dk < 10.0) f1(dk) else String.format(java.util.Locale.US, "%.0f", dk), "km"))
+            }
+        if (items.isEmpty()) return null
+        return items[((now / 4000L) % items.size).toInt()]
     }
 }
 

@@ -44,7 +44,12 @@ data class KokpitNavData(
     /** deadline jazdy (jak w ACTIVE) - kolor ETA */
     val deadlineMs: Long? = null,
     val demo: Boolean = false,
+    /** KOKPIT 2: pole dynamiczne (dol, 3. kolumna) */
+    val dyn: DynItem? = null,
 )
+
+/** Pole dynamiczne KOKPIT 2: kind = ATD | ASC | WIND | water | shop | food | AVG; warn 0 brak, 1 zolty, 2 czerwony. */
+data class DynItem(val kind: String, val value: String, val unit: String, val warn: Int = 0)
 
 /**
  * Uklad dopasowany do wysokosci pola (Karoo daje 143 px przy 2 polach na mapie, 216 px przy jednym):
