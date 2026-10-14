@@ -610,6 +610,29 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
             )
         )
 
+        radarSeenRef.set(false); radarStateRef.set("IDLE"); radarStateSinceRef.set(System.currentTimeMillis())   // nowa jazda
+        // 2026-10-14: lampa z radarem - stan strumienia RADAR (Streaming = polaczona, Searching = sparowana, ale brak polaczenia,
+        // NotAvailable = brak radaru w urzadzeniach Karoo) -> komunikat BRAK RADARU (SensorMessageProducer)
+        consumerIds.add(
+            karooSystem.addConsumer<OnStreamState>(
+                params = OnStreamState.StartStreaming(DataType.Type.RADAR),
+                onEvent = { event ->
+                    val st = when (event.state) {
+                        is StreamState.Streaming -> "OK"
+                        is StreamState.Searching -> "SEARCHING"
+                        is StreamState.NotAvailable -> "NA"
+                        else -> "IDLE"
+                    }
+                    val prev = radarStateRef.getAndSet(st)
+                    if (prev != st) {
+                        radarStateSinceRef.set(System.currentTimeMillis())
+                        com.qext2.primary.util.RideFileLog.append("RADAR $prev -> $st")
+                    }
+                    if (st == "OK") radarSeenRef.set(true)
+                }
+            )
+        )
+
         consumerIds.add(
             karooSystem.addConsumer<OnStreamState>(
                 params = OnStreamState.StartStreaming(DataType.Type.SMOOTHED_3S_AVERAGE_POWER),
@@ -1842,6 +1865,11 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
 
     private val lastRouteSeenMsRef = AtomicReference(0L)
     private val lastLocationSaveMs = AtomicReference(0L)
+    private val radarStateRef = AtomicReference("IDLE")
+    private val radarStateSinceRef = AtomicReference(0L)
+    private val radarSeenRef = AtomicReference(false)
+    /** lampa z radarem: stan (OK | SEARCHING | NA | IDLE), od kiedy (ms), czy w tej jezdzie byla juz polaczona */
+    fun getRadarState(): Triple<String, Long, Boolean> = Triple(radarStateRef.get(), radarStateSinceRef.get(), radarSeenRef.get())
     /** czas ostatniego zapisu pozycji z GPS (co ~30 s w czasie jazdy); 0 = brak */
     fun lastGpsFixMs(): Long = lastLocationSaveMs.get()
     private val routeGraceMs = 12_000L

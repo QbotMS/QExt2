@@ -15,6 +15,10 @@ data class SensorState(
     val athleteDataAgeH: Double = 0.0,
     /** todayFactor JUZ po bramce wieku -- to, czym naprawde liczy model. */
     val effectiveTodayFactor: Float = 1.0f,
+    /** lampa z radarem: OK | SEARCHING | NA | IDLE, od kiedy (ms), czy w tej jezdzie byla juz polaczona */
+    val radarState: String = "NA",
+    val radarSinceMs: Long = 0L,
+    val radarSeen: Boolean = false,
 )
 
 class SensorMessageProducer(private val logger: (String) -> Unit = {}) {
@@ -23,10 +27,12 @@ class SensorMessageProducer(private val logger: (String) -> Unit = {}) {
     private var routeFired = false
     private var sensorsFired = false
     private var staleAthleteFired = false
+    private var radarStartFired = false
 
     fun checkAndProduce(state: SensorState): ActiveMessage? {
         return checkPowerMissing(state)
             ?: checkHrMissing(state)
+            ?: checkRadarMissing(state)
             ?: checkSensorsMissing(state)
             ?: checkStaleAthleteData(state)
             ?: checkRouteMissing(state)
@@ -101,6 +107,35 @@ class SensorMessageProducer(private val logger: (String) -> Unit = {}) {
         )
     }
 
+    /**
+     * Lampa z radarem (2026-10-14): radar sparowany w Karoo, ale niepolaczony (Searching) >= 15 s.
+     * Rozlaczenie w trakcie jazdy -> co 2 min, dopoki nie wroci; nie polaczyl sie od startu -> raz (po 30 s jazdy).
+     * Brak radaru w urzadzeniach Karoo (NotAvailable) -> cisza.
+     */
+    private fun checkRadarMissing(s: SensorState): ActiveMessage? {
+        if (s.radarState != "SEARCHING") return null
+        if (s.elapsedSec <= 30L) return null
+        if (s.nowMs - s.radarSinceMs < 15_000L) return null
+        if (s.radarSeen) {
+            if (!useCooldown("radar", s.nowMs, 120_000L)) return null
+        } else {
+            if (radarStartFired) return null
+            radarStartFired = true
+        }
+        logger("TRIGGER type=radar seen=${s.radarSeen}")
+        return ActiveMessage(
+            id = "sensor_radar_${s.nowMs}",
+            title = "BRAK RADARU",
+            line1 = "SPRAWDŹ LAMPĘ",
+            line2 = null,
+            severity = ActiveMessageSeverity.WARNING,
+            priority = ActiveMessagePriority.WARNING,
+            resumePolicy = ActiveMessageResumePolicy.DROP_ON_INTERRUPT,
+            createdAtMs = s.nowMs,
+            expiresAtMs = s.nowMs + 10_000L,
+        )
+    }
+
     private fun checkSensorsMissing(s: SensorState): ActiveMessage? {
         if (s.elapsedSec <= 10L) return null
         if (s.powerFreshnessMs < 10_000L) return null
@@ -150,6 +185,7 @@ class SensorMessageProducer(private val logger: (String) -> Unit = {}) {
         routeFired = false
         sensorsFired = false
         staleAthleteFired = false
+        radarStartFired = false
         cooldowns.clear()
     }
 }

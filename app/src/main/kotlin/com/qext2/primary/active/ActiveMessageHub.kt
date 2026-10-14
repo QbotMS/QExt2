@@ -66,6 +66,9 @@ object ActiveMessageHub {
                 nowMs = now,
                 athleteDataAgeH = agg.getAthleteDataAgeHours(now),
                 effectiveTodayFactor = agg.statsSnapshot.value.readiness,
+                radarState = agg.getRadarState().first,
+                radarSinceMs = agg.getRadarState().second,
+                radarSeen = agg.getRadarState().third,
             )
             sensorProducer.checkAndProduce(sensorState)?.let { if (manager.show(it)) beep(it, "show") }
 

@@ -123,7 +123,8 @@ object RouteMessageEngine {
             if (i.etaMs > i.duskMs) { if (C.on("dusk_after")) out.add(RouteMsg(MsgKind.DUSK, "meta po zmroku:", "zmrok ${clock(i.duskMs)}", "#FF8C8C", "dusk_after")) }
             else if (C.on("dusk_soon") && toDusk in 0..C.pi("dusk_soon", "warn_min", DUSK_WARN_MIN)) out.add(RouteMsg(MsgKind.DUSK, "do zmroku:", "$toDusk min", "#FB923C", "dusk_soon"))
         }
-        if (!i.hasRoute) { if (out.isEmpty()) out.add(RouteMsg(MsgKind.NONE, "brak trasy", "", "#9AA5B1")); return C.sortByOrder(out) }
+        // bez trasy: pusty pasek zamiast stalego "brak trasy" (2026-10-14; o braku trasy mowi raz komunikat BRAK TRASY na starcie)
+        if (!i.hasRoute) { if (out.isEmpty()) out.add(RouteMsg(MsgKind.NONE, "", "", "#9AA5B1")); return C.sortByOrder(out) }
         // 2. trasa w zasiegu (po odleglosci)
         val near = ArrayList<Pair<Float, RouteMsg>>()
         if (C.on("descent")) i.descent?.let { d ->
