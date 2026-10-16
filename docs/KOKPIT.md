@@ -117,10 +117,13 @@ Pola produkcyjne (stare KOKPIT zostają jako testowe, bez demo):
 - **Nowy układ (16.10.2026, 0.4.0):** NP/IF/VI | PRZEBIEG | RSRV / XSS / KCAL | PLAN CZASU | TEMPO | BRAMA ‖ ŚWIATŁO | CARB / KAD / BAT
   (wiersze 113/136/100/86/120/85/108 z 760). TRASA i PRZEWYŻSZENIE przenoszone do pola INFO (osobny build).
   - XSS: pasek wypełnienia do planu dnia Trenera (QBot `/ride-readiness` → `xssPlanToday`, suma XSS roweru na dziś); bez planu sama liczba.
-  - PLAN CZASU: na razie różnica bieżącej ETA wobec ETA ustalonej po 1. km (`StatsV2Extras`); docelowo model czasu przejazdu QBota.
+  - PLAN CZASU: z modelu czasu przejazdu QBota (`/api/plan/by-name`, `PlanProfile`): faktyczny czas ruchu i postojów vs plan w bieżącym km
+    (jazda ± / postoje ±); bez profilu zapas: bieżąca ETA vs ETA po 1. km (`StatsV2Extras`).
   - TEMPO: średnia moc i prędkość ruchu w każdej pełnej godzinie ruchu + bieżąca (≥ 5 min), `RideWindows.tempoSnapshot`; spadek mocy od 1. h.
   - BRAMA: komórka-przycisk (przezroczysta nakładka `stats_v2_gate_tap` w `field_stats_v2.xml`), logika jak pole BRAMA (`docs/BRAMA.md`).
-  - ŚWIATŁO: stan lampy z radarem ze strumienia RADAR (OK / BRAK / brak lampy); zmiana trybu — osobno (nieoficjalna usługa Karoo).
+  - ŚWIATŁO: stan ze strumienia RADAR, bateria z SavedDevices; tapnięcie = następny tryb (miganie → szybkie → stałe mocne → stałe słabe → wył.)
+    przez NIEOFICJALNĄ usługę czujników Karoo (`light/LightControl.kt`, wg kxradar/karoofirefly, Apache-2.0); niebieska ramka tylko gdy sterowanie
+    działa. Tryb = ostatnio ustawiony przez QExt2 (lampa go nie zgłasza). Dziennik: LIGHT, LIGHT_SET, LIGHT_TAP.
 
 ### Dziennik jazdy (`ride_log.txt`, 2 MB + 1 rotacja)
 `START`, `RIDE_STATE`, `VIEW`, `READINESS_FETCH/OK/FAIL`, `QEXT2_CONFIG`, `HTTP_FAIL <usługa> reason=…`, `EF_TYPICAL(_FAIL)`,

@@ -64,6 +64,10 @@ data class StatsV2Data(
     val tempoPartial: Boolean = false,
     val gate: com.qext2.primary.gate.GateController.Ui? = null,
     val lightState: String? = null,
+    val planDriveDelta: Int? = null,
+    val planStopDelta: Int? = null,
+    val planFromQbot: Boolean = false,
+    val light: com.qext2.primary.light.LightController.Ui? = null,
 )
 
 object StatsV2Renderer {
@@ -154,7 +158,7 @@ object StatsV2Renderer {
         // 6: BRAMA (przycisk, nakladka w field_stats_v2.xml) | SWIATLO (stan lampy z radarem)
         val half = (BW - g) / 2f
         drawBrama(c, RectF(0f, y, half - 1f, y + rows[5]), d.gate)
-        drawLight(c, RectF(half + 1f, y, BW, y + rows[5]), d.lightState)
+        drawLight(c, RectF(half + 1f, y, BW, y + rows[5]), d.lightState, d.light)
         y += rows[5] + g
         // 6: CARB+woda (45%) / KAD (20%) / BAT (35%)
         val inner = BW - 2 * g
@@ -683,15 +687,26 @@ object StatsV2Renderer {
     private fun drawPlan(c: Canvas, r: RectF, d: StatsV2Data) {
         cell(c, r)
         label(c, r, null, "PLAN CZASU", "")
-        d.planRefEtaMs?.let { rightLabel(c, r, listOf(Triple("ETA ze startu", 20f, SUB), Triple(clock(it), 24f, WHITE))) }
+        if (d.planFromQbot) rightLabel(c, r, listOf(Triple("model czasu QBota", 20f, SUB)))
+        else d.planRefEtaMs?.let { rightLabel(c, r, listOf(Triple("ETA ze startu", 20f, SUB), Triple(clock(it), 24f, WHITE))) }
         val l = X(r.left) + F(12f); val T = Y(r.top); val cy = T + F(58f)
         val dm = d.planDeltaMin
         if (dm == null) { none(c, (X(r.left) + X(r.right)) / 2f, cy, "po 1. km z ETA"); return }
         val s = (if (dm > 0) "+" else if (dm < 0) "−" else "") + kotlin.math.abs(dm)
         val col = when { dm >= 5 -> AMBER; dm <= -5 -> Color.parseColor("#4ADE80"); else -> WHITE }
         text(c, s, l, cy, F(52f), col)
-        val word = when { dm > 0 -> "min za planem"; dm < 0 -> "min przed planem"; else -> "min · zgodnie z planem" }
+        val dd = d.planDriveDelta; val ds = d.planStopDelta
+        val word = if (dd != null && ds != null) "min" else when { dm > 0 -> "min za planem"; dm < 0 -> "min przed planem"; else -> "min · zgodnie z planem" }
         text(c, word, l + textW(s, F(52f)) + F(8f), cy + F(6f), F(22f), UNIT)
+        if (dd != null && ds != null) {
+            fun sg(v: Int) = (if (v > 0) "+" else if (v < 0) "−" else "") + kotlin.math.abs(v)
+            val rr = X(r.right) - F(10f)
+            val sv = sg(ds); text(c, sv, rr, cy, F(34f), if (ds >= 5) AMBER else WHITE, Paint.Align.RIGHT)
+            var x = rr - textW(sv, F(34f)) - F(6f)
+            text(c, "postoje", x, cy + F(2f), F(22f), SUB, Paint.Align.RIGHT); x -= textW("postoje", F(22f)) + F(14f)
+            val jv = sg(dd); text(c, jv, x, cy, F(34f), if (dd >= 5) AMBER else WHITE, Paint.Align.RIGHT); x -= textW(jv, F(34f)) + F(6f)
+            text(c, "jazda", x, cy + F(2f), F(22f), SUB, Paint.Align.RIGHT)
+        }
     }
 
     private fun drawTempo(c: Canvas, r: RectF, d: StatsV2Data) {
@@ -744,9 +759,21 @@ object StatsV2Renderer {
         text(c, main, X(r.left) + F(16f), Y(r.top) + F(60f), fit(main, F(34f), X(r.right) - X(r.left) - F(28f)), if (off) NONE else WHITE)
     }
 
-    private fun drawLight(c: Canvas, r: RectF, state: String?) {
+    private fun drawLight(c: Canvas, r: RectF, state: String?, lu: com.qext2.primary.light.LightController.Ui? = null) {
         cell(c, r)
+        if (lu?.controllable == true) {
+            stp.color = Color.parseColor("#2E7BFF"); stp.strokeWidth = F(4f)
+            c.drawRoundRect(RectF(X(r.left) + F(3f), Y(r.top) + F(3f), X(r.right) - F(3f), Y(r.bottom) - F(3f)), F(6f), F(6f), stp)
+        }
         label(c, r, null, "ŚWIATŁO", "")
+        lu?.battery?.let { b -> rightLabel(c, r, listOf(Triple(b, 20f, SUB))) }
+        val over = lu?.flash ?: (if (state == "OK" || state == null) lu?.mode else null)
+        if (over != null) {
+            text(c, over, X(r.left) + F(16f), Y(r.top) + F(60f), fit(over, F(34f), X(r.right) - X(r.left) - F(48f)), WHITE)
+            val dc = when (state) { "OK" -> "#4ADE80"; "SEARCHING" -> "#FF5252"; else -> null }
+            dc?.let { fp.color = Color.parseColor(it); c.drawCircle(X(r.right) - F(20f), Y(r.top) + F(60f), F(7f), fp) }
+            return
+        }
         val txt: String; val col: Int; val dot: String?
         when (state) {
             "OK" -> { txt = "POŁĄCZONA"; col = WHITE; dot = "#4ADE80" }

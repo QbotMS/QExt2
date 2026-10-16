@@ -36,9 +36,11 @@
                 android:contentDescription="BRAMA" />
 
             <TextView
+                android:id="@+id/stats_v2_light_tap"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
-                android:layout_weight="241" />
+                android:layout_weight="241"
+                android:contentDescription="SWIATLO" />
         </LinearLayout>
 
         <TextView

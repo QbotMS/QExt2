@@ -57,6 +57,7 @@ class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: 
             karoo?.addConsumer<io.hammerhead.karooext.models.OnLocationChanged>(onEvent = { com.qext2.primary.gate.GateController.onLocation(it.lat, it.lng) })
         } catch (e: Exception) { null }
         com.qext2.primary.gate.GateController.ensureHome()
+        com.qext2.primary.light.LightController.init(context, karoo)
         val w = config.viewSize.first.coerceAtLeast(120)
         val h = config.viewSize.second.coerceAtLeast(160)
         Log.i(TAG, "QEXT_STATS_V2_VIEW size=${w}x$h")
@@ -129,6 +130,12 @@ class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: 
             android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
         )
         rv.setOnClickPendingIntent(R.id.stats_v2_gate_tap, tap)
+        rv.setOnClickPendingIntent(R.id.stats_v2_light_tap, android.app.PendingIntent.getBroadcast(
+            context, 7314,
+            android.content.Intent(context, com.qext2.primary.actions.StatsActionReceiver::class.java)
+                .setAction(com.qext2.primary.actions.StatsActionReceiver.ACTION_LIGHT_TAP),
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
+        ))
         return rv
     }
 
@@ -169,6 +176,10 @@ class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: 
         val surf = if (SurfaceBridge.hasProfile()) agg?.navRemainingByType(pos.coerceAtLeast(0f)) else null
         val pl = StatsV2Extras.plan(if (s.etaModelReady && s.etaTimestamp > 0L) s.etaTimestamp else null, s.distanceKm)
         val tp = RideWindows.tempoSnapshot()
+        PlanProfile.tick(if (s.hasRoute) com.qext2.primary.surface.SurfaceBridge.lastRouteName else null)
+        val pq = if (s.hasRoute) PlanProfile.at(pos) else null
+        val dDrive = pq?.let { Math.round(s.movingElapsedSec / 60f - it.first) }
+        val dStop = pq?.let { Math.round((s.grossElapsedSec - s.movingElapsedSec).coerceAtLeast(0L) / 60f - it.second) }
         return StatsV2Data(
             np = s.npWholeWatts.takeIf { it > 0 },
             npZone = npZone(s.npWholeWatts, s.cpEffW),
@@ -208,8 +219,12 @@ class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: 
                 else null,
             stopsKm = agg?.getLongStopsKm()?.map { it.toFloat() } ?: emptyList(),
             xssPlan = StatsV2Extras.xssPlan,
-            planDeltaMin = pl.first,
-            planRefEtaMs = pl.second,
+            planDeltaMin = if (dDrive != null && dStop != null) dDrive + dStop else pl.first,
+            planRefEtaMs = if (pq != null) null else pl.second,
+            planDriveDelta = dDrive,
+            planStopDelta = dStop,
+            planFromQbot = pq != null,
+            light = com.qext2.primary.light.LightController.ui(),
             tempo = tp.first,
             tempoPartial = tp.second,
             gate = com.qext2.primary.gate.GateController.ui.value,
