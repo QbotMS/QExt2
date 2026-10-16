@@ -90,4 +90,11 @@
         graphical="true"
         icon="@drawable/ic_qext2_power" />
 
+    <DataType
+        typeId="qext2-brama"
+        displayName="@string/qext2_brama_name"
+        description="@string/qext2_brama_desc"
+        graphical="true"
+        icon="@drawable/ic_qext2_power" />
+
 </ExtensionInfo>

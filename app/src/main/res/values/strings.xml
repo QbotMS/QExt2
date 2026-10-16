@@ -26,4 +26,6 @@
     <string name="qext2_kokpit2_nav_desc">Komunikaty (tlo wg waznosci), pogoda, wiatr, nachylenie, DST/DTD/ETA</string>
     <string name="qext2_kokpit2_instr_name">QExt2 KOKPIT 2 instr</string>
     <string name="qext2_kokpit2_instr_desc">Belka trasy, moc ze strefa, predkosc, kadencja, tetno, bieg, W bal</string>
+    <string name="qext2_brama_name">QExt2 BRAMA</string>
+    <string name="qext2_brama_desc">Otwieranie bramy: 2 dotkniecia, tylko do 300 m od domu</string>
 </resources>
