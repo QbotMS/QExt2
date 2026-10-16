@@ -965,7 +965,8 @@ object StatsV2Renderer {
         val WT = yy(if (showRain) 334f else 282f); val Y0 = yy(if (showRain) 364f else 338f)
         val hs = samples.mapNotNull { it.head }
         val gmax = samples.filter { (it.head ?: 0f) > 0f }.mapNotNull { it.gust }.maxOrNull() ?: 0f
-        val wmax = Math.max(6.0, Math.ceil(Math.max(hs.maxOfOrNull { kotlin.math.abs(it) } ?: 0f, gmax).toDouble())).toFloat()
+        // 16.10: bez porywow -- w jezdzie liczy sie staly wiatr; skala wg wiatru (min. 4 m/s, zeby slaby wiatr nie wygladal jak mocny)
+        val wmax = Math.max(4.0, Math.ceil((hs.maxOfOrNull { kotlin.math.abs(it) } ?: 0f).toDouble())).toFloat()
         val ky = (Y0 - WT) / wmax
         stp.color = Color.parseColor("#2A3341"); stp.strokeWidth = F(1.5f)
         c.drawLine(X0, Y0 - wmax * ky, X1, Y0 - wmax * ky, stp); c.drawLine(X0, Y0 + wmax * ky, X1, Y0 + wmax * ky, stp)
@@ -995,17 +996,8 @@ object StatsV2Renderer {
                     fp.isAntiAlias = false; c.drawPath(q, fp); fp.isAntiAlias = true
                 }
             }
-            stp.strokeWidth = F(2f); stp.pathEffect = android.graphics.DashPathEffect(floatArrayOf(F(2f), F(5f)), 0f); stp.color = Color.parseColor("#F2F4F7")
-            var gp: Path? = null
-            for (sm in samples) {
-                val hv = sm.head ?: 0f; val g = sm.gust
-                if (hv > 0f && g != null) { val y = Y0 - Math.min(wmax, g) * ky; if (gp == null) { gp = Path(); gp.moveTo(sm.x, y) } else gp.lineTo(sm.x, y) }
-                else if (gp != null) { c.drawPath(gp, stp); gp = null }
-            }
-            gp?.let { c.drawPath(it, stp) }
-            stp.pathEffect = null
             val mx = hs.maxOrNull() ?: 0f
-            text(c, if (mx > 0.5f) "maks. czołowy ${Math.round(mx)} · poryw ${Math.round(gmax)}" else "głównie w plecy", X1, yy(308f + dw), F(22f), SUB, Paint.Align.RIGHT)
+            text(c, if (mx > 0.5f) "maks. czołowy ${Math.round(mx)}" else "maks. w plecy ${Math.round(-(hs.minOrNull() ?: 0f))}", X1, yy(308f + dw), F(22f), SUB, Paint.Align.RIGHT)
         }
         stp.color = Color.parseColor("#C9D2DC"); stp.strokeWidth = F(1.5f); c.drawLine(X0, Y0, X1, Y0, stp)
         ylab(c, "+${wmax.toInt()}", X(14f), Y0 - wmax * ky, Color.parseColor("#F0A6CF")); ylab(c, "−${wmax.toInt()}", X(14f), Y0 + wmax * ky, Color.parseColor("#8FD18A"))
