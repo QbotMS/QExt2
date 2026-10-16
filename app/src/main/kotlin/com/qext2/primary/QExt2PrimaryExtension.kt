@@ -575,7 +575,15 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         val lat = AthleteDataStore.loadLocationLat() ?: return
         val lon = AthleteDataStore.loadLocationLon() ?: return
         val url = BuildConfig.QEXT_READINESS_URL.ifBlank { "https://qbot.cytr.us/ride-readiness" }
-        val body = JSONObject().put("ping", JSONObject().put("lat", lat).put("lon", lon)).toString().toByteArray()
+        val pj = JSONObject().put("lat", lat).put("lon", lon)
+        // 16.10.2026: tryb jazdy pogody INFO -- QBot dostaje trase, km i ETA i sam przelicza pogode reszty trasy co 15 min (model + radar)
+        val snap = _aggregator?.statsSnapshot?.value
+        val route = if (snap?.hasRoute == true) com.qext2.primary.surface.SurfaceBridge.lastRouteName else null
+        if (route != null && snap != null) {
+            pj.put("route", route).put("km", snap.distanceKm.toDouble())
+            if (snap.etaModelReady && snap.etaTimestamp > 0L) pj.put("eta", snap.etaTimestamp)
+        }
+        val body = JSONObject().put("ping", pj).toString().toByteArray()
         var id: String? = null
         id = system.addConsumer<OnHttpResponse>(
             params = OnHttpResponse.MakeHttpRequest(method = "POST", url = url,

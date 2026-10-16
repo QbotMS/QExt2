@@ -924,6 +924,8 @@ object StatsV2Renderer {
         // ---------------- opad
         text(c, "OPAD", X(16f), yy(196f), F(24f), LABEL)
         text(c, "mm/h", X(16f) + textW("OPAD", F(24f)) + F(6f), yy(198f), F(20f), UNIT)
+        val radarUntil = wx?.radarUntilMin?.let { it - since }
+        if (radarUntil != null && radarUntil > 0f) text(c, "· radar ${Math.round(radarUntil)}′", X(16f) + textW("OPAD", F(24f)) + textW("mm/h", F(20f)) + F(14f), yy(198f), F(20f), Color.parseColor("#9CC7FF"))
         val RT = yy(224f); val RB = yy(280f)
         val mmax = samples.maxOf { it.mm }
         val rMax = Math.max(2.0, Math.ceil(mmax.toDouble())).toFloat()
@@ -935,8 +937,10 @@ object StatsV2Renderer {
         val cyan = Color.parseColor("#7FDBFF")
         text(c, "100%", X(428f), RT, F(20f), cyan); text(c, "50", X(428f), (RT + RB) / 2f, F(20f), cyan); text(c, "0", X(428f), RB, F(20f), cyan)
         val bwid = W / (n + 1)
-        fp.color = Color.parseColor("#2E7BFF")
-        for (sm in samples) if (sm.mm > 0.05f) c.drawRect(sm.x - bwid / 2f + F(0.5f), RB - sm.mm / rMax * (RB - RT), sm.x + bwid / 2f - F(0.5f), RB, fp)
+        for (sm in samples) if (sm.mm > 0.05f) {
+            fp.color = Color.parseColor(if (radarUntil != null && sm.tMin <= radarUntil) "#7FB2FF" else "#2E7BFF")   // jasny = radar, ciemny = model
+            c.drawRect(sm.x - bwid / 2f + F(0.5f), RB - sm.mm.coerceAtMost(rMax) / rMax * (RB - RT), sm.x + bwid / 2f - F(0.5f), RB, fp)
+        }
         stp.color = Color.parseColor("#465366"); stp.strokeWidth = F(2f); c.drawLine(X0, RB, X1, RB, stp)
         val pPath = Path(); var pf = true
         for (sm in samples) { val p = sm.prob ?: continue; val y = RB - p / 100f * (RB - RT); if (pf) { pPath.moveTo(sm.x, y); pf = false } else pPath.lineTo(sm.x, y) }

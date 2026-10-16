@@ -14,7 +14,8 @@ import java.util.Locale
 /** Punkt pogody z QBota. route: km + t (min od chwili pobrania); bez trasy: tylko t. head: + = wiatr w twarz, - = w plecy (m/s). */
 data class WxItem(val km: Float?, val t: Float, val feels: Float?, val mm: Float?, val prob: Float?, val head: Float?, val gust: Float?)
 
-data class InfoWx(val route: Boolean, val items: List<WxItem>, val fetchedMs: Long)
+/** radarUntilMin: do ktorej minuty (od pobrania) opad pochodzi z radaru QBota; null = sam model. */
+data class InfoWx(val route: Boolean, val items: List<WxItem>, val fetchedMs: Long, val radarUntilMin: Float? = null)
 
 /**
  * Pogoda dla pola INFO (16.10.2026). Liczy QBot:
@@ -104,12 +105,14 @@ object InfoWeather {
             val arr = o.optJSONArray("items") ?: return null
             fun f(j: JSONObject, k: String): Float? = if (j.isNull(k) || !j.has(k)) null else j.optDouble(k, Double.NaN).takeIf { !it.isNaN() }?.toFloat()
             val out = ArrayList<WxItem>(arr.length())
+            var radarMax: Float? = null
             for (i in 0 until arr.length()) {
                 val j = arr.getJSONObject(i)
                 val t = f(j, "t") ?: continue
+                if (j.optString("src") == "radar") radarMax = maxOf(radarMax ?: t, t)
                 out.add(WxItem(if (route) f(j, "km") else null, t, f(j, "feels"), f(j, "mm"), f(j, "prob"), f(j, "head"), f(j, "gust")))
             }
-            InfoWx(route, if (route) out.filter { it.km != null }.sortedBy { it.km } else out.sortedBy { it.t }, System.currentTimeMillis())
+            InfoWx(route, if (route) out.filter { it.km != null }.sortedBy { it.km } else out.sortedBy { it.t }, System.currentTimeMillis(), radarMax)
         } catch (e: Exception) {
             log("INFO_WX parse_error ${e.message}")
             null
