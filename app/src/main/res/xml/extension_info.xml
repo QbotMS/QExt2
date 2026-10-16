@@ -97,4 +97,11 @@
         graphical="true"
         icon="@drawable/ic_qext2_power" />
 
+    <DataType
+        typeId="qext2-info"
+        displayName="@string/qext2_info_name"
+        description="@string/qext2_info_desc"
+        graphical="true"
+        icon="@drawable/ic_qext2_power" />
+
 </ExtensionInfo>

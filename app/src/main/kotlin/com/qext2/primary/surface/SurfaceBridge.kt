@@ -12,7 +12,11 @@ object SurfaceBridge {
 
     fun init(c: SurfaceProfileCache) { cache = c }
 
+    /** nazwa biezacej trasy (INFO: pogoda na trasie z QBota) */
+    @Volatile var lastRouteName: String? = null
+
     fun onNavigationState(state: io.hammerhead.karooext.models.OnNavigationState, routeName: String?) {
+        lastRouteName = routeName
         cache?.onNavigationState(state, routeName)
     }
 

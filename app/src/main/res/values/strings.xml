@@ -28,4 +28,6 @@
     <string name="qext2_kokpit2_instr_desc">Belka trasy, moc ze strefa, predkosc, kadencja, tetno, bieg, W bal</string>
     <string name="qext2_brama_name">QExt2 BRAMA</string>
     <string name="qext2_brama_desc">Otwieranie bramy: 2 dotkniecia, tylko do 300 m od domu</string>
+    <string name="qext2_info_name">QExt2 INFO</string>
+    <string name="qext2_info_desc">Trasa, przewyzszenie i pogoda na trasie (dotknij: skala)</string>
 </resources>

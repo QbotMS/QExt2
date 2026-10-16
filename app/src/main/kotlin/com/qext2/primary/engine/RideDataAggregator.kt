@@ -1879,6 +1879,8 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val radarStateSinceRef = AtomicReference(0L)
     private val radarSeenRef = AtomicReference(false)
     /** lampa z radarem: stan (OK | SEARCHING | NA | IDLE), od kiedy (ms), czy w tej jezdzie byla juz polaczona */
+    /** kierunek jazdy z Karoo (st.), null gdy starszy niz 60 s */
+    fun getHeadingDeg(): Double? = if (System.currentTimeMillis() - headingMsRef.get() < 60_000L) headingDegRef.get() else null
     fun getRadarState(): Triple<String, Long, Boolean> = Triple(radarStateRef.get(), radarStateSinceRef.get(), radarSeenRef.get())
     /** czas ostatniego zapisu pozycji z GPS (co ~30 s w czasie jazdy); 0 = brak */
     fun lastGpsFixMs(): Long = lastLocationSaveMs.get()

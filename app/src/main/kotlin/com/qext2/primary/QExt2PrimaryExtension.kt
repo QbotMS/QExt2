@@ -271,6 +271,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         // wersje produkcyjne (zawsze dane z jazdy) obok testowych z demo
         com.qext2.primary.statsv2.StatsV2DataType("qext2-stats-live", forceLive = true),
         com.qext2.primary.gate.BramaDataType(),
+        com.qext2.primary.info.InfoDataType(),
         com.qext2.primary.kokpit.KokpitNavDataType("qext2-kokpit-nav-live", forceLive = true),
         com.qext2.primary.kokpit.KokpitInstDataType("qext2-kokpit-inst-live", forceLive = true),
         com.qext2.primary.kokpit.KokpitNavDataType("qext2-kokpit2-nav", v2 = true),

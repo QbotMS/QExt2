@@ -162,7 +162,7 @@ class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: 
         return com.qext2.primary.util.Twilight.next(now, dawn, dusk)
     }
 
-    private fun toData(agg: RideDataAggregator?, s: StatsRideSnapshot): StatsV2Data {
+    internal fun toData(agg: RideDataAggregator?, s: StatsRideSnapshot): StatsV2Data {
         val dtdKm = (agg?.getDistanceToDestinationMeters() ?: 0.0) / 1000.0
         val pos = agg?.getRoutePositionM()?.let { (it / 1000.0).toFloat() } ?: s.distanceKm   // E4.1
         val total = if (s.hasRoute && dtdKm > 0.05) pos + dtdKm.toFloat() else null

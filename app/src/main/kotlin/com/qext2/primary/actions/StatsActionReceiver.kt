@@ -16,10 +16,12 @@ class StatsActionReceiver : BroadcastReceiver() {
                 GateController.init(context)
                 GateController.onTap()
             }
+            ACTION_INFO_SCALE -> com.qext2.primary.info.InfoWeather.cycleScale()
         }
     }
 
     companion object {
         const val ACTION_GATE_TAP = "com.qext2.primary.action.GATE_TAP"
+        const val ACTION_INFO_SCALE = "com.qext2.primary.action.INFO_SCALE"
     }
 }

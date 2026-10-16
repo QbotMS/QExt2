@@ -758,6 +758,258 @@ object StatsV2Renderer {
         text(c, txt, X(r.left) + F(16f), Y(r.top) + F(60f), fit(txt, F(34f), X(r.right) - X(r.left) - F(28f)), col)
     }
 
+    // ======================================================================== INFO (16.10.2026)
+    @Synchronized
+    fun renderInfo(w: Int, h: Int, d: StatsV2Data, wx: com.qext2.primary.info.InfoWx?, scale: Int, nowMs: Long, dawnMs: Long?, duskMs: Long?): Bitmap {
+        tp.typeface = com.qext2.primary.kokpit.Kokpit2Fonts.semi
+        val bw = w.coerceAtLeast(120)
+        val bh = h.coerceAtLeast(160)
+        val bmp = Bitmap.createBitmap(bw, bh, Bitmap.Config.RGB_565)
+        val c = Canvas(bmp)
+        sx = bw / BW; sy = bh / BH; s = min(sx, sy)
+        c.drawColor(BG)
+        drawRoute(c, RectF(0f, 0f, BW, 201f), d)
+        drawAscent(c, RectF(0f, 203f, BW, 295f), d)
+        drawWeather(c, RectF(0f, 297f, BW, BH), d, wx, scale, nowMs, dawnMs, duskMs)
+        return bmp
+    }
+
+    private class WxS(val x: Float, val tMin: Float, val km: Float, val feels: Float?, val mm: Float, val prob: Float?, val head: Float?, val gust: Float?)
+
+    private fun lerpBy(items: List<com.qext2.primary.info.WxItem>, key: (com.qext2.primary.info.WxItem) -> Float, v: Float,
+                       sel: (com.qext2.primary.info.WxItem) -> Float?): Float? {
+        val pts = items.filter { sel(it) != null }
+        if (pts.isEmpty()) return null
+        if (v <= key(pts.first())) return sel(pts.first())
+        if (v >= key(pts.last())) return sel(pts.last())
+        var i = 1
+        while (i < pts.size && key(pts[i]) < v) i++
+        val a = pts[i - 1]; val b = pts[i]
+        val ka = key(a); val kb = key(b)
+        val f = if (kb == ka) 0f else (v - ka) / (kb - ka)
+        return sel(a)!! + (sel(b)!! - sel(a)!!) * f
+    }
+
+    private fun hmm(min: Float): String { val m = Math.round(min); return "${m / 60}:" + (m % 60).toString().padStart(2, '0') }
+
+    /** wartosc duza + jednostka mala (szara), wyrownanie wzgledem x */
+    private fun valUnit(c: Canvas, v: String, u: String, x: Float, cy: Float, vs: Float, us: Float, col: Int, align: Paint.Align) {
+        val vw = textW(v, vs); val uw = if (u.isEmpty()) 0f else F(3f) + textW(u, us)
+        val x0 = when (align) { Paint.Align.LEFT -> x; Paint.Align.RIGHT -> x - vw - uw; else -> x - (vw + uw) / 2f }
+        text(c, v, x0, cy, vs, col)
+        if (u.isNotEmpty()) text(c, u, x0 + vw + F(3f), cy + F(3f), us, UNIT)
+    }
+
+    private fun drawWeather(c: Canvas, r: RectF, d: StatsV2Data, wx: com.qext2.primary.info.InfoWx?, scale: Int, nowMs: Long, dawnMs: Long?, duskMs: Long?) {
+        cell(c, r)
+        val oy = r.top - 2f
+        fun yy(v: Float) = Y(oy + v)
+        val route = wx?.route ?: d.hasRoute
+        // naglowek + skala (aktywna w plakietce)
+        text(c, "POGODA", X(10f), yy(23f), F(24f), LABEL)
+        text(c, if (route) "na trasie" else "kolejne godziny", X(10f) + textW("POGODA", F(24f)) + F(8f), yy(25f), F(18f), UNIT)
+        val labs = if (route) listOf("20 km", "50 km", "całość") else listOf("1 h", "3 h", "całość")
+        var rx = X(470f)
+        for (i in 2 downTo 0) {
+            val t = labs[i]; val tw = textW(t, F(20f))
+            if (i == scale) {
+                fp.color = Color.parseColor("#F2F4F7"); c.drawRoundRect(RectF(rx - tw - F(16f), yy(9f), rx, yy(37f)), F(4f), F(4f), fp)
+                text(c, t, rx - tw - F(8f), yy(23f), F(20f), Color.parseColor("#111315"))
+            } else text(c, t, rx - tw - F(4f), yy(23f), F(20f), UNIT)
+            rx -= tw + F(22f)
+        }
+        val items = wx?.items ?: emptyList()
+        if (items.isEmpty()) { none(c, X(240f), yy(230f), "pogoda: czekam na QBota"); return }
+        val since = (nowMs - wx!!.fetchedMs) / 60_000f
+        val X0 = X(58f); val X1 = X(422f); val W = X1 - X0
+        val kmNow = d.doneKm
+        val n = 80
+        val samples = ArrayList<WxS>(n + 1)
+        val spanKm: Float; val spanMin: Float
+        if (route) {
+            val lastKm = items.last().km ?: kmNow
+            val rest = ((d.totalKm ?: lastKm) - kmNow).coerceAtLeast(1f)
+            spanKm = when (scale) { 0 -> 20f; 1 -> 50f; else -> rest }.coerceAtMost(rest.coerceAtLeast(1f))
+            for (i in 0..n) {
+                val f = i / n.toFloat(); val km = kmNow + spanKm * f
+                val key: (com.qext2.primary.info.WxItem) -> Float = { it.km ?: 0f }
+                val t = (lerpBy(items, key, km) { it.t } ?: 0f) - since
+                samples.add(WxS(X0 + W * f, t, km, lerpBy(items, key, km) { it.feels }, lerpBy(items, key, km) { it.mm } ?: 0f,
+                    lerpBy(items, key, km) { it.prob }, lerpBy(items, key, km) { it.head }, lerpBy(items, key, km) { it.gust }))
+            }
+            spanMin = (samples.last().tMin - samples.first().tMin).coerceAtLeast(1f)
+        } else {
+            spanKm = 0f
+            spanMin = when (scale) { 0 -> 60f; 1 -> 180f; else -> 360f }
+            for (i in 0..n) {
+                val f = i / n.toFloat(); val tm = spanMin * f
+                val key: (com.qext2.primary.info.WxItem) -> Float = { it.t - since }
+                samples.add(WxS(X0 + W * f, tm, 0f, lerpBy(items, key, tm) { it.feels }, lerpBy(items, key, tm) { it.mm } ?: 0f,
+                    lerpBy(items, key, tm) { it.prob }, lerpBy(items, key, tm) { it.head }, lerpBy(items, key, tm) { it.gust }))
+            }
+        }
+        val t0 = samples.first().tMin
+        fun clockAt(tMin: Float) = clock(nowMs + (tMin * 60_000f).toLong())
+        // noc: przed switem / po zmierzchu (dzisiejsze); granice zgodne z czasem
+        val PT = yy(86f); val PB = yy(398f)
+        fun isNight(tMin: Float): Boolean {
+            val ms = nowMs + (tMin * 60_000f).toLong()
+            val da = dawnMs ?: return false; val du = duskMs ?: return false
+            return ms < da || (ms > du && ms < da + 86_400_000L)
+        }
+        var ns: Float? = null
+        fp.color = Color.parseColor("#1C2B4A"); fp.alpha = 150
+        for ((i, sm) in samples.withIndex()) {
+            val nt = isNight(sm.tMin)
+            if (nt && ns == null) ns = sm.x
+            if ((!nt || i == n) && ns != null) { c.drawRect(ns!!, PT, sm.x, PB, fp); ns = null }
+        }
+        fp.alpha = 255
+        // ---------------- temperatura
+        text(c, "TEMPERATURA", X(16f), yy(58f), F(24f), LABEL)
+        text(c, "odcz. °C", X(16f) + textW("TEMPERATURA", F(24f)) + F(6f), yy(60f), F(20f), UNIT)
+        val TT = yy(98f); val TB = yy(170f)
+        val fs = samples.mapNotNull { it.feels }
+        if (fs.isNotEmpty()) {
+            val lo = Math.floor(fs.minOrNull()!!.toDouble()).toFloat() - 1f; val hi = Math.ceil(fs.maxOrNull()!!.toDouble()).toFloat() + 1f
+            fun ty(v: Float) = TB - (v - lo) / (hi - lo) * (TB - TT)
+            val step = listOf(1f, 2f, 5f, 10f).firstOrNull { it * (TB - TT) / (hi - lo) >= F(24f) } ?: 10f
+            var v = Math.ceil((lo / step).toDouble()).toFloat() * step
+            stp.color = Color.parseColor("#2A3341"); stp.strokeWidth = F(1.5f)
+            while (v <= hi) { c.drawLine(X0, ty(v), X1, ty(v), stp); text(c, "${v.toInt()}°", X(48f), ty(v), F(20f), SUB, Paint.Align.RIGHT); v += step }
+            val path = Path()
+            var first = true
+            for (sm in samples) { val f = sm.feels ?: continue; if (first) { path.moveTo(sm.x, ty(f)); first = false } else path.lineTo(sm.x, ty(f)) }
+            stp.color = Color.BLACK; stp.strokeWidth = F(7f); c.drawPath(path, stp)
+            stp.color = Color.parseColor("#FF7A45"); stp.strokeWidth = F(3.5f); c.drawPath(path, stp)
+            val minS = samples.filter { it.feels != null }.minByOrNull { it.feels!! }!!
+            val idx = samples.indexOf(minS)
+            val where = if (route) "km ${Math.round(minS.km)}" else "o ${clockAt(minS.tMin)}"
+            text(c, "min ${Math.round(minS.feels!!)}° · $where", X1, yy(60f), F(22f), SUB, Paint.Align.RIGHT)
+            fun lab(sm: WxS, al: Paint.Align) { val fv = sm.feels ?: return; val y = ty(fv); text(c, "${Math.round(fv)}°", sm.x + (if (al == Paint.Align.LEFT) F(12f) else if (al == Paint.Align.RIGHT) -F(8f) else 0f), if (y < TT + F(34f)) y + F(24f) else y - F(22f), F(26f), WHITE, al) }
+            lab(samples.first(), Paint.Align.LEFT); lab(samples.last(), Paint.Align.RIGHT)
+            if (idx in 9 until n - 8) {
+                fp.color = Color.parseColor("#14181D"); c.drawCircle(minS.x, ty(minS.feels!!), F(6f), fp)
+                stp.color = Color.parseColor("#FF7A45"); stp.strokeWidth = F(3f); c.drawCircle(minS.x, ty(minS.feels!!), F(6f), stp)
+                lab(minS, Paint.Align.CENTER)
+            }
+        } else none(c, X(240f), (TT + TB) / 2f, "brak")
+        // ---------------- opad
+        text(c, "OPAD", X(16f), yy(196f), F(24f), LABEL)
+        text(c, "mm/h", X(16f) + textW("OPAD", F(24f)) + F(6f), yy(198f), F(20f), UNIT)
+        val RT = yy(224f); val RB = yy(280f)
+        val mmax = samples.maxOf { it.mm }
+        val rMax = Math.max(2.0, Math.ceil(mmax.toDouble())).toFloat()
+        stp.color = Color.parseColor("#2A3341"); stp.strokeWidth = F(1.5f)
+        c.drawLine(X0, RT, X1, RT, stp); c.drawLine(X0, (RT + RB) / 2f, X1, (RT + RB) / 2f, stp)
+        text(c, fmt("%.0f", rMax), X(48f), RT, F(20f), SUB, Paint.Align.RIGHT)
+        text(c, fmt("%.0f", rMax / 2f).let { if (rMax % 2f != 0f) fmt("%.1f", rMax / 2f) else it }, X(48f), (RT + RB) / 2f, F(20f), SUB, Paint.Align.RIGHT)
+        text(c, "0", X(48f), RB, F(20f), SUB, Paint.Align.RIGHT)
+        val cyan = Color.parseColor("#7FDBFF")
+        text(c, "100%", X(428f), RT, F(20f), cyan); text(c, "50", X(428f), (RT + RB) / 2f, F(20f), cyan); text(c, "0", X(428f), RB, F(20f), cyan)
+        val bwid = W / (n + 1)
+        fp.color = Color.parseColor("#2E7BFF")
+        for (sm in samples) if (sm.mm > 0.05f) c.drawRect(sm.x - bwid / 2f + F(0.5f), RB - sm.mm / rMax * (RB - RT), sm.x + bwid / 2f - F(0.5f), RB, fp)
+        stp.color = Color.parseColor("#465366"); stp.strokeWidth = F(2f); c.drawLine(X0, RB, X1, RB, stp)
+        val pPath = Path(); var pf = true
+        for (sm in samples) { val p = sm.prob ?: continue; val y = RB - p / 100f * (RB - RT); if (pf) { pPath.moveTo(sm.x, y); pf = false } else pPath.lineTo(sm.x, y) }
+        stp.color = cyan; stp.strokeWidth = F(2.5f); c.drawPath(pPath, stp)
+        val fr = samples.firstOrNull { it.mm >= 0.3f }
+        if (fr != null) text(c, "deszcz za ${hmm((fr.tMin).coerceAtLeast(0f))}" + (if (route) " · km ${Math.round(fr.km)}" else " · ${clockAt(fr.tMin)}"), X1, yy(198f), F(22f), cyan, Paint.Align.RIGHT)
+        else text(c, "bez opadu", X1, yy(198f), F(22f), SUB, Paint.Align.RIGHT)
+        // ---------------- wiatr (+ w twarz / - w plecy)
+        text(c, "WIATR", X(16f), yy(306f), F(24f), LABEL)
+        text(c, "m/s", X(16f) + textW("WIATR", F(24f)) + F(6f), yy(308f), F(20f), UNIT)
+        val WT = yy(334f); val Y0 = yy(364f)
+        val hs = samples.mapNotNull { it.head }
+        val gmax = samples.filter { (it.head ?: 0f) > 0f }.mapNotNull { it.gust }.maxOrNull() ?: 0f
+        val wmax = Math.max(6.0, Math.ceil(Math.max(hs.maxOfOrNull { kotlin.math.abs(it) } ?: 0f, gmax).toDouble())).toFloat()
+        val ky = (Y0 - WT) / wmax
+        stp.color = Color.parseColor("#2A3341"); stp.strokeWidth = F(1.5f)
+        c.drawLine(X0, Y0 - wmax * ky, X1, Y0 - wmax * ky, stp); c.drawLine(X0, Y0 + wmax * ky, X1, Y0 + wmax * ky, stp)
+        text(c, "+${wmax.toInt()}", X(48f), Y0 - wmax * ky, F(20f), Color.parseColor("#F0A6CF"), Paint.Align.RIGHT)
+        text(c, "0", X(48f), Y0, F(20f), SUB, Paint.Align.RIGHT)
+        text(c, "−${wmax.toInt()}", X(48f), Y0 + wmax * ky, F(20f), Color.parseColor("#8FD18A"), Paint.Align.RIGHT)
+        if (hs.isNotEmpty()) {
+            fun area(pos: Boolean): Path {
+                val p = Path(); p.moveTo(X0, Y0)
+                for (sm in samples) { val v = sm.head ?: 0f; p.lineTo(sm.x, Y0 - (if (pos) Math.max(0f, v) else Math.min(0f, v)) * ky) }
+                p.lineTo(X1, Y0); p.close(); return p
+            }
+            fp.color = Color.parseColor("#D96AA8"); fp.alpha = 230; c.drawPath(area(true), fp)
+            fp.color = Color.parseColor("#3F8F45"); c.drawPath(area(false), fp); fp.alpha = 255
+            stp.strokeWidth = F(2f); stp.pathEffect = android.graphics.DashPathEffect(floatArrayOf(F(2f), F(5f)), 0f); stp.color = Color.parseColor("#F2F4F7")
+            var gp: Path? = null
+            for (sm in samples) {
+                val hv = sm.head ?: 0f; val g = sm.gust
+                if (hv > 0f && g != null) { val y = Y0 - Math.min(wmax, g) * ky; if (gp == null) { gp = Path(); gp.moveTo(sm.x, y) } else gp.lineTo(sm.x, y) }
+                else if (gp != null) { c.drawPath(gp, stp); gp = null }
+            }
+            gp?.let { c.drawPath(it, stp) }
+            stp.pathEffect = null
+            val mx = hs.maxOrNull() ?: 0f
+            text(c, if (mx > 0.5f) "maks. czołowy ${Math.round(mx)} · poryw ${Math.round(gmax)}" else "głównie w plecy", X1, yy(308f), F(22f), SUB, Paint.Align.RIGHT)
+        }
+        stp.color = Color.parseColor("#C9D2DC"); stp.strokeWidth = F(1.5f); c.drawLine(X0, Y0, X1, Y0, stp)
+        // ---------------- os X: teraz + rowne podzialki (+ meta przy calosci), swit/zmierzch
+        data class Tk(val x: Float, val top: String, val u: String, val bot: String, val end: Boolean = false)
+        val ticks = ArrayList<Tk>()
+        ticks.add(Tk(X0, "teraz", "", clockAt(t0)))
+        if (route) {
+            val pxKm = W / spanKm
+            val st = listOf(5f, 10f, 20f, 25f, 50f).firstOrNull { it * pxKm >= F(90f) } ?: 50f
+            var k = Math.ceil(((kmNow + 0.01f) / st).toDouble()).toFloat() * st
+            while (k <= kmNow + spanKm + 0.01f) {
+                val sm = samples.minByOrNull { kotlin.math.abs(it.km - k) }!!
+                ticks.add(Tk(X0 + W * (k - kmNow) / spanKm, k.toInt().toString(), "km", clockAt(sm.tMin)))
+                k += st
+            }
+            if (scale == 2) ticks.add(Tk(X1, Math.round(kmNow + spanKm).toString(), "km", "meta " + clockAt(samples.last().tMin), true))
+        } else {
+            val pxMin = W / spanMin
+            val st = listOf(15f, 30f, 60f, 120f, 180f).firstOrNull { it * pxMin >= F(90f) } ?: 180f
+            val nowMin = (java.util.Calendar.getInstance().apply { timeInMillis = nowMs }.let { it.get(java.util.Calendar.HOUR_OF_DAY) * 60 + it.get(java.util.Calendar.MINUTE) }).toFloat()
+            var m = Math.ceil(((nowMin + 1f) / st).toDouble()).toFloat() * st
+            while (m - nowMin <= spanMin + 0.01f) {
+                val rel = m - nowMin
+                ticks.add(Tk(X0 + W * rel / spanMin, clockAt(rel), "", "+" + hmm(rel)))
+                m += st
+            }
+        }
+        val endT = ticks.firstOrNull { it.end }
+        val keep = ArrayList<Tk>(); keep.add(ticks[0])
+        for (t in ticks.drop(1)) if (!t.end && t.x - X0 >= F(120f) && !(endT != null && endT.x - t.x < F(125f))) keep.add(t)
+        if (keep.size > 2) { val lt = keep.last(); val pv = keep[keep.size - 2]; if (X1 - lt.x < F(30f) && lt.x - pv.x < F(130f)) keep.removeAt(keep.size - 1) }
+        endT?.let { keep.add(it) }
+        // swit / zmierzch w zakresie: linia + podpis na osi (bez kolizji z teraz / meta)
+        val sunTicks = ArrayList<Tk>()
+        for ((ev, name) in listOf(dawnMs to "świt", duskMs to "zmrok")) {
+            ev ?: continue
+            for (e in listOf(ev, ev + 86_400_000L)) {
+                val rel = (e - nowMs) / 60_000f
+                if (rel <= t0 || rel > samples.last().tMin) continue
+                val x = if (route) { val sm = samples.minByOrNull { kotlin.math.abs(it.tMin - rel) }!!; sm.x } else X0 + W * rel / spanMin
+                stp.color = Color.parseColor("#6B7685"); stp.strokeWidth = F(2f); stp.pathEffect = android.graphics.DashPathEffect(floatArrayOf(F(4f), F(5f)), 0f)
+                c.drawLine(x, PT, x, PB, stp); stp.pathEffect = null
+                if (x - X0 >= F(110f) && !(endT != null && endT.x - x < F(110f))) sunTicks.add(Tk(x, name, "", clock(e)))
+            }
+        }
+        for (st in sunTicks) keep.removeAll { !it.end && it !== keep[0] && kotlin.math.abs(it.x - st.x) < F(100f) }
+        stp.color = Color.parseColor("#2A3341"); stp.strokeWidth = F(1.5f)
+        for (t in keep) { c.drawLine(t.x, TT - F(6f), t.x, TB, stp); c.drawLine(t.x, RT - F(4f), t.x, RB, stp); c.drawLine(t.x, WT - F(4f), t.x, Y0 + wmax * ky, stp) }
+        for ((i, t) in keep.withIndex()) {
+            val al = if (i == 0) Paint.Align.LEFT else if (t.x > X1 - F(30f)) Paint.Align.RIGHT else Paint.Align.CENTER
+            val xx = if (i == 0) t.x + F(4f) else t.x
+            valUnit(c, t.top, t.u, xx, yy(416f), F(28f), F(20f), WHITE, al)
+            text(c, t.bot, xx, yy(448f), F(20f), UNIT, al)
+        }
+        for (t in sunTicks) {
+            val al = if (t.x > X1 - F(40f)) Paint.Align.RIGHT else Paint.Align.CENTER
+            text(c, t.top, t.x, yy(416f), F(22f), SUB, al)
+            text(c, t.bot, t.x, yy(448f), F(20f), SUB, al)
+        }
+    }
+
     private fun drawBattery(c: Canvas, r: RectF, d: StatsV2Data) {
         cell(c, r)
         val lb = label(c, r, listOf(P_BATT), "BAT", "")
