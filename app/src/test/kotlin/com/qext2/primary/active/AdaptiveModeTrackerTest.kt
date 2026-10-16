@@ -10,7 +10,9 @@ class AdaptiveModeTrackerTest {
         assertEquals(0.88f, AdaptiveModeTracker.modeFactorFor(0, 1f), 0f)
         assertEquals(1.00f, AdaptiveModeTracker.modeFactorFor(1, 0.88f), 0f)
         assertEquals(1.12f, AdaptiveModeTracker.modeFactorFor(2, 1f), 0f)
-        assertEquals(0.88f, AdaptiveModeTracker.modeFactorFor(3, 0.88f), 0f)
+        // AUTO bez obnizki ponizej 1.0 (decyzja 14.10: spadek rezerwy obniza sufit juz w PacingEngine, bez podwojnej kary)
+        assertEquals(1.00f, AdaptiveModeTracker.modeFactorFor(3, 0.88f), 0f)
+        assertEquals(1.12f, AdaptiveModeTracker.modeFactorFor(3, 1.12f), 0f)
     }
 
     @Test fun `bez trasy AUTO = normalny`() {
