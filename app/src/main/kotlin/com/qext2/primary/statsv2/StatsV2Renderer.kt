@@ -999,7 +999,7 @@ object StatsV2Renderer {
             }
             val mx = hs.maxOrNull() ?: 0f
             text(c, (if (mx > 0.5f) "maks. czołowy ${Math.round(mx)}" else "maks. w plecy ${Math.round(-(hs.minOrNull() ?: 0f))}") +
-                (samples.first().gust?.let { " · porywy teraz ${Math.round(it)}" } ?: ""),   // 16.10: porywy tylko liczba (bez wykresu) X1, yy(308f + dw), F(22f), SUB, Paint.Align.RIGHT)
+                (samples.first().gust?.let { " · porywy teraz ${Math.round(it)}" } ?: ""), X1, yy(308f + dw), F(22f), SUB, Paint.Align.RIGHT)
         }
         stp.color = Color.parseColor("#C9D2DC"); stp.strokeWidth = F(1.5f); c.drawLine(X0, Y0, X1, Y0, stp)
         ylab(c, "+${wmax.toInt()}", X(14f), Y0 - wmax * ky, Color.parseColor("#F0A6CF")); ylab(c, "−${wmax.toInt()}", X(14f), Y0 + wmax * ky, Color.parseColor("#8FD18A"))
