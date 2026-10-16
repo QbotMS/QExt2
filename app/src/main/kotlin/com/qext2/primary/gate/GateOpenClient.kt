@@ -43,12 +43,14 @@ internal class KarooSdkHttpCaller(private val system: KarooSystemService) : SdkH
         onError: (msg: String) -> Unit,
     ) = request(url, headers, waitForConnection, { code, _ -> onResult(code) }, onError)
 
+    // 16.10: pogoda / plan / punkt bramy MOGA czekac na polaczenie (bez tego Karoo bez chwilowej sieci od razu dawalo code=0);
+    // tylko samo otwarcie bramy (call) nigdy nie czeka.
     override fun callWithBody(
         url: String,
         headers: Map<String, String>,
         onResult: (code: Int, body: String?) -> Unit,
         onError: (msg: String) -> Unit,
-    ) = request(url, headers, false, onResult, onError)
+    ) = request(url, headers, true, onResult, onError)
 
     private fun request(
         url: String,
@@ -75,6 +77,7 @@ internal class KarooSdkHttpCaller(private val system: KarooSystemService) : SdkH
                 if (state is HttpResponseState.Complete) {
                     cleanUp()
                     val code = if (state.error != null && state.statusCode <= 0) 0 else state.statusCode
+                    if (code == 0) try { com.qext2.primary.util.RideFileLog.append("HTTP_FAIL url=${url.substringBefore('?')} err=${state.error}") } catch (_: Exception) {}
                     onResult(code, state.body?.let { String(it, Charsets.UTF_8) })
                 }
             }
