@@ -14,7 +14,8 @@ object InfoDemo {
             val d = km - kmNow
             val t = d / 19.1f * 60f
             val g = { c: Float, w: Float -> exp(-((d - c) / w) * ((d - c) / w)) }
-            val hw = 3.4f * cos(d / 11f) + 2.0f * sin(d / 24f)
+            // 16.10: DEMO wiatru zmienne -- slaby/mocny, pod wiatr i w plecy na przemian (widac cieniowanie)
+            val hw = 5.5f * sin(d / 6f) + 2.5f * sin(d / 1.9f) + 1.0f * cos(d / 13f)
             val mm = (1.6f * g(25f, 5f) + 0.9f * g(85f, 6f)).let { if (it < 0.05f) 0f else it }
             items.add(WxItem(km, t, 11f - 4f * maxOf(0f, d - 30f) / maxOf(1f, end - kmNow) - 1.6f * g(25f, 8f), mm,
                 minOf(95f, 10f + 80f * g(25f, 10f) + 50f * g(85f, 10f)), hw, if (hw > 0f) hw * 1.45f + 1.5f else 2f))
