@@ -68,14 +68,16 @@ class InfoDataType : DataTypeImpl("qext2", "qext2-info") {
         scope.launch {
             val ext = QExt2PrimaryExtension.instance ?: return@launch
             var lastMs = 0L
+            var lastVer = -1L
             ext.aggregatorFlow
                 .flatMapLatest { agg -> (agg?.statsSnapshot ?: flowOf(StatsRideSnapshot())).combine(InfoWeather.version) { s, v -> Triple(agg, s, v) }
                     // 16.10: bez jazdy snapshot nie zmienia sie -> bez zegara pogoda nie byla nigdy pobierana (wisialo 'czekam na QBota')
                     .combine(kotlinx.coroutines.flow.flow { while (true) { emit(System.currentTimeMillis()); kotlinx.coroutines.delay(20_000L) } }) { t, _ -> t } }
-                .collect { (agg, snap, _) ->
+                .collect { (agg, snap, ver) ->
                     val now = System.currentTimeMillis()
-                    val d = try { mapper.toData(agg, snap) } catch (e: Exception) { null } ?: return@collect
-                    try {
+                    val demo = AthleteDataStore.loadKokpit2Demo()
+                    val d = if (demo) com.qext2.primary.statsv2.StatsV2Demo.at(now) else (try { mapper.toData(agg, snap) } catch (e: Exception) { null } ?: return@collect)
+                    if (!demo) try {
                         InfoWeather.tick(
                             routeNameIn = if (snap.hasRoute) SurfaceBridge.lastRouteName else null,
                             km = d.doneKm,
@@ -87,13 +89,14 @@ class InfoDataType : DataTypeImpl("qext2", "qext2-info") {
                     } catch (e: Exception) {
                         Log.w(TAG, "tick fail ${e.message}")
                     }
-                    if (now - lastMs < 1500L) return@collect
+                    if (now - lastMs < 1500L && ver == lastVer) return@collect   // zmiana skali / nowa pogoda -> od razu
+                    lastVer = ver
                     lastMs = now
-                    val dawn = agg?.getCivilDawnMs()?.takeIf { it > 0L }
-                    val dusk = agg?.getCivilDuskMs()?.takeIf { it > 0L }
+                    val dawn = if (demo) now - 6 * 3_600_000L else agg?.getCivilDawnMs()?.takeIf { it > 0L }
+                    val dusk = if (demo) now + 4 * 3_600_000L + 20 * 60_000L else agg?.getCivilDuskMs()?.takeIf { it > 0L }
                     val bmp = try {
                         withContext(Dispatchers.Default) {
-                            StatsV2Renderer.renderInfo(w, h, d, InfoWeather.data,
+                            StatsV2Renderer.renderInfo(w, h, d, if (demo) InfoDemo.wx(now) else InfoWeather.data,
                                 InfoWeather.scale, now, dawn, dusk)
                         }
                     } catch (e: Exception) {

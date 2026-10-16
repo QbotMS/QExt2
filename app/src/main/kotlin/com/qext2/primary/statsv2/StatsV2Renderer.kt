@@ -848,7 +848,7 @@ object StatsV2Renderer {
         val items = wx?.items ?: emptyList()
         if (items.isEmpty()) { none(c, X(240f), yy(230f), "pogoda: czekam na QBota"); return }
         val since = (nowMs - wx!!.fetchedMs) / 60_000f
-        val X0 = X(58f); val X1 = X(422f); val W = X1 - X0
+        val X0 = X(10f); val X1 = X(470f); val W = X1 - X0
         val kmNow = d.doneKm
         val n = 80
         val samples = ArrayList<WxS>(n + 1)
@@ -876,6 +876,8 @@ object StatsV2Renderer {
             }
         }
         val t0 = samples.first().tMin
+        // 16.10: bez opadu w zakresie (slupki < 0,1 mm/h i szansa < 30%) pas OPAD znika, miejsce dostaja temperatura i wiatr
+        val showRain = samples.any { it.mm >= 0.1f || (it.prob ?: 0f) >= 30f }
         fun clockAt(tMin: Float) = clock(nowMs + (tMin * 60_000f).toLong())
         // noc: przed switem / po zmierzchu (dzisiejsze); granice zgodne z czasem
         val PT = yy(86f); val PB = yy(398f)
@@ -895,7 +897,7 @@ object StatsV2Renderer {
         // ---------------- temperatura
         text(c, "TEMPERATURA", X(16f), yy(58f), F(24f), LABEL)
         text(c, "odcz. °C", X(16f) + textW("TEMPERATURA", F(24f)) + F(6f), yy(60f), F(20f), UNIT)
-        val TT = yy(98f); val TB = yy(170f)
+        val TT = yy(98f); val TB = yy(if (showRain) 170f else 212f)
         val fs = samples.mapNotNull { it.feels }
         if (fs.isNotEmpty()) {
             val lo = Math.floor(fs.minOrNull()!!.toDouble()).toFloat() - 1f; val hi = Math.ceil(fs.maxOrNull()!!.toDouble()).toFloat() + 1f
@@ -903,7 +905,7 @@ object StatsV2Renderer {
             val step = listOf(1f, 2f, 5f, 10f).firstOrNull { it * (TB - TT) / (hi - lo) >= F(24f) } ?: 10f
             var v = Math.ceil((lo / step).toDouble()).toFloat() * step
             stp.color = Color.parseColor("#2A3341"); stp.strokeWidth = F(1.5f)
-            while (v <= hi) { c.drawLine(X0, ty(v), X1, ty(v), stp); text(c, "${v.toInt()}°", X(48f), ty(v), F(20f), SUB, Paint.Align.RIGHT); v += step }
+            while (v <= hi) { c.drawLine(X0, ty(v), X1, ty(v), stp); text(c, "${v.toInt()}°", X(14f), ty(v), F(20f), SUB); v += step }
             val path = Path()
             var first = true
             for (sm in samples) { val f = sm.feels ?: continue; if (first) { path.moveTo(sm.x, ty(f)); first = false } else path.lineTo(sm.x, ty(f)) }
@@ -913,7 +915,7 @@ object StatsV2Renderer {
             val idx = samples.indexOf(minS)
             val where = if (route) "km ${Math.round(minS.km)}" else "o ${clockAt(minS.tMin)}"
             text(c, "min ${Math.round(minS.feels!!)}° · $where", X1, yy(60f), F(22f), SUB, Paint.Align.RIGHT)
-            fun lab(sm: WxS, al: Paint.Align) { val fv = sm.feels ?: return; val y = ty(fv); text(c, "${Math.round(fv)}°", sm.x + (if (al == Paint.Align.LEFT) F(12f) else if (al == Paint.Align.RIGHT) -F(8f) else 0f), if (y < TT + F(34f)) y + F(24f) else y - F(22f), F(26f), WHITE, al) }
+            fun lab(sm: WxS, al: Paint.Align) { val fv = sm.feels ?: return; val y = ty(fv); text(c, "${Math.round(fv)}°", sm.x + (if (al == Paint.Align.LEFT) F(48f) else if (al == Paint.Align.RIGHT) -F(48f) else 0f), if (y < TT + F(34f)) y + F(24f) else y - F(22f), F(26f), WHITE, al) }
             lab(samples.first(), Paint.Align.LEFT); lab(samples.last(), Paint.Align.RIGHT)
             if (idx in 9 until n - 8) {
                 fp.color = Color.parseColor("#14181D"); c.drawCircle(minS.x, ty(minS.feels!!), F(6f), fp)
@@ -921,21 +923,22 @@ object StatsV2Renderer {
                 lab(minS, Paint.Align.CENTER)
             }
         } else none(c, X(240f), (TT + TB) / 2f, "brak")
+        val RT = yy(224f); val RB = yy(280f)
+        if (showRain) {
         // ---------------- opad
         text(c, "OPAD", X(16f), yy(196f), F(24f), LABEL)
         text(c, "mm/h", X(16f) + textW("OPAD", F(24f)) + F(6f), yy(198f), F(20f), UNIT)
         val radarUntil = wx?.radarUntilMin?.let { it - since }
         if (radarUntil != null && radarUntil > 0f) text(c, "· radar ${Math.round(radarUntil)}′", X(16f) + textW("OPAD", F(24f)) + textW("mm/h", F(20f)) + F(14f), yy(198f), F(20f), Color.parseColor("#9CC7FF"))
-        val RT = yy(224f); val RB = yy(280f)
         val mmax = samples.maxOf { it.mm }
         val rMax = Math.max(2.0, Math.ceil(mmax.toDouble())).toFloat()
         stp.color = Color.parseColor("#2A3341"); stp.strokeWidth = F(1.5f)
         c.drawLine(X0, RT, X1, RT, stp); c.drawLine(X0, (RT + RB) / 2f, X1, (RT + RB) / 2f, stp)
-        text(c, fmt("%.0f", rMax), X(48f), RT, F(20f), SUB, Paint.Align.RIGHT)
-        text(c, fmt("%.0f", rMax / 2f).let { if (rMax % 2f != 0f) fmt("%.1f", rMax / 2f) else it }, X(48f), (RT + RB) / 2f, F(20f), SUB, Paint.Align.RIGHT)
-        text(c, "0", X(48f), RB, F(20f), SUB, Paint.Align.RIGHT)
+        text(c, fmt("%.0f", rMax), X(14f), RT, F(20f), SUB)
+        text(c, fmt("%.0f", rMax / 2f).let { if (rMax % 2f != 0f) fmt("%.1f", rMax / 2f) else it }, X(14f), (RT + RB) / 2f, F(20f), SUB)
+        text(c, "0", X(14f), RB, F(20f), SUB)
         val cyan = Color.parseColor("#7FDBFF")
-        text(c, "100%", X(428f), RT, F(20f), cyan); text(c, "50", X(428f), (RT + RB) / 2f, F(20f), cyan); text(c, "0", X(428f), RB, F(20f), cyan)
+        text(c, "100%", X(466f), RT, F(20f), cyan, Paint.Align.RIGHT); text(c, "50", X(466f), (RT + RB) / 2f, F(20f), cyan, Paint.Align.RIGHT); text(c, "0", X(466f), RB, F(20f), cyan, Paint.Align.RIGHT)
         val bwid = W / (n + 1)
         for (sm in samples) if (sm.mm > 0.05f) {
             fp.color = Color.parseColor(if (radarUntil != null && sm.tMin <= radarUntil) "#7FB2FF" else "#2E7BFF")   // jasny = radar, ciemny = model
@@ -948,19 +951,21 @@ object StatsV2Renderer {
         val fr = samples.firstOrNull { it.mm >= 0.3f }
         if (fr != null) text(c, "deszcz za ${hmm((fr.tMin).coerceAtLeast(0f))}" + (if (route) " · km ${Math.round(fr.km)}" else " · ${clockAt(fr.tMin)}"), X1, yy(198f), F(22f), cyan, Paint.Align.RIGHT)
         else text(c, "bez opadu", X1, yy(198f), F(22f), SUB, Paint.Align.RIGHT)
+        }
         // ---------------- wiatr (+ w twarz / - w plecy)
-        text(c, "WIATR", X(16f), yy(306f), F(24f), LABEL)
-        text(c, "m/s", X(16f) + textW("WIATR", F(24f)) + F(6f), yy(308f), F(20f), UNIT)
-        val WT = yy(334f); val Y0 = yy(364f)
+        val dw = if (showRain) 0f else -66f
+        text(c, "WIATR", X(16f), yy(306f + dw), F(24f), LABEL)
+        text(c, "m/s", X(16f) + textW("WIATR", F(24f)) + F(6f), yy(308f + dw), F(20f), UNIT)
+        val WT = yy(if (showRain) 334f else 282f); val Y0 = yy(if (showRain) 364f else 338f)
         val hs = samples.mapNotNull { it.head }
         val gmax = samples.filter { (it.head ?: 0f) > 0f }.mapNotNull { it.gust }.maxOrNull() ?: 0f
         val wmax = Math.max(6.0, Math.ceil(Math.max(hs.maxOfOrNull { kotlin.math.abs(it) } ?: 0f, gmax).toDouble())).toFloat()
         val ky = (Y0 - WT) / wmax
         stp.color = Color.parseColor("#2A3341"); stp.strokeWidth = F(1.5f)
         c.drawLine(X0, Y0 - wmax * ky, X1, Y0 - wmax * ky, stp); c.drawLine(X0, Y0 + wmax * ky, X1, Y0 + wmax * ky, stp)
-        text(c, "+${wmax.toInt()}", X(48f), Y0 - wmax * ky, F(20f), Color.parseColor("#F0A6CF"), Paint.Align.RIGHT)
-        text(c, "0", X(48f), Y0, F(20f), SUB, Paint.Align.RIGHT)
-        text(c, "−${wmax.toInt()}", X(48f), Y0 + wmax * ky, F(20f), Color.parseColor("#8FD18A"), Paint.Align.RIGHT)
+        text(c, "+${wmax.toInt()}", X(14f), Y0 - wmax * ky, F(20f), Color.parseColor("#F0A6CF"))
+        text(c, "0", X(14f), Y0, F(20f), SUB)
+        text(c, "−${wmax.toInt()}", X(14f), Y0 + wmax * ky, F(20f), Color.parseColor("#8FD18A"))
         if (hs.isNotEmpty()) {
             fun area(pos: Boolean): Path {
                 val p = Path(); p.moveTo(X0, Y0)
@@ -979,7 +984,7 @@ object StatsV2Renderer {
             gp?.let { c.drawPath(it, stp) }
             stp.pathEffect = null
             val mx = hs.maxOrNull() ?: 0f
-            text(c, if (mx > 0.5f) "maks. czołowy ${Math.round(mx)} · poryw ${Math.round(gmax)}" else "głównie w plecy", X1, yy(308f), F(22f), SUB, Paint.Align.RIGHT)
+            text(c, if (mx > 0.5f) "maks. czołowy ${Math.round(mx)} · poryw ${Math.round(gmax)}" else "głównie w plecy", X1, yy(308f + dw), F(22f), SUB, Paint.Align.RIGHT)
         }
         stp.color = Color.parseColor("#C9D2DC"); stp.strokeWidth = F(1.5f); c.drawLine(X0, Y0, X1, Y0, stp)
         // ---------------- os X: teraz + rowne podzialki (+ meta przy calosci), swit/zmierzch
@@ -1027,7 +1032,7 @@ object StatsV2Renderer {
         }
         for (st in sunTicks) keep.removeAll { !it.end && it !== keep[0] && kotlin.math.abs(it.x - st.x) < F(100f) }
         stp.color = Color.parseColor("#2A3341"); stp.strokeWidth = F(1.5f)
-        for (t in keep) { c.drawLine(t.x, TT - F(6f), t.x, TB, stp); c.drawLine(t.x, RT - F(4f), t.x, RB, stp); c.drawLine(t.x, WT - F(4f), t.x, Y0 + wmax * ky, stp) }
+        for (t in keep) { c.drawLine(t.x, TT - F(6f), t.x, TB, stp); if (showRain) c.drawLine(t.x, RT - F(4f), t.x, RB, stp); c.drawLine(t.x, WT - F(4f), t.x, Y0 + wmax * ky, stp) }
         for ((i, t) in keep.withIndex()) {
             val al = if (i == 0) Paint.Align.LEFT else if (t.x > X1 - F(30f)) Paint.Align.RIGHT else Paint.Align.CENTER
             val xx = if (i == 0) t.x + F(4f) else t.x
