@@ -54,6 +54,22 @@ jobs:
       - run: |
           set -o pipefail
           ./gradlew testDebugUnitTest 2>&1 | tee gradle_test_output.log
+      - name: Bledy testow i kompilacji jako adnotacje (czytelne bez logowania)
+        if: failure()
+        run: |
+          grep -E "^e: |^> Task .* FAILED|What went wrong" -A2 gradle_test_output.log | head -60 | while IFS= read -r l; do [ -n "$l" ] && echo "::error::${l:0:900}"; done || true
+          python3 - <<'PY'
+          import glob, xml.etree.ElementTree as ET
+          n = 0
+          for f in glob.glob("app/build/test-results/testDebugUnitTest/*.xml"):
+              for tc in ET.parse(f).getroot().iter("testcase"):
+                  for fl in list(tc.findall("failure")) + list(tc.findall("error")):
+                      msg = (fl.get("message") or (fl.text or "")).replace("\n", " | ")[:700]
+                      print(f"::error::TEST {tc.get('classname')}.{tc.get('name')}: {msg}")
+                      n += 1
+                      if n >= 40:
+                          raise SystemExit
+          PY
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
