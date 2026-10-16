@@ -842,7 +842,17 @@ object StatsV2Renderer {
         val route = wx?.route ?: d.hasRoute
         // naglowek + skala (aktywna w plakietce)
         text(c, "POGODA", X(10f), yy(23f), F(24f), LABEL)
-        text(c, if (route) "na trasie" else "kolejne godziny", X(10f) + textW("POGODA", F(24f)) + F(8f), yy(25f), F(18f), UNIT)
+        val subTxt = if (route) "na trasie" else "kolejne godziny"
+        text(c, subTxt, X(10f) + textW("POGODA", F(24f)) + F(8f), yy(25f), F(18f), UNIT)
+        // 16.10: zrodlo pogody -- plakietka "Q" + wiek danych; zielona = QBot na zywo (co 15 min z radarem), biala = QBot, zolta = starsze niz 30 min
+        wx?.let { w0 ->
+            val age = w0.ageMin + (nowMs - w0.fetchedMs) / 60_000f
+            val bcol = Color.parseColor(when { age > 30f -> "#F2C230"; w0.live -> "#39FF14"; else -> "#F2F4F7" })
+            val bt = "Q ${Math.round(age)}′"
+            val bx = X(10f) + textW("POGODA", F(24f)) + F(8f) + textW(subTxt, F(18f)) + F(10f)
+            fp.color = bcol; c.drawRoundRect(RectF(bx, yy(11f), bx + textW(bt, F(18f)) + F(12f), yy(35f)), F(4f), F(4f), fp)
+            text(c, bt, bx + F(6f), yy(23f), F(18f), Color.parseColor("#111315"))
+        }
         val labs = if (route) listOf("20 km", "50 km", "całość") else listOf("1 h", "3 h", "całość")
         var rx = X(470f)
         for (i in 2 downTo 0) {

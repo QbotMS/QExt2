@@ -15,7 +15,9 @@ import java.util.Locale
 data class WxItem(val km: Float?, val t: Float, val feels: Float?, val mm: Float?, val prob: Float?, val head: Float?, val gust: Float?)
 
 /** radarUntilMin: do ktorej minuty (od pobrania) opad pochodzi z radaru QBota; null = sam model. */
-data class InfoWx(val route: Boolean, val items: List<WxItem>, val fetchedMs: Long, val radarUntilMin: Float? = null)
+data class InfoWx(val route: Boolean, val items: List<WxItem>, val fetchedMs: Long, val radarUntilMin: Float? = null,
+                  /** live = tryb jazdy QBota (przeliczane co 15 min z radarem); ageMin = wiek wyniku w QBocie w chwili pobrania */
+                  val live: Boolean = false, val ageMin: Float = 0f)
 
 /**
  * Pogoda dla pola INFO (16.10.2026). Liczy QBot:
@@ -112,7 +114,8 @@ object InfoWeather {
                 if (j.optString("src") == "radar") radarMax = maxOf(radarMax ?: t, t)
                 out.add(WxItem(if (route) f(j, "km") else null, t, f(j, "feels"), f(j, "mm"), f(j, "prob"), f(j, "head"), f(j, "gust")))
             }
-            InfoWx(route, if (route) out.filter { it.km != null }.sortedBy { it.km } else out.sortedBy { it.t }, System.currentTimeMillis(), radarMax)
+            InfoWx(route, if (route) out.filter { it.km != null }.sortedBy { it.km } else out.sortedBy { it.t }, System.currentTimeMillis(), radarMax,
+                o.optBoolean("live", false), o.optDouble("age_min", 0.0).toFloat())
         } catch (e: Exception) {
             log("INFO_WX parse_error ${e.message}")
             null
