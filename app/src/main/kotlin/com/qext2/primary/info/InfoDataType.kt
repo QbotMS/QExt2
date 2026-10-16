@@ -69,7 +69,9 @@ class InfoDataType : DataTypeImpl("qext2", "qext2-info") {
             val ext = QExt2PrimaryExtension.instance ?: return@launch
             var lastMs = 0L
             ext.aggregatorFlow
-                .flatMapLatest { agg -> (agg?.statsSnapshot ?: flowOf(StatsRideSnapshot())).combine(InfoWeather.version) { s, v -> Triple(agg, s, v) } }
+                .flatMapLatest { agg -> (agg?.statsSnapshot ?: flowOf(StatsRideSnapshot())).combine(InfoWeather.version) { s, v -> Triple(agg, s, v) }
+                    // 16.10: bez jazdy snapshot nie zmienia sie -> bez zegara pogoda nie byla nigdy pobierana (wisialo 'czekam na QBota')
+                    .combine(kotlinx.coroutines.flow.flow { while (true) { emit(System.currentTimeMillis()); kotlinx.coroutines.delay(20_000L) } }) { t, _ -> t } }
                 .collect { (agg, snap, _) ->
                     val now = System.currentTimeMillis()
                     val d = try { mapper.toData(agg, snap) } catch (e: Exception) { null } ?: return@collect
