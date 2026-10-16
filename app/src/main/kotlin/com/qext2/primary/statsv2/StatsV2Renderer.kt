@@ -856,7 +856,7 @@ object StatsV2Renderer {
         val items = wx?.items ?: emptyList()
         if (items.isEmpty()) { none(c, X(240f), yy(230f), "pogoda: czekam na QBota"); return }
         val since = (nowMs - wx!!.fetchedMs) / 60_000f
-        val X0 = X(10f); val X1 = X(470f); val XN = X0 + F(30f); val W = X1 - XN   // XN = TU I TERAZ
+        val X0 = X(10f); val X1 = X(470f); val XN = X0 + F(38f); val W = X1 - XN   // XN = TU I TERAZ (16.10: +8 px)
         val kmNow = d.doneKm
         val n = 80
         val samples = ArrayList<WxS>(n + 1)
