@@ -75,7 +75,7 @@ class InfoDataType : DataTypeImpl("qext2", "qext2-info") {
                     val d = try { mapper.toData(agg, snap) } catch (e: Exception) { null } ?: return@collect
                     try {
                         InfoWeather.tick(
-                            routeName = if (snap.hasRoute) SurfaceBridge.lastRouteName else null,
+                            routeNameIn = if (snap.hasRoute) SurfaceBridge.lastRouteName else null,
                             km = d.doneKm,
                             etaMs = d.etaMs,
                             lat = AthleteDataStore.loadLocationLat(),

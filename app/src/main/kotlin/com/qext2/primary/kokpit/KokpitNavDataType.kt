@@ -166,8 +166,8 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
         val hub = com.qext2.primary.active.ActiveMessageHub.current(now)
         val msg = if (hub != null) RouteMsg(
             MsgKind.HUB,
-            hubShort(hub.title, hub.line1, hub.line2).first,
-            hubShort(hub.title, hub.line1, hub.line2).second,
+            kokpitHubShort(hub.title, hub.line1, hub.line2).first,
+            kokpitHubShort(hub.title, hub.line1, hub.line2).second,
             when (hub.severity) {
                 com.qext2.primary.active.ActiveMessageSeverity.CRITICAL -> "#FF8C8C"
                 com.qext2.primary.active.ActiveMessageSeverity.WARNING -> "#FB923C"
@@ -265,18 +265,19 @@ object KokpitNavDemo {
         )
     }
 
-    /** 16.10.2026: krotkie wersje komunikatow wspolnej kolejki dla paska KOKPIT (mieszcza sie w pelnej wielkosci czcionki). */
-    private fun hubShort(title: String, l1: String?, l2: String?): Pair<String, String> {
-        val rest = listOfNotNull(l1, l2).joinToString(" ")
-        val t = title.trim().uppercase()
-        return when {
-            t.startsWith("ZJEDZ") || t.startsWith("JEDZ") -> "JEDZ:" to (Regex("(\\d+)\\s*g").find(rest)?.let { "${it.groupValues[1]} g" } ?: rest)
-            t.startsWith("PIJ") -> "PIJ:" to (Regex("(\\d+)\\s*ml").find(rest)?.let { "${it.groupValues[1]} ml" } ?: rest)
-            t == "BRAK HR" -> "" to "BRAK CZUJNIKA HR"
-            t.startsWith("BRAK SENSOR") -> "BRAK:" to rest.replace("POWER", "MOC").replace("CAD", "KAD").replace(" / ", " · ")
-            t == "BRAK RADARU" -> "" to "BRAK RADARU"
-            t == "BRAK TRASY" -> "" to "BRAK TRASY"
-            else -> (title + if (rest.isNotEmpty()) ":" else "") to rest
-        }
+}
+
+/** 16.10.2026: krotkie wersje komunikatow wspolnej kolejki dla paska KOKPIT (mieszcza sie w pelnej wielkosci czcionki). */
+internal fun kokpitHubShort(title: String, l1: String?, l2: String?): Pair<String, String> {
+    val rest = listOfNotNull(l1, l2).joinToString(" ")
+    val t = title.trim().uppercase()
+    return when {
+        t.startsWith("ZJEDZ") || t.startsWith("JEDZ") -> "JEDZ:" to (Regex("(\\d+)\\s*g").find(rest)?.let { "${it.groupValues[1]} g" } ?: rest)
+        t.startsWith("PIJ") -> "PIJ:" to (Regex("(\\d+)\\s*ml").find(rest)?.let { "${it.groupValues[1]} ml" } ?: rest)
+        t == "BRAK HR" -> "" to "BRAK CZUJNIKA HR"
+        t.startsWith("BRAK SENSOR") -> "BRAK:" to rest.replace("POWER", "MOC").replace("CAD", "KAD").replace(" / ", " · ")
+        t == "BRAK RADARU" -> "" to "BRAK RADARU"
+        t == "BRAK TRASY" -> "" to "BRAK TRASY"
+        else -> (title + if (rest.isNotEmpty()) ":" else "") to rest
     }
 }
