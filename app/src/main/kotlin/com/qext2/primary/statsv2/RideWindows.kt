@@ -24,11 +24,17 @@ object RideWindows {
     private var secInWin = 0
     private var lastFeedMs = 0L
     private var lastDistKm = 0f
+    // TEMPO (16.10.2026): srednia moc i predkosc w kazdej pelnej godzinie RUCHU
+    private val hours = ArrayList<Pair<Int, Float>>()
+    private var hSec = 0
+    private var hPow = 0L
+    private var hStartKm = -1f
 
     @Synchronized
     fun reset() {
         done.clear(); roll.clear(); rollSum = 0L; p4 = 0.0; n4 = 0; hrSum = 0L; hrN = 0; secInWin = 0
         lastFeedMs = 0L; lastDistKm = 0f
+        hours.clear(); hSec = 0; hPow = 0L; hStartKm = -1f
     }
 
     @Synchronized
@@ -39,6 +45,12 @@ object RideWindows {
         lastFeedMs = nowMs
         if (!moving) return
         val p = (power ?: 0).coerceAtLeast(0)
+        if (hStartKm < 0f) hStartKm = distKm
+        hPow += p; hSec++
+        if (hSec >= 3600) {
+            hours.add((hPow / hSec).toInt() to ((distKm - hStartKm).coerceAtLeast(0f) / (hSec / 3600f)))
+            hSec = 0; hPow = 0L; hStartKm = distKm
+        }
         roll.addLast(p); rollSum += p
         if (roll.size > 30) rollSum -= roll.removeFirst()
         val avg30 = rollSum.toDouble() / roll.size
@@ -56,6 +68,15 @@ object RideWindows {
         val np = if (n4 > 0) Math.pow(p4 / n4, 0.25).toInt() else 0
         val ef = if (hrN > 30 && np > 0) np.toFloat() / (hrSum.toFloat() / hrN) else null
         return Win(np, ef)
+    }
+
+    /** TEMPO: pelne godziny ruchu (moc W, km/h) + biezaca, gdy trwa >= 5 min (drugi element = jest biezaca). */
+    @Synchronized
+    fun tempoSnapshot(): Pair<List<Pair<Int, Float>>, Boolean> {
+        val out = ArrayList(hours)
+        val partial = hSec >= 300
+        if (partial) out.add((hPow / hSec).toInt() to ((lastDistKm - hStartKm).coerceAtLeast(0f) / (hSec / 3600f)))
+        return out to partial
     }
 
     /** Zakonczone okna + biezace (niepelne) na koncu, gdy trwa > 60 s. */

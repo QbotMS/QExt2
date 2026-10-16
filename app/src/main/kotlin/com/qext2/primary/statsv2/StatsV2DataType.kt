@@ -51,12 +51,18 @@ class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: 
         emitter.onNext(UpdateGraphicConfig(showHeader = false))
         AthleteDataStore.init(context)
         com.qext2.primary.kokpit.Kokpit2Fonts.init(context)
+        com.qext2.primary.gate.GateController.init(context)
+        val karoo = QExt2PrimaryExtension.instance?.karooSystem
+        val locId = try {
+            karoo?.addConsumer<io.hammerhead.karooext.models.OnLocationChanged>(onEvent = { com.qext2.primary.gate.GateController.onLocation(it.lat, it.lng) })
+        } catch (e: Exception) { null }
+        com.qext2.primary.gate.GateController.ensureHome()
         val w = config.viewSize.first.coerceAtLeast(120)
         val h = config.viewSize.second.coerceAtLeast(160)
         Log.i(TAG, "QEXT_STATS_V2_VIEW size=${w}x$h")
         com.qext2.primary.util.RideFileLog.append("VIEW STATS_V2 type=$dataTypeId size=${w}x$h")
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-        emitter.updateView(RemoteViews(context.packageName, R.layout.field_stats_v2))
+        emitter.updateView(rvWithTap(context))
 
         scope.launch {
             // produkcyjne STATS v2 (forceLive): demo z tego samego przelacznika co KOKPIT 2 (SETUP)
@@ -64,13 +70,13 @@ class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: 
                 Log.i(TAG, "QEXT_STATS_V2_DEMO on")
                 while (isActive) {
                     val bmp = try {
-                        withContext(Dispatchers.Default) { StatsV2Renderer.render(w, h, StatsV2Demo.at(System.currentTimeMillis())) }
+                        withContext(Dispatchers.Default) { StatsV2Renderer.render(w, h, demoData()) }
                     } catch (e: Exception) {
                         Log.w(TAG, "QEXT_STATS_V2_RENDER_FAIL msg=${e.message}", e); com.qext2.primary.util.RideFileLog.append("RENDER_FAIL STATS_V2 msg=${e.message}")
                         null
                     }
                     if (bmp != null) {
-                        val rv = RemoteViews(context.packageName, R.layout.field_stats_v2)
+                        val rv = rvWithTap(context)
                         rv.setImageViewBitmap(R.id.iv_stats_v2, bmp)
                         emitter.updateView(rv)
                     }
@@ -100,7 +106,7 @@ class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: 
                         Log.w(TAG, "QEXT_STATS_V2_RENDER_FAIL msg=${e.message}", e); com.qext2.primary.util.RideFileLog.append("RENDER_FAIL STATS_V2 msg=${e.message}")
                         null
                     } ?: return@collect
-                    val rv = RemoteViews(context.packageName, R.layout.field_stats_v2)
+                    val rv = rvWithTap(context)
                     rv.setImageViewBitmap(R.id.iv_stats_v2, bmp)
                     emitter.updateView(rv)
                 }
@@ -109,7 +115,30 @@ class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: 
         emitter.setCancellable {
             QExt2PrimaryExtension.instance?.onFieldHidden()
             scope.cancel()
+            locId?.let { id -> karoo?.removeConsumer(id) }
         }
+    }
+
+    /** RemoteViews pola + dotyk komorki BRAMA (GateController przez StatsActionReceiver). */
+    private fun rvWithTap(context: Context): RemoteViews {
+        val rv = RemoteViews(context.packageName, R.layout.field_stats_v2)
+        val tap = android.app.PendingIntent.getBroadcast(
+            context, 7312,
+            android.content.Intent(context, com.qext2.primary.actions.StatsActionReceiver::class.java)
+                .setAction(com.qext2.primary.actions.StatsActionReceiver.ACTION_GATE_TAP),
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
+        )
+        rv.setOnClickPendingIntent(R.id.stats_v2_gate_tap, tap)
+        return rv
+    }
+
+    private fun demoData(): StatsV2Data {
+        val now = System.currentTimeMillis()
+        return StatsV2Demo.at(now).copy(
+            xssPlan = 120f, planDeltaMin = 14, planRefEtaMs = now + 4 * 3_600_000L,
+            tempo = listOf(198 to 20.8f, 192 to 19.9f, 181 to 19.1f, 172 to 18.4f), tempoPartial = true,
+            gate = com.qext2.primary.gate.GateController.ui.value, lightState = "OK",
+        )
     }
 
     private fun npZone(np: Int, cp: Float): Int? {
@@ -138,6 +167,8 @@ class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: 
         val pos = agg?.getRoutePositionM()?.let { (it / 1000.0).toFloat() } ?: s.distanceKm   // E4.1
         val total = if (s.hasRoute && dtdKm > 0.05) pos + dtdKm.toFloat() else null
         val surf = if (SurfaceBridge.hasProfile()) agg?.navRemainingByType(pos.coerceAtLeast(0f)) else null
+        val pl = StatsV2Extras.plan(if (s.etaModelReady && s.etaTimestamp > 0L) s.etaTimestamp else null, s.distanceKm)
+        val tp = RideWindows.tempoSnapshot()
         return StatsV2Data(
             np = s.npWholeWatts.takeIf { it > 0 },
             npZone = npZone(s.npWholeWatts, s.cpEffW),
@@ -176,6 +207,13 @@ class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: 
                 .map { (it.kmEnd - maxOf(it.kmStart, pos)) to android.graphics.Color.parseColor(when (it.surface) { SurfaceType.PAVED -> "#F2F4F7"; SurfaceType.GRAVEL -> "#FFB300"; SurfaceType.LOOSE -> "#FF2A2A" }) }
                 else null,
             stopsKm = agg?.getLongStopsKm()?.map { it.toFloat() } ?: emptyList(),
+            xssPlan = StatsV2Extras.xssPlan,
+            planDeltaMin = pl.first,
+            planRefEtaMs = pl.second,
+            tempo = tp.first,
+            tempoPartial = tp.second,
+            gate = com.qext2.primary.gate.GateController.ui.value,
+            lightState = agg?.getRadarState()?.first,
         )
     }
 }

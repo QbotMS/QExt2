@@ -11,6 +11,7 @@ import android.graphics.Typeface
 import androidx.core.graphics.PathParser
 import kotlin.math.max
 import kotlin.math.min
+import com.qext2.primary.gate.GateController.State as GS
 
 /**
  * STATS v2 — pole rysowane jako obrazek (docs/FIELD_LOOK_PLAN.md, mockup "STATS — wartosci w plakietkach").
@@ -55,6 +56,14 @@ data class StatsV2Data(
     val ahead: List<Pair<Float, Int>>? = null,
     val stopsKm: List<Float> = emptyList(),
     val demo: Boolean = false,
+    /** STATS v2 nowy uklad (16.10.2026) */
+    val xssPlan: Float? = null,
+    val planDeltaMin: Int? = null,
+    val planRefEtaMs: Long? = null,
+    val tempo: List<Pair<Int, Float>> = emptyList(),
+    val tempoPartial: Boolean = false,
+    val gate: com.qext2.primary.gate.GateController.Ui? = null,
+    val lightState: String? = null,
 )
 
 object StatsV2Renderer {
@@ -117,7 +126,8 @@ object StatsV2Renderer {
         val g = 2f
         // uklad (mockup "STATS - PRZEBIEG"): NP/IF/VI 116, PRZEBIEG 136, RSRV/XSS/KCAL 100, TRASA z nawierzchnia 198,
         // PRZEWYZSZENIE 92, dolny rzad reszta (~108)
-        val rows = floatArrayOf(113f, 136f, 100f, 201f, 92f)   // 2026-10-11: wiersz NP -3, TRASA +3
+        // 2026-10-16: TRASA i PRZEWYZSZENIE przeniesione do INFO; nowe: PLAN CZASU 86, TEMPO 120, BRAMA|SWIATLO 85
+        val rows = floatArrayOf(113f, 136f, 100f, 86f, 120f, 85f)
         var y = 0f
         val col3 = (BW - 2 * g) / 3f
         // 1: NP / IF / VI
@@ -131,17 +141,21 @@ object StatsV2Renderer {
         y += rows[1] + g
         // 3: RSRV / XSS / KCAL
         drawRsrv(c, RectF(0f, y, col3, y + rows[2]), d.rsrv)
-        drawValueCell(c, RectF(col3 + g, y, 2 * col3 + g, y + rows[2]), listOf(P_BARS), null, "XSS", "",
-            d.xss?.let { fmt("%.0f", it) }, 66f, WHITE)
+        drawXss(c, RectF(col3 + g, y, 2 * col3 + g, y + rows[2]), d)
         drawValueCell(c, RectF(2 * col3 + 2 * g, y, BW, y + rows[2]), listOf(P_FLAME), null, "KCAL", "",
             d.kcal?.toString(), 62f, WHITE)
         y += rows[2] + g
-        // 4: trasa (pasek z nawierzchnia)
-        drawRoute(c, RectF(0f, y, BW, y + rows[3]), d)
+        // 4: PLAN CZASU
+        drawPlan(c, RectF(0f, y, BW, y + rows[3]), d)
         y += rows[3] + g
-        // 5: przewyzszenie
-        drawAscent(c, RectF(0f, y, BW, y + rows[4]), d)
+        // 5: TEMPO co godzine
+        drawTempo(c, RectF(0f, y, BW, y + rows[4]), d)
         y += rows[4] + g
+        // 6: BRAMA (przycisk, nakladka w field_stats_v2.xml) | SWIATLO (stan lampy z radarem)
+        val half = (BW - g) / 2f
+        drawBrama(c, RectF(0f, y, half - 1f, y + rows[5]), d.gate)
+        drawLight(c, RectF(half + 1f, y, BW, y + rows[5]), d.lightState)
+        y += rows[5] + g
         // 6: CARB+woda (45%) / KAD (20%) / BAT (35%)
         val inner = BW - 2 * g
         val wFood = inner * 0.45f
@@ -640,6 +654,108 @@ object StatsV2Renderer {
             text(c, fv, wcx, mid - F(8f), F(34f), WHITE, Paint.Align.CENTER)
             text(c, "l/h", wcx, mid + F(22f), F(20f), UNIT, Paint.Align.CENTER)
         }
+    }
+
+    private fun drawXss(c: Canvas, r: RectF, d: StatsV2Data) {
+        cell(c, r)
+        label(c, r, listOf(P_BARS), "XSS", "")
+        val l = X(r.left) + F(10f); val rr = X(r.right) - F(10f); val T = Y(r.top)
+        val v = d.xss
+        if (v == null) { none(c, (l + rr) / 2f, T + F(60f)); return }
+        val vs = fmt("%.0f", v)
+        val plan = d.xssPlan
+        if (plan != null && plan > 0f) {
+            val vsz = F(52f)
+            val ps = "/" + fmt("%.0f", plan)
+            val w = textW(vs, vsz) + F(4f) + textW(ps, F(22f))
+            val x0 = (l + rr) / 2f - w / 2f
+            text(c, vs, x0, T + F(55f), vsz, WHITE)
+            text(c, ps, x0 + textW(vs, vsz) + F(4f), T + F(63f), F(22f), UNIT)
+            val bt = T + F(79f); val bb = T + F(93f)
+            fp.color = TRACK; c.drawRect(l, bt, rr, bb, fp)
+            fp.color = Color.parseColor(if (v > plan) "#22C55E" else "#2E7BFF")
+            c.drawRect(l, bt, l + (rr - l) * (v / plan).coerceIn(0f, 1f), bb, fp)
+        } else {
+            text(c, vs, (l + rr) / 2f, T + F(62f), fit(vs, F(66f), rr - l), WHITE, Paint.Align.CENTER)
+        }
+    }
+
+    private fun drawPlan(c: Canvas, r: RectF, d: StatsV2Data) {
+        cell(c, r)
+        label(c, r, null, "PLAN CZASU", "")
+        d.planRefEtaMs?.let { rightLabel(c, r, listOf(Triple("ETA ze startu", 20f, SUB), Triple(clock(it), 24f, WHITE))) }
+        val l = X(r.left) + F(12f); val T = Y(r.top); val cy = T + F(58f)
+        val dm = d.planDeltaMin
+        if (dm == null) { none(c, (X(r.left) + X(r.right)) / 2f, cy, "po 1. km z ETA"); return }
+        val s = (if (dm > 0) "+" else if (dm < 0) "−" else "") + kotlin.math.abs(dm)
+        val col = when { dm >= 5 -> AMBER; dm <= -5 -> Color.parseColor("#4ADE80"); else -> WHITE }
+        text(c, s, l, cy, F(52f), col)
+        val word = when { dm > 0 -> "min za planem"; dm < 0 -> "min przed planem"; else -> "min · zgodnie z planem" }
+        text(c, word, l + textW(s, F(52f)) + F(8f), cy + F(6f), F(22f), UNIT)
+    }
+
+    private fun drawTempo(c: Canvas, r: RectF, d: StatsV2Data) {
+        cell(c, r)
+        label(c, r, null, "TEMPO", "co godzinę")
+        val T = Y(r.top); val l = X(r.left) + F(12f); val rr = X(r.right) - F(10f)
+        val all = d.tempo
+        if (all.isEmpty()) { none(c, (l + rr) / 2f, T + F(72f), "po 5 min jazdy"); return }
+        if (all.size >= 2 && all.first().first > 0) {
+            val pct = Math.round((all.last().first - all.first().first) * 100f / all.first().first)
+            val ps = (if (pct > 0) "+" else if (pct < 0) "−" else "") + kotlin.math.abs(pct) + "%"
+            rightLabel(c, r, listOf(Triple("moc od 1. h", 20f, SUB), Triple(ps, 24f, if (pct <= -10) AMBER else WHITE)))
+        }
+        val start = (all.size - 4).coerceAtLeast(0)
+        val shown = all.subList(start, all.size)
+        val colW = (rr - l) / 4f
+        shown.forEachIndexed { i, hw ->
+            val idx = start + i
+            val x = l + colW * i
+            val isNow = d.tempoPartial && idx == all.size - 1
+            text(c, if (isNow) "teraz" else "${idx + 1}. h", x, T + F(50f), F(20f), UNIT)
+            val ws = hw.first.toString()
+            text(c, ws, x, T + F(80f), F(34f), WHITE)
+            text(c, "W", x + textW(ws, F(34f)) + F(3f), T + F(84f), F(20f), UNIT)
+            val ks = fmt("%.1f", hw.second)
+            text(c, ks, x, T + F(106f), F(20f), SUB)
+            text(c, "km/h", x + textW(ks, F(20f)) + F(3f), T + F(106f), F(18f), UNIT)
+            if (i < shown.size - 1) { fp.color = BG; c.drawRect(x + colW - F(8f), T + F(40f), x + colW - F(6f), T + F(114f), fp) }
+        }
+    }
+
+    private fun drawBrama(c: Canvas, r: RectF, ui: com.qext2.primary.gate.GateController.Ui?) {
+        cell(c, r)
+        val st = ui?.state
+        val col = when (st) {
+            GS.READY -> "#2E7BFF"
+            GS.ARMED, GS.SENDING, GS.WAIT -> "#F2C230"
+            GS.OPENED -> "#22C55E"
+            GS.ERROR, GS.NO_NET, GS.TOO_FAR -> "#FF5252"
+            else -> "#465366"
+        }
+        val off = st == null || st == GS.FAR || st == GS.NO_GPS
+        stp.color = Color.parseColor(col); stp.strokeWidth = F(4f)
+        stp.pathEffect = if (off) android.graphics.DashPathEffect(floatArrayOf(F(10f), F(7f)), 0f) else null
+        c.drawRoundRect(RectF(X(r.left) + F(3f), Y(r.top) + F(3f), X(r.right) - F(3f), Y(r.bottom) - F(3f)), F(6f), F(6f), stp)
+        stp.pathEffect = null
+        label(c, r, null, "BRAMA", "")
+        ui?.sub?.takeIf { it.isNotEmpty() }?.let { rightLabel(c, r, listOf(Triple(it, 20f, SUB))) }
+        val main = ui?.main ?: "BRAMA"
+        text(c, main, X(r.left) + F(16f), Y(r.top) + F(60f), fit(main, F(34f), X(r.right) - X(r.left) - F(28f)), if (off) NONE else WHITE)
+    }
+
+    private fun drawLight(c: Canvas, r: RectF, state: String?) {
+        cell(c, r)
+        label(c, r, null, "ŚWIATŁO", "")
+        val txt: String; val col: Int; val dot: String?
+        when (state) {
+            "OK" -> { txt = "POŁĄCZONA"; col = WHITE; dot = "#4ADE80" }
+            "SEARCHING" -> { txt = "BRAK"; col = Color.parseColor("#FF8C8C"); dot = "#FF5252" }
+            "NA" -> { txt = "brak lampy"; col = NONE; dot = null }
+            else -> { txt = "—"; col = NONE; dot = null }
+        }
+        dot?.let { fp.color = Color.parseColor(it); c.drawCircle(X(r.right) - F(20f), Y(r.top) + F(20f), F(7f), fp) }
+        text(c, txt, X(r.left) + F(16f), Y(r.top) + F(60f), fit(txt, F(34f), X(r.right) - X(r.left) - F(28f)), col)
     }
 
     private fun drawBattery(c: Canvas, r: RectF, d: StatsV2Data) {

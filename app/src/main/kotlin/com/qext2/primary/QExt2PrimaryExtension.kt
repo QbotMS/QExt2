@@ -510,6 +510,9 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                                 fetchTimestamp = System.currentTimeMillis()
                             )
                             AthleteDataStore.save(data)
+                            // STATS v2: plan dnia Trenera (rower) -> pasek pod XSS
+                            com.qext2.primary.statsv2.StatsV2Extras.xssPlan =
+                                if (json.isNull("xssPlanToday")) null else json.optDouble("xssPlanToday", Double.NaN).takeIf { !it.isNaN() && it > 0.0 }?.toFloat()
                             if (AthleteDataStore.importSettingsOnce(json.optJSONObject("deviceSettings"))) {
                                 com.qext2.primary.util.RideFileLog.append("SETTINGS_RESTORED z serwera")
                                 refreshDeadlineConfig()
