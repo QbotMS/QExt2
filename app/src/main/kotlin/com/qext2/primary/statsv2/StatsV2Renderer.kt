@@ -916,8 +916,8 @@ object StatsV2Renderer {
             val path = Path()
             var first = true
             for (sm in samples) { val f = sm.feels ?: continue; if (first) { path.moveTo(sm.x, ty(f)); first = false } else path.lineTo(sm.x, ty(f)) }
-            stp.color = Color.BLACK; stp.strokeWidth = F(7f); c.drawPath(path, stp)
-            stp.color = Color.parseColor("#FF7A45"); stp.strokeWidth = F(3.5f); c.drawPath(path, stp)
+            stp.color = Color.BLACK; stp.strokeWidth = F(11f); c.drawPath(path, stp)
+            stp.color = Color.parseColor("#FF8A00"); stp.strokeWidth = F(6.5f); c.drawPath(path, stp)   // 16.10: grubsza, pomaranczowa
             for (v in tl) ylab(c, "${Math.round(v)}°", X(14f), ty(v), SUB)
             val minS = samples.filter { it.feels != null }.minByOrNull { it.feels!! }!!
             val idx = samples.indexOf(minS)
@@ -992,7 +992,7 @@ object StatsV2Renderer {
                     if (vm < 0.05f) continue
                     fp.color = mix(if (pos) pink else green, (0.12f + 0.88f * (vm / wmax)).coerceIn(0f, 1f))
                     val q = Path(); q.moveTo(sa.x, Y0); q.lineTo(sa.x, Y0 - ya * ky); q.lineTo(sb.x + F(0.6f), Y0 - yb * ky); q.lineTo(sb.x + F(0.6f), Y0); q.close()
-                    c.drawPath(q, fp)
+                    fp.isAntiAlias = false; c.drawPath(q, fp); fp.isAntiAlias = true
                 }
             }
             stp.strokeWidth = F(2f); stp.pathEffect = android.graphics.DashPathEffect(floatArrayOf(F(2f), F(5f)), 0f); stp.color = Color.parseColor("#F2F4F7")
