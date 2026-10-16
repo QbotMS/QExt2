@@ -96,7 +96,7 @@ class InfoDataType : DataTypeImpl("qext2", "qext2-info") {
                     val dusk = if (demo) now + 4 * 3_600_000L + 20 * 60_000L else agg?.getCivilDuskMs()?.takeIf { it > 0L }
                     val bmp = try {
                         withContext(Dispatchers.Default) {
-                            StatsV2Renderer.renderInfo(w, h, d, if (demo) InfoDemo.wx(now) else InfoWeather.data,
+                            StatsV2Renderer.renderInfo(w, h, d, if (demo) InfoDemo.wx(now, d.doneKm, d.totalKm ?: (d.doneKm + 90f)) else InfoWeather.data,
                                 InfoWeather.scale, now, dawn, dusk)
                         }
                     } catch (e: Exception) {

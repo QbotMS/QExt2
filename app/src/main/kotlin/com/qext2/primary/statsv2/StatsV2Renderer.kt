@@ -827,6 +827,14 @@ object StatsV2Renderer {
         if (u.isNotEmpty()) text(c, u, x0 + vw + F(3f), cy + F(3f), us, UNIT)
     }
 
+    /** opis osi na ciemnym tle (nie nachodzi na linie wykresu) */
+    private fun ylab(c: Canvas, t: String, x: Float, y: Float, col: Int, right: Boolean = false) {
+        val tw = textW(t, F(20f)); val x0 = if (right) x - tw else x
+        fp.color = Color.parseColor("#14181D")
+        c.drawRoundRect(RectF(x0 - F(3f), y - F(12f), x0 + tw + F(3f), y + F(12f)), F(3f), F(3f), fp)
+        text(c, t, x0, y, F(20f), col)
+    }
+
     private fun drawWeather(c: Canvas, r: RectF, d: StatsV2Data, wx: com.qext2.primary.info.InfoWx?, scale: Int, nowMs: Long, dawnMs: Long?, duskMs: Long?) {
         cell(c, r)
         val oy = r.top - 2f
@@ -902,15 +910,15 @@ object StatsV2Renderer {
         if (fs.isNotEmpty()) {
             val lo = Math.floor(fs.minOrNull()!!.toDouble()).toFloat() - 1f; val hi = Math.ceil(fs.maxOrNull()!!.toDouble()).toFloat() + 1f
             fun ty(v: Float) = TB - (v - lo) / (hi - lo) * (TB - TT)
-            val step = listOf(1f, 2f, 5f, 10f).firstOrNull { it * (TB - TT) / (hi - lo) >= F(24f) } ?: 10f
-            var v = Math.ceil((lo / step).toDouble()).toFloat() * step
+            val tl = listOf(hi, (lo + hi) / 2f, lo)   // 16.10: tylko gora, srodek i dol zakresu
             stp.color = Color.parseColor("#2A3341"); stp.strokeWidth = F(1.5f)
-            while (v <= hi) { c.drawLine(X0, ty(v), X1, ty(v), stp); text(c, "${v.toInt()}°", X(14f), ty(v), F(20f), SUB); v += step }
+            for (v in tl) c.drawLine(X0, ty(v), X1, ty(v), stp)
             val path = Path()
             var first = true
             for (sm in samples) { val f = sm.feels ?: continue; if (first) { path.moveTo(sm.x, ty(f)); first = false } else path.lineTo(sm.x, ty(f)) }
             stp.color = Color.BLACK; stp.strokeWidth = F(7f); c.drawPath(path, stp)
             stp.color = Color.parseColor("#FF7A45"); stp.strokeWidth = F(3.5f); c.drawPath(path, stp)
+            for (v in tl) ylab(c, "${Math.round(v)}°", X(14f), ty(v), SUB)
             val minS = samples.filter { it.feels != null }.minByOrNull { it.feels!! }!!
             val idx = samples.indexOf(minS)
             val where = if (route) "km ${Math.round(minS.km)}" else "o ${clockAt(minS.tMin)}"
@@ -934,11 +942,7 @@ object StatsV2Renderer {
         val rMax = Math.max(2.0, Math.ceil(mmax.toDouble())).toFloat()
         stp.color = Color.parseColor("#2A3341"); stp.strokeWidth = F(1.5f)
         c.drawLine(X0, RT, X1, RT, stp); c.drawLine(X0, (RT + RB) / 2f, X1, (RT + RB) / 2f, stp)
-        text(c, fmt("%.0f", rMax), X(14f), RT, F(20f), SUB)
-        text(c, fmt("%.0f", rMax / 2f).let { if (rMax % 2f != 0f) fmt("%.1f", rMax / 2f) else it }, X(14f), (RT + RB) / 2f, F(20f), SUB)
-        text(c, "0", X(14f), RB, F(20f), SUB)
         val cyan = Color.parseColor("#7FDBFF")
-        text(c, "100%", X(466f), RT, F(20f), cyan, Paint.Align.RIGHT); text(c, "50", X(466f), (RT + RB) / 2f, F(20f), cyan, Paint.Align.RIGHT); text(c, "0", X(466f), RB, F(20f), cyan, Paint.Align.RIGHT)
         val bwid = W / (n + 1)
         for (sm in samples) if (sm.mm > 0.05f) {
             fp.color = Color.parseColor(if (radarUntil != null && sm.tMin <= radarUntil) "#7FB2FF" else "#2E7BFF")   // jasny = radar, ciemny = model
@@ -948,6 +952,8 @@ object StatsV2Renderer {
         val pPath = Path(); var pf = true
         for (sm in samples) { val p = sm.prob ?: continue; val y = RB - p / 100f * (RB - RT); if (pf) { pPath.moveTo(sm.x, y); pf = false } else pPath.lineTo(sm.x, y) }
         stp.color = cyan; stp.strokeWidth = F(2.5f); c.drawPath(pPath, stp)
+        ylab(c, fmt("%.0f", rMax), X(14f), RT, SUB); ylab(c, "0", X(14f), RB, SUB)
+        ylab(c, "100%", X(466f), RT, cyan, true); ylab(c, "0", X(466f), RB, cyan, true)
         val fr = samples.firstOrNull { it.mm >= 0.3f }
         if (fr != null) text(c, "deszcz za ${hmm((fr.tMin).coerceAtLeast(0f))}" + (if (route) " · km ${Math.round(fr.km)}" else " · ${clockAt(fr.tMin)}"), X1, yy(198f), F(22f), cyan, Paint.Align.RIGHT)
         else text(c, "bez opadu", X1, yy(198f), F(22f), SUB, Paint.Align.RIGHT)
@@ -963,9 +969,6 @@ object StatsV2Renderer {
         val ky = (Y0 - WT) / wmax
         stp.color = Color.parseColor("#2A3341"); stp.strokeWidth = F(1.5f)
         c.drawLine(X0, Y0 - wmax * ky, X1, Y0 - wmax * ky, stp); c.drawLine(X0, Y0 + wmax * ky, X1, Y0 + wmax * ky, stp)
-        text(c, "+${wmax.toInt()}", X(14f), Y0 - wmax * ky, F(20f), Color.parseColor("#F0A6CF"))
-        text(c, "0", X(14f), Y0, F(20f), SUB)
-        text(c, "−${wmax.toInt()}", X(14f), Y0 + wmax * ky, F(20f), Color.parseColor("#8FD18A"))
         if (hs.isNotEmpty()) {
             fun area(pos: Boolean): Path {
                 val p = Path(); p.moveTo(X0, Y0)
@@ -987,6 +990,7 @@ object StatsV2Renderer {
             text(c, if (mx > 0.5f) "maks. czołowy ${Math.round(mx)} · poryw ${Math.round(gmax)}" else "głównie w plecy", X1, yy(308f + dw), F(22f), SUB, Paint.Align.RIGHT)
         }
         stp.color = Color.parseColor("#C9D2DC"); stp.strokeWidth = F(1.5f); c.drawLine(X0, Y0, X1, Y0, stp)
+        ylab(c, "+${wmax.toInt()}", X(14f), Y0 - wmax * ky, Color.parseColor("#F0A6CF")); ylab(c, "−${wmax.toInt()}", X(14f), Y0 + wmax * ky, Color.parseColor("#8FD18A"))
         // ---------------- os X: teraz + rowne podzialki (+ meta przy calosci), swit/zmierzch
         data class Tk(val x: Float, val top: String, val u: String, val bot: String, val end: Boolean = false)
         val ticks = ArrayList<Tk>()
