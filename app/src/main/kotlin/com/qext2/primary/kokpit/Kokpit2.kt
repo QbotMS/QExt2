@@ -84,7 +84,11 @@ object Kokpit2Demo {
         // pole dynamiczne co 4 s - wszystkie rodzaje, w tym najszersze (wymagana srednia zolta i czerwona)
         val dyn = listOf(DynItem("ATD", "640", "m"), DynItem("WIND", "18", "km"), DynItem("shop", "12", "km"),
             DynItem("water", "3,4", "km"), DynItem("AVG", "21,5", "km/h", 1), DynItem("AVG", "24,8", "km/h", 2))[((now / 4000L) % 6L).toInt()]
-        val d = d1.copy(turnKind = tk[ti], turnDistM = td[ti], dyn = dyn)
+        // 2026-10-17: przelacznik AERO -> demo pola AERO (oszczednosc, strata, zbiera, brak)
+        val dynA = if (com.qext2.primary.data.AthleteDataStore.loadKokpit2DynAero())
+            listOf(DynItem("AERO", "−11", "W", 0, 1), DynItem("AERO", "−4", "W", 0, 0), DynItem("AERO", "+6", "W", 0, 1),
+                DynItem("AERO", "···", "W"), DynItem("AERO", "—", "W"))[((now / 4000L) % 5L).toInt()] else dyn
+        val d = d1.copy(turnKind = tk[ti], turnDistM = td[ti], dyn = dynA)
         val rel = d.windRelDeg ?: return d
         val ws = d.windMps ?: 4f
         // strzalka = kierunek wiatru wzgledem jazdy: w gore (0 st.) wieje w plecy, w dol w twarz -> czolowy = -ws*cos
@@ -651,11 +655,14 @@ object Kokpit2NavRenderer {
             "WIND" -> g.add(Item(24f) { x -> arrow(c, x + 12f, base - capH / 2f, 24f, 180f, RED) })
             "water" -> g.add(Item(18f) { x -> drop(c, x, base, 18f, 22f, BLUE) })
             "AVG" -> g.add(txt("śr.", us, LBL, base, false))
+            "AERO" -> g.add(txt("aero", us, LBL, base, false))
             "shop" -> g.add(txt("sklep", us, LBL, base, false))
             else -> g.add(txt("jedz.", us, LBL, base, false))
         }
         g.add(txt(di.value, ds, col, base))
         g.add(txt(di.unit, us, UNIT, base, false))
+        if (di.conf >= 0) g.add(Item(12f) { x ->   // AERO: kropka pewnosci (zielona = pewny, zolta = zbiera sie)
+            fp.color = Color.parseColor(if (di.conf == 1) "#4ADE80" else "#FACC15"); c.drawCircle(x + 6f, base - capH / 2f, 5f, fp) })
         return G(g, ref, 3f)
     }
 

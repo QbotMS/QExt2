@@ -547,6 +547,14 @@ object AthleteDataStore {
     fun loadKokpit2Demo(): Boolean =
         prefs?.getBoolean("kokpit2_demo", false) ?: false
 
+    /** 2026-10-17: pole dynamiczne KOKPIT 2 = AERO (true) albo DYNAMIC (false, domyslnie) */
+    fun saveKokpit2DynAero(enabled: Boolean) {
+        prefs?.edit()?.putBoolean("kokpit2_dyn_aero", enabled)?.apply()
+    }
+
+    fun loadKokpit2DynAero(): Boolean =
+        prefs?.getBoolean("kokpit2_dyn_aero", false) ?: false
+
     /** Setup QBota > QExt2: ustawienia komunikatow i kolorow (JSON compact z /ride-readiness) */
     fun saveQext2Config(json: String) { prefs?.edit()?.putString("qext2_config", json)?.apply() }
     fun loadQext2Config(): String? = prefs?.getString("qext2_config", null)

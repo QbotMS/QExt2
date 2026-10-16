@@ -125,6 +125,11 @@ Pola produkcyjne (stare KOKPIT zostają jako testowe, bez demo):
     przez NIEOFICJALNĄ usługę czujników Karoo (`light/LightControl.kt`, wg kxradar/karoofirefly, Apache-2.0); niebieska ramka tylko gdy sterowanie
     działa. Tryb = ostatnio ustawiony przez QExt2 (lampa go nie zgłasza). Dziennik: LIGHT, LIGHT_SET, LIGHT_TAP.
 
+### Pole dynamiczne: DYNAMIC / AERO (0.4.1, 2026-10-17)
+SETUP „KOKPIT 2: pole dynamiczne” – DYNAMIC (rotacja jw.) albo AERO: „aero −11 W ●” = zmiana oporu powietrza po zmianie pozycji
+w watach przy bieżącej prędkości (kropka zielona = pewny, żółta = zbiera się; „···” zbiera poziom, „—” brak warunków).
+AERO zastępuje pole w całości, bez wyjątków. Szczegóły i algorytm: `docs/AERO.md`.
+
 ### Dziennik jazdy (`ride_log.txt`, 2 MB + 1 rotacja)
 `START`, `RIDE_STATE`, `VIEW`, `READINESS_FETCH/OK/FAIL`, `QEXT2_CONFIG`, `HTTP_FAIL <usługa> reason=…`, `EF_TYPICAL(_FAIL)`,
 `WX_OK / WX_FAIL / WX_ERR (timeout|http|parse|onError)`, nawierzchnia i POI (`SURFACE_*`, `POI_FETCH*`), `HEADWIND`, `MSG`,

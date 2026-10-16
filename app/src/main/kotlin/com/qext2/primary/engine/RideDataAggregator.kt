@@ -1455,6 +1455,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         LabRideStateRepository.reset()
         etaEngine.resetSession()
         com.qext2.primary.statsv2.RideWindows.reset()
+        AeroEstimator.reset()
         com.qext2.primary.active.ActiveMessageHub.reset()
         lastTickNs = 0L
         movingAccumSec = 0.0

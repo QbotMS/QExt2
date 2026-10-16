@@ -105,6 +105,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                         _aggregatorFlow.value = _aggregator
                         // STATS v2 PRZEBIEG: okna 5 min (NP, EF) karmione co ~1 s
                         com.qext2.primary.statsv2.RideWindows.reset()
+                        com.qext2.primary.engine.AeroEstimator.reset()
                         // wspolna kolejka komunikatow (ACTIVE + KOKPIT): producenci co 1 s
                         com.qext2.primary.active.ActiveMessageHub.reset()
                         msgHubJob?.cancel()
@@ -128,6 +129,8 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                                         p.speedKmh > 3.0,
                                         st.distanceKm,
                                     )
+                                    // 2026-10-17 AERO (docs/AERO.md): liczone zawsze (takze przy DYNAMIC), wynik tez do FIT
+                                    com.qext2.primary.engine.AeroEstimator.feed(System.currentTimeMillis(), p, a)
                                 }
                             }
                         }
@@ -292,6 +295,12 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         // E-FIT schemat 2 (plan v2): wersja schematu/modelu + NP5; serwer: fit_ingest model_schema
         val fSchema = DeveloperField(8.toShort(), 2.toShort(), "qext2_schema", "v")
         val fNp5 = DeveloperField(9.toShort(), 132.toShort(), "qext2_np5_w", "W")
+        // 2026-10-17 AERO (pola dodatkowe, schemat bez zmian): stan 0 brak / 1 zbiera / 2 wynik; dW przy biezacej predkosci;
+        // CdA biezacego poziomu i odniesienia (poprzedni poziom). Kontrakt: docs/KONTRAKT_DANYCH.md pkt 6.
+        val fAeroSt = DeveloperField(10.toShort(), 2.toShort(), "qext2_aero_state", "state")
+        val fAeroDw = DeveloperField(11.toShort(), 136.toShort(), "qext2_aero_dw_w", "W")
+        val fAeroCda = DeveloperField(12.toShort(), 136.toShort(), "qext2_aero_cda", "m2")
+        val fAeroRef = DeveloperField(13.toShort(), 136.toShort(), "qext2_aero_ref_cda", "m2")
         val job = serviceScope.launch {
             while (true) {
                 val agg = _aggregator
@@ -312,6 +321,10 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                                     FieldValue(fXss, s.xssValue.toDouble()),
                                     FieldValue(fSchema, FIT_SCHEMA.toDouble()),
                                     FieldValue(fNp5, s.np5Watts.toDouble()),
+                                    com.qext2.primary.engine.AeroEstimator.out.let { FieldValue(fAeroSt, it.state.toDouble()) },
+                                    com.qext2.primary.engine.AeroEstimator.out.let { FieldValue(fAeroDw, it.dW.toDouble()) },
+                                    com.qext2.primary.engine.AeroEstimator.out.let { FieldValue(fAeroCda, it.cdaNow.toDouble()) },
+                                    com.qext2.primary.engine.AeroEstimator.out.let { FieldValue(fAeroRef, it.cdaRef.toDouble()) },
                                 )
                             )
                         )
@@ -321,7 +334,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
             }
         }
         emitter.setCancellable { job.cancel() }
-        Log.i(TAG, "QEXT_FIT_START writing 10 developer fields @1Hz schema=$FIT_SCHEMA")
+        Log.i(TAG, "QEXT_FIT_START writing 14 developer fields @1Hz schema=$FIT_SCHEMA (w tym 4 AERO)")
     }
 
     fun refetchAthleteData() {

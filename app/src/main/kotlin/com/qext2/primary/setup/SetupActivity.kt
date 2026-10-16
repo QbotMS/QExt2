@@ -72,6 +72,7 @@ class SetupActivity : Activity() {
         root.addView(deadlineCard())
         root.addView(cassetteCard())
         root.addView(demoCard())
+        root.addView(aeroCard())
         root.addView(label("Wersja ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) · ustawienia zapisywane na serwerze", 13, sub).apply {
             setPadding(dp(4), dp(14), 0, 0)
         })
@@ -217,6 +218,25 @@ class SetupActivity : Activity() {
             }
             .setNegativeButton("Anuluj", null)
             .show()
+    }
+
+    /** 2026-10-17: KOKPIT 2 - pole dynamiczne: DYNAMIC (rotacja) albo AERO (zmiana oporu powietrza w W) */
+    private fun aeroCard(): View {
+        val c = box(card)
+        val on = AthleteDataStore.loadKokpit2DynAero()
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) }
+        col.addView(label("KOKPIT 2: pole dynamiczne", 15, sub))
+        col.addView(label(if (on) "AERO" else "DYNAMIC", 19, if (on) orange else txt, bold = true))
+        col.addView(label("AERO: ile W zyskujesz/tracisz po zmianie pozycji. Zmiana działa po ponownym wejściu na stronę z polami.", 13, sub))
+        row.addView(col)
+        row.addView(Button(this).apply {
+            text = if (on) "DYNAMIC" else "AERO"; setTextColor(txt); setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, 17 * scale); isAllCaps = false; background = round(btn, 12)
+            layoutParams = LinearLayout.LayoutParams(dp(120), dp(56))
+            setOnClickListener { AthleteDataStore.saveKokpit2DynAero(!on); render() }
+        })
+        c.addView(row)
+        return c
     }
 
     /** KOKPIT 2: dane demo (test pol bez jazdy) */

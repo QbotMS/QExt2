@@ -51,7 +51,8 @@ data class KokpitNavData(
 )
 
 /** Pole dynamiczne KOKPIT 2: kind = ATD | ASC | WIND | water | shop | food | AVG; warn 0 brak, 1 zolty, 2 czerwony. */
-data class DynItem(val kind: String, val value: String, val unit: String, val warn: Int = 0)
+/** conf (2026-10-17, AERO): -1 brak kropki, 0 zolta (wynik sie zbiera), 1 zielona (pewny) */
+data class DynItem(val kind: String, val value: String, val unit: String, val warn: Int = 0, val conf: Int = -1)
 
 /**
  * Uklad dopasowany do wysokosci pola (Karoo daje 143 px przy 2 polach na mapie, 216 px przy jednym):
