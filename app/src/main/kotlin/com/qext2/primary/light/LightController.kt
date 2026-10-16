@@ -26,13 +26,17 @@ object LightController {
     @Volatile private var flash: String? = null
     @Volatile private var flashUntil = 0L
     private var consumerId: String? = null
+    @Volatile private var lastSig = ""
 
     fun init(context: Context, karoo: KarooSystemService?) {
         if (control == null) control = LightControl(context.applicationContext).also { it.bind() }
         if (consumerId == null && karoo != null) {
+            log("LIGHT init karoo=ok")
             consumerId = try {
                 karoo.addConsumer<SavedDevices>(onEvent = { sd ->
-                    val lights = sd.devices.filter { it.enabled && it.supportedDataTypes.contains(LIGHT_TYPE) }
+                    val sig = sd.devices.joinToString("; ") { "${it.name}|${it.id}|en=${it.enabled}|${it.supportedDataTypes.joinToString(",")}" }
+                    if (sig != lastSig) { lastSig = sig; log("LIGHT_DEVICES n=${sd.devices.size} $sig") }
+                    val lights = sd.devices.filter { it.enabled && it.supportedDataTypes.any { t -> t.contains("LIGHT", true) } }
                     val rear = lights.firstOrNull { d -> d.id.split("-").getOrNull(1)?.toIntOrNull() == 35 } ?: lights.firstOrNull()
                     if (rear?.id != lightId) log("LIGHT found=${rear != null} name=${rear?.name}")
                     lightId = rear?.id

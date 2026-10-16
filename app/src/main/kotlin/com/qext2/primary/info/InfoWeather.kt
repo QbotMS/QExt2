@@ -35,6 +35,7 @@ object InfoWeather {
     private var lastFailMs = 0L
     private var lastEtaMs: Long? = null
     @Volatile private var unknownRoute: String? = null
+    @Volatile private var unknownSinceMs = 0L
 
     fun cycleScale() {
         scale = (scale + 1) % 3
@@ -45,7 +46,8 @@ object InfoWeather {
     @Synchronized
     fun tick(routeNameIn: String?, km: Float, etaMs: Long?, lat: Double?, lon: Double?, heading: Double?) {
         if (inflight) return
-        val routeName = routeNameIn?.takeIf { it != unknownRoute }   // trasa spoza QBota -> tryb bez trasy
+        if (unknownRoute != null && System.currentTimeMillis() - unknownSinceMs > 15 * 60_000L) unknownRoute = null   // co 15 min znow proba trasy
+        val routeName = routeNameIn?.takeIf { it != unknownRoute }   // trasa spoza QBota / blad trasy -> tryb bez trasy
         val now = System.currentTimeMillis()
         val key = routeName?.let { "R:$it" } ?: "P"
         val etaMoved = etaMs != null && lastEtaMs != null && kotlin.math.abs(etaMs - (lastEtaMs ?: etaMs)) > 10 * 60_000L
@@ -79,7 +81,7 @@ object InfoWeather {
                         log("INFO_WX ok items=${parsed.items.size}")
                     } else {
                         lastFailMs = System.currentTimeMillis()
-                        if (key.startsWith("R:") && code == 202) { data = null; unknownRoute = routeName; lastFailMs = 0L; log("INFO_WX trasa nieznana w QBot -> pogoda bez trasy") }
+                        if (key.startsWith("R:")) { if (data?.route == true) data = null; unknownRoute = routeName; unknownSinceMs = System.currentTimeMillis(); lastFailMs = 0L; log("INFO_WX trasa code=$code -> pogoda bez trasy (ponowna proba trasy za 15 min)") }
                         log("INFO_WX_FAIL code=$code")
                     }
                 }

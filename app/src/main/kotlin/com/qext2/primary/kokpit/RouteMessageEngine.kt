@@ -104,25 +104,25 @@ object RouteMessageEngine {
             val rs = i.rainSoon
             if (rs != null && rs.radar) {
                 // radar QBota: pada / deszcz za X min, sila slownie + czas trwania (bez %)
-                if (rs.minutes <= 2) { if (C.on("rain_now")) out.add(RouteMsg(MsgKind.RAIN, "pada:", "${rs.sila} · jeszcze ~${rs.durMin} min", "#60A5FA", "rain_now")) }
+                if (rs.minutes <= 2) { if (C.on("rain_now")) out.add(RouteMsg(MsgKind.RAIN, "pada:", "${rs.sila} · ${rs.durMin}′", "#60A5FA", "rain_now")) }
                 else if (C.on("rain_soon") && rs.minutes <= C.pi("rain_soon", "lead_min", RAIN_SOON_MIN))
-                    out.add(RouteMsg(MsgKind.RAIN, "deszcz za ${rs.minutes} min:", "${rs.sila} · ~${rs.durMin} min", "#60A5FA", "rain_soon"))
+                    out.add(RouteMsg(MsgKind.RAIN, "deszcz ${rs.minutes}′:", "${rs.sila} · ${rs.durMin}′", "#60A5FA", "rain_soon"))
             } else if (rs != null) {
-                val where = if (rs.kmAhead >= 0.5f) " (${km(rs.kmAhead)} km)" else ""
+                val where = if (rs.kmAhead >= 0.5f) " · ${km(rs.kmAhead)} km" else ""
                 when (rs.kind) {
-                    "STORM" -> if (C.on("storm") && rs.minutes <= C.pi("storm", "lead_min", 60)) out.add(RouteMsg(MsgKind.RAIN, "burza za ${rs.minutes} min$where:", "${rs.probPct}%", "#FF8C8C", "storm"))
-                    "SNOW" -> if (C.on("snow") && rs.minutes <= C.pi("snow", "lead_min", RAIN_SOON_MIN)) out.add(RouteMsg(MsgKind.RAIN, "śnieg za ${rs.minutes} min$where:", "${rs.probPct}%", "#BFDBFE", "snow"))
+                    "STORM" -> if (C.on("storm") && rs.minutes <= C.pi("storm", "lead_min", 60)) out.add(RouteMsg(MsgKind.RAIN, "burza ${rs.minutes}′:", "${rs.probPct}%$where", "#FF8C8C", "storm"))
+                    "SNOW" -> if (C.on("snow") && rs.minutes <= C.pi("snow", "lead_min", RAIN_SOON_MIN)) out.add(RouteMsg(MsgKind.RAIN, "śnieg ${rs.minutes}′:", "${rs.probPct}%$where", "#BFDBFE", "snow"))
                     "FOG" -> {}
                     else -> if (C.on("rain_soon") && rs.minutes in 0..C.pi("rain_soon", "lead_min", RAIN_SOON_MIN) && rs.probPct >= C.pi("rain_soon", "min_prob", 40))
-                        out.add(RouteMsg(MsgKind.RAIN, "deszcz za ${rs.minutes} min$where:", "${rs.probPct}%", "#60A5FA", "rain_soon"))
+                        out.add(RouteMsg(MsgKind.RAIN, "deszcz ${rs.minutes}′:", "${rs.probPct}%$where", "#60A5FA", "rain_soon"))
                 }
             }
         }
         val cb = i.carbBalanceG
-        if (C.on("fuel") && cb != null && cb <= C.pi("fuel", "alert_g", FUEL_ALERT_G)) out.add(RouteMsg(MsgKind.FUEL, "zjedz:", "${cb} g", "#E9A23B", "fuel"))
+        if (C.on("fuel") && cb != null && cb <= C.pi("fuel", "alert_g", FUEL_ALERT_G)) out.add(RouteMsg(MsgKind.FUEL, "JEDZ:", "${-cb} g", "#E9A23B", "fuel"))
         if (i.duskMs > 0L && i.duskMs > i.nowMs) {
             val toDusk = ((i.duskMs - i.nowMs) / 60000L).toInt()
-            if (i.etaMs > i.duskMs) { if (C.on("dusk_after")) out.add(RouteMsg(MsgKind.DUSK, "meta po zmroku:", "zmrok ${clock(i.duskMs)}", "#FF8C8C", "dusk_after")) }
+            if (i.etaMs > i.duskMs) { if (C.on("dusk_after")) out.add(RouteMsg(MsgKind.DUSK, "", "META PO ZMROKU ${clock(i.duskMs)}", "#FF8C8C", "dusk_after")) }
             else if (C.on("dusk_soon") && toDusk in 0..C.pi("dusk_soon", "warn_min", DUSK_WARN_MIN)) out.add(RouteMsg(MsgKind.DUSK, "do zmroku:", "$toDusk min", "#FB923C", "dusk_soon"))
         }
         // bez trasy: pusty pasek zamiast stalego "brak trasy" (2026-10-14; o braku trasy mowi raz komunikat BRAK TRASY na starcie)
@@ -133,7 +133,7 @@ object RouteMessageEngine {
             if (d.distAheadKm <= C.p("descent", "near_km", NEAR_KM.toDouble()).toFloat()) {
                 val s = surfaceAt(i.surfaces, i.posKm + d.distAheadKm)
                 val tail = if (s != null && s != SurfClass.PAVED) " ${surfName(s)}" else ""
-                near.add(d.distAheadKm to RouteMsg(MsgKind.DESCENT, "za ${km(d.distAheadKm)} km: zjazd", "${d.gradePct.roundToInt()}%$tail", "#FF8C8C", "descent"))
+                near.add(d.distAheadKm to RouteMsg(MsgKind.DESCENT, "${km(d.distAheadKm)} km: zjazd", "${d.gradePct.roundToInt()}%$tail", "#FF8C8C", "descent"))
             }
         }
         val c = if (C.on("climb")) nextClimb(i.climbs, i.posKm) else null
@@ -169,16 +169,23 @@ object RouteMessageEngine {
 
     private fun poiMsg(d: Float, p: PoiInfo): RouteMsg {
         val what = when (p.cat) { "water" -> "woda"; "shop" -> "sklep"; "food" -> "jedzenie"; else -> p.cat }
-        val name = if (p.name.isNotBlank() && p.cat != "water") p.name.take(18) else ""
-        val hrs = p.today?.let { if (name.isEmpty()) it else " · $it" } ?: ""
-        return RouteMsg(MsgKind.POI, "za ${km(d)} km: $what", "$name$hrs".trim(), "#4ADE80", "poi")
+        // 16.10: bez nazwy (jest w Analizie trasy) -- w jezdzie liczy sie odleglosc i czy czynne
+        val t = p.today?.trim().orEmpty()
+        val hrs = when {
+            t.isEmpty() -> ""
+            t.contains("dob", ignoreCase = true) -> " całą dobę"
+            t.startsWith("zamkn", ignoreCase = true) -> " zamknięte"
+            Regex("[–-]\\s*(\\d{1,2}:\\d{2})").find(t) != null -> " do " + Regex("[–-]\\s*(\\d{1,2}:\\d{2})").find(t)!!.groupValues[1]
+            else -> " $t"
+        }
+        return RouteMsg(MsgKind.POI, "${km(d)} km:", "$what$hrs", "#4ADE80", "poi")
     }
 
     private fun climbMsg(d: Float, cl: ClimbInfo, id: String = "climb") =
-        RouteMsg(MsgKind.CLIMB, "za ${km(d)} km: podjazd", "${km(cl.lengthKm)} km · ${cl.gradePct.roundToInt()}%", "#FB923C", id)
+        RouteMsg(MsgKind.CLIMB, "podjazd za ${km(d)} km:", "${cl.gradePct.roundToInt()}% ${km(cl.lengthKm)} km", "#FB923C", id)
 
     private fun surfMsg(d: Float, s: SurfClass, len: Float, id: String = "surface") =
-        RouteMsg(MsgKind.SURFACE, "za ${km(d)} km:", "${surfName(s)} ${km(len)} km", surfColor(s), id)
+        RouteMsg(MsgKind.SURFACE, "${km(d)} km:", "${surfName(s)} ${km(len)} km", surfColor(s), id)
 }
 
 /**

@@ -500,12 +500,18 @@ object Kokpit2NavRenderer {
         val demoW = if (d.demo) w("DEMO", 18f) + 8f else 0f
         val right = vw - 8f - demoW
         val leadCol = if (crit || warn) fg else if (m.kind == MsgKind.NONE) UNIT else WHITE
-        var s = (31f * h / 41f).coerceAtMost(40f)
-        fun total(sz: Float): Float = (if (m.lead.isNotEmpty()) w(m.lead, sz, false) + sz * 0.3f else 0f) + (if (m.accent.isNotEmpty()) w(m.accent, sz) else 0f)
-        while (s > 14f && x + total(s) > right) s -= 1f
+        // 16.10.2026: stala, duza czcionka. Gdy tekst sie nie miesci: 1) bez szarego podpisu (o ile jest tresc), 2) najwyzej do 26 px, 3) koniec "…"
+        val s0 = (31f * h / 41f).coerceAtMost(40f)
+        var lead = m.lead
+        var accent = m.accent
+        fun total(sz: Float): Float = (if (lead.isNotEmpty()) w(lead, sz, false) + sz * 0.3f else 0f) + (if (accent.isNotEmpty()) w(accent, sz) else 0f)
+        var s = s0
+        if (x + total(s) > right && lead.isNotEmpty() && accent.isNotEmpty() && lead.none { it.isDigit() }) lead = ""   // podpis z liczba (km, %, min) zostaje
+        while (s > 26f && x + total(s) > right) s -= 1f
+        while (x + total(s) > right && accent.length > 2) accent = accent.dropLast(2) + "…"
         val base = h / 2f + s * CAP / 2f
-        if (m.lead.isNotEmpty()) { t(c, m.lead, x, base, s, leadCol, false); x += w(m.lead, s, false) + s * 0.3f }
-        if (m.accent.isNotEmpty()) t(c, m.accent, x, base, s, fg)
+        if (lead.isNotEmpty()) { t(c, lead, x, base, s, leadCol, false); x += w(lead, s, false) + s * 0.3f }
+        if (accent.isNotEmpty()) t(c, accent, x, base, s, fg)
         if (d.demo) t(c, "DEMO", vw - 8f, h / 2f + 18f * CAP / 2f, 18f, if (warn) BLACK else ORANGE, true, Paint.Align.RIGHT)
     }
 
