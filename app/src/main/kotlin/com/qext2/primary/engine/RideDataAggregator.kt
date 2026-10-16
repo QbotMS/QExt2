@@ -771,9 +771,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     if (s is StreamState.Streaming) {
                         val v = (s.dataPoint.values[DataType.Field.HEADING] as? Double) ?: s.dataPoint.singleValue
                         if (v != null && v.isFinite()) {
-                            headingDegRef.set(((v % 360.0) + 360.0) % 360.0); headingMsRef.set(System.currentTimeMillis())
+                            // 16.10: strumien HEADING tylko do dziennika (strzalka pokazywala kierunek jazdy) -- kierunek = kurs GPS
                             val nowH = System.currentTimeMillis()
-                            if (nowH - headwindLoggedMsRef.get() > 300_000L) { headwindLoggedMsRef.set(nowH); com.qext2.primary.util.RideFileLog.append("HEADING v=$v wind=${getWindNow()}") }
+                            if (nowH - headwindLoggedMsRef.get() > 300_000L) { headwindLoggedMsRef.set(nowH); com.qext2.primary.util.RideFileLog.append("HEADING raw=$v gps=${headingDegRef.get()} wind=${getWindNow()} rel=${getHeadwindRel()?.first}") }
                         }
                     }
                 }
@@ -811,6 +811,10 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
             karooSystem.addConsumer<OnLocationChanged>(
                 onEvent = { event ->
                     val now = System.currentTimeMillis()
+                    // WIATR (16.10.2026): kierunek jazdy = kurs GPS z Karoo (to samo zrodlo co karoo-headwind: LOC_BEARING)
+                    event.orientation?.takeIf { it.isFinite() }?.let { o ->
+                        headingDegRef.set(((o % 360.0) + 360.0) % 360.0); headingMsRef.set(now)
+                    }
                     if (now - lastLocationSaveMs.get() < 30_000L) return@addConsumer
                     lastLocationSaveMs.set(now)
                     AthleteDataStore.saveLocation(event.lat, event.lng)

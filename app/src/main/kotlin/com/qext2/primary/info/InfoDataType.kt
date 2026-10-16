@@ -91,7 +91,7 @@ class InfoDataType : DataTypeImpl("qext2", "qext2-info") {
                     val dusk = agg?.getCivilDuskMs()?.takeIf { it > 0L }
                     val bmp = try {
                         withContext(Dispatchers.Default) {
-                            StatsV2Renderer.renderInfo(w, h, d, if (snap.hasRoute == (InfoWeather.data?.route ?: snap.hasRoute)) InfoWeather.data else null,
+                            StatsV2Renderer.renderInfo(w, h, d, InfoWeather.data,
                                 InfoWeather.scale, now, dawn, dusk)
                         }
                     } catch (e: Exception) {
