@@ -856,7 +856,7 @@ object StatsV2Renderer {
         val items = wx?.items ?: emptyList()
         if (items.isEmpty()) { none(c, X(240f), yy(230f), "pogoda: czekam na QBota"); return }
         val since = (nowMs - wx!!.fetchedMs) / 60_000f
-        val X0 = X(10f); val X1 = X(470f); val W = X1 - X0
+        val X0 = X(10f); val X1 = X(470f); val XN = X0 + F(30f); val W = X1 - XN   // XN = TU I TERAZ
         val kmNow = d.doneKm
         val n = 80
         val samples = ArrayList<WxS>(n + 1)
@@ -869,7 +869,7 @@ object StatsV2Renderer {
                 val f = i / n.toFloat(); val km = kmNow + spanKm * f
                 val key: (com.qext2.primary.info.WxItem) -> Float = { it.km ?: 0f }
                 val t = (lerpBy(items, key, km) { it.t } ?: 0f) - since
-                samples.add(WxS(X0 + W * f, t, km, lerpBy(items, key, km) { it.feels }, lerpBy(items, key, km) { it.mm } ?: 0f,
+                samples.add(WxS(XN + W * f, t, km, lerpBy(items, key, km) { it.feels }, lerpBy(items, key, km) { it.mm } ?: 0f,
                     lerpBy(items, key, km) { it.prob }, lerpBy(items, key, km) { it.head }, lerpBy(items, key, km) { it.gust }))
             }
             spanMin = (samples.last().tMin - samples.first().tMin).coerceAtLeast(1f)
@@ -879,7 +879,7 @@ object StatsV2Renderer {
             for (i in 0..n) {
                 val f = i / n.toFloat(); val tm = spanMin * f
                 val key: (com.qext2.primary.info.WxItem) -> Float = { it.t - since }
-                samples.add(WxS(X0 + W * f, tm, 0f, lerpBy(items, key, tm) { it.feels }, lerpBy(items, key, tm) { it.mm } ?: 0f,
+                samples.add(WxS(XN + W * f, tm, 0f, lerpBy(items, key, tm) { it.feels }, lerpBy(items, key, tm) { it.mm } ?: 0f,
                     lerpBy(items, key, tm) { it.prob }, lerpBy(items, key, tm) { it.head }, lerpBy(items, key, tm) { it.gust }))
             }
         }
@@ -994,14 +994,14 @@ object StatsV2Renderer {
         // ---------------- os X: teraz + rowne podzialki (+ meta przy calosci), swit/zmierzch
         data class Tk(val x: Float, val top: String, val u: String, val bot: String, val end: Boolean = false)
         val ticks = ArrayList<Tk>()
-        ticks.add(Tk(X0, "teraz", "", clockAt(t0)))
+        ticks.add(Tk(XN, "teraz", "", clockAt(t0)))
         if (route) {
             val pxKm = W / spanKm
             val st = listOf(5f, 10f, 20f, 25f, 50f).firstOrNull { it * pxKm >= F(90f) } ?: 50f
             var k = Math.ceil(((kmNow + 0.01f) / st).toDouble()).toFloat() * st
             while (k <= kmNow + spanKm + 0.01f) {
                 val sm = samples.minByOrNull { kotlin.math.abs(it.km - k) }!!
-                ticks.add(Tk(X0 + W * (k - kmNow) / spanKm, k.toInt().toString(), "km", clockAt(sm.tMin)))
+                ticks.add(Tk(XN + W * (k - kmNow) / spanKm, k.toInt().toString(), "km", clockAt(sm.tMin)))
                 k += st
             }
             if (scale == 2) ticks.add(Tk(X1, Math.round(kmNow + spanKm).toString(), "km", "meta " + clockAt(samples.last().tMin), true))
@@ -1012,13 +1012,13 @@ object StatsV2Renderer {
             var m = Math.ceil(((nowMin + 1f) / st).toDouble()).toFloat() * st
             while (m - nowMin <= spanMin + 0.01f) {
                 val rel = m - nowMin
-                ticks.add(Tk(X0 + W * rel / spanMin, clockAt(rel), "", "+" + hmm(rel)))
+                ticks.add(Tk(XN + W * rel / spanMin, clockAt(rel), "", "+" + hmm(rel)))
                 m += st
             }
         }
         val endT = ticks.firstOrNull { it.end }
         val keep = ArrayList<Tk>(); keep.add(ticks[0])
-        for (t in ticks.drop(1)) if (!t.end && t.x - X0 >= F(120f) && !(endT != null && endT.x - t.x < F(125f))) keep.add(t)
+        for (t in ticks.drop(1)) if (!t.end && t.x - XN >= F(120f) && !(endT != null && endT.x - t.x < F(125f))) keep.add(t)
         if (keep.size > 2) { val lt = keep.last(); val pv = keep[keep.size - 2]; if (X1 - lt.x < F(30f) && lt.x - pv.x < F(130f)) keep.removeAt(keep.size - 1) }
         endT?.let { keep.add(it) }
         // swit / zmierzch w zakresie: linia + podpis na osi (bez kolizji z teraz / meta)
@@ -1028,10 +1028,10 @@ object StatsV2Renderer {
             for (e in listOf(ev, ev + 86_400_000L)) {
                 val rel = (e - nowMs) / 60_000f
                 if (rel <= t0 || rel > samples.last().tMin) continue
-                val x = if (route) { val sm = samples.minByOrNull { kotlin.math.abs(it.tMin - rel) }!!; sm.x } else X0 + W * rel / spanMin
+                val x = if (route) { val sm = samples.minByOrNull { kotlin.math.abs(it.tMin - rel) }!!; sm.x } else XN + W * rel / spanMin
                 stp.color = Color.parseColor("#6B7685"); stp.strokeWidth = F(2f); stp.pathEffect = android.graphics.DashPathEffect(floatArrayOf(F(4f), F(5f)), 0f)
                 c.drawLine(x, PT, x, PB, stp); stp.pathEffect = null
-                if (x - X0 >= F(110f) && !(endT != null && endT.x - x < F(110f))) sunTicks.add(Tk(x, name, "", clock(e)))
+                if (x - XN >= F(110f) && !(endT != null && endT.x - x < F(110f))) sunTicks.add(Tk(x, name, "", clock(e)))
             }
         }
         for (st in sunTicks) keep.removeAll { !it.end && it !== keep[0] && kotlin.math.abs(it.x - st.x) < F(100f) }
@@ -1039,10 +1039,15 @@ object StatsV2Renderer {
         for (t in keep) { c.drawLine(t.x, TT - F(6f), t.x, TB, stp); if (showRain) c.drawLine(t.x, RT - F(4f), t.x, RB, stp); c.drawLine(t.x, WT - F(4f), t.x, Y0 + wmax * ky, stp) }
         for ((i, t) in keep.withIndex()) {
             val al = if (i == 0) Paint.Align.LEFT else if (t.x > X1 - F(30f)) Paint.Align.RIGHT else Paint.Align.CENTER
-            val xx = if (i == 0) t.x + F(4f) else t.x
+            val xx = if (i == 0) X0 + F(4f) else t.x
             valUnit(c, t.top, t.u, xx, yy(416f), F(28f), F(20f), WHITE, al)
             text(c, t.bot, xx, yy(448f), F(20f), UNIT, al)
         }
+        // TU I TERAZ: zielona kropka w kazdym wykresie
+        fun nowDot(y: Float) { fp.color = Color.parseColor("#111315"); c.drawCircle(XN, y, F(9f), fp); fp.color = Color.parseColor("#39FF14"); c.drawCircle(XN, y, F(6.5f), fp) }
+        samples.first().feels?.let { f0 -> if (fs.isNotEmpty()) { val lo2 = Math.floor(fs.minOrNull()!!.toDouble()).toFloat() - 1f; val hi2 = Math.ceil(fs.maxOrNull()!!.toDouble()).toFloat() + 1f; nowDot(TB - (f0 - lo2) / (hi2 - lo2) * (TB - TT)) } }
+        if (showRain) nowDot(RB - samples.first().mm.coerceAtMost(Math.max(2.0, Math.ceil(samples.maxOf { it.mm }.toDouble())).toFloat()) / Math.max(2.0, Math.ceil(samples.maxOf { it.mm }.toDouble())).toFloat() * (RB - RT))
+        nowDot(Y0 - (samples.first().head ?: 0f) * ky)
         for (t in sunTicks) {
             val al = if (t.x > X1 - F(40f)) Paint.Align.RIGHT else Paint.Align.CENTER
             text(c, t.top, t.x, yy(416f), F(22f), SUB, al)
