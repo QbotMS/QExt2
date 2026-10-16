@@ -976,13 +976,14 @@ object StatsV2Renderer {
                 for (sm in samples) { val v = sm.head ?: 0f; p.lineTo(sm.x, Y0 - (if (pos) Math.max(0f, v) else Math.min(0f, v)) * ky) }
                 p.lineTo(X1, Y0); p.close(); return p
             }
-            // 16.10: cieniowanie -- im slabszy wiatr (pod wiatr / w plecy), tym bardziej kolor zanika do tla
-            fun mix(cBase: Int, k: Float): Int {
-                val bg = Color.parseColor("#14181D")
+            // 16.10: pod wiatr czerwony, w plecy zielony; gdy wiatr robi sie boczny (mala skladowa wzdluz jazdy):
+            // czerwony przechodzi w rozowy, zielony w blado rozowy
+            fun mix(cBase: Int, cSide: Int, k: Float): Int {
                 fun ch(a: Int, b: Int) = (a + (b - a) * k).toInt().coerceIn(0, 255)
-                return Color.rgb(ch(Color.red(bg), Color.red(cBase)), ch(Color.green(bg), Color.green(cBase)), ch(Color.blue(bg), Color.blue(cBase)))
+                return Color.rgb(ch(Color.red(cSide), Color.red(cBase)), ch(Color.green(cSide), Color.green(cBase)), ch(Color.blue(cSide), Color.blue(cBase)))
             }
-            val pink = Color.parseColor("#E07AB4"); val green = Color.parseColor("#4CAF50")
+            val red = Color.parseColor("#FF3B30"); val pinkSide = Color.parseColor("#F29BC4")
+            val green = Color.parseColor("#34C759"); val palePink = Color.parseColor("#F3D3E2")
             for (i in 0 until samples.size - 1) {
                 val sa = samples[i]; val sb = samples[i + 1]
                 val va = sa.head ?: 0f; val vb = sb.head ?: 0f
@@ -991,7 +992,7 @@ object StatsV2Renderer {
                     val yb = if (pos) Math.max(0f, vb) else Math.min(0f, vb)
                     val vm = kotlin.math.abs((ya + yb) / 2f)
                     if (vm < 0.05f) continue
-                    fp.color = mix(if (pos) pink else green, (0.12f + 0.88f * (vm / wmax)).coerceIn(0f, 1f))
+                    fp.color = if (pos) mix(red, pinkSide, (vm / wmax).coerceIn(0f, 1f)) else mix(green, palePink, (vm / wmax).coerceIn(0f, 1f))
                     val q = Path(); q.moveTo(sa.x, Y0); q.lineTo(sa.x, Y0 - ya * ky); q.lineTo(sb.x + F(0.6f), Y0 - yb * ky); q.lineTo(sb.x + F(0.6f), Y0); q.close()
                     fp.isAntiAlias = false; c.drawPath(q, fp); fp.isAntiAlias = true
                 }
