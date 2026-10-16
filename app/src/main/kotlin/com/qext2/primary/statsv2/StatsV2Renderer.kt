@@ -926,8 +926,8 @@ object StatsV2Renderer {
             fun lab(sm: WxS, al: Paint.Align) { val fv = sm.feels ?: return; val y = ty(fv); text(c, "${Math.round(fv)}°", sm.x + (if (al == Paint.Align.LEFT) F(48f) else if (al == Paint.Align.RIGHT) -F(48f) else 0f), if (y < TT + F(34f)) y + F(24f) else y - F(22f), F(26f), WHITE, al) }
             lab(samples.first(), Paint.Align.LEFT); lab(samples.last(), Paint.Align.RIGHT)
             if (idx in 9 until n - 8) {
-                fp.color = Color.parseColor("#14181D"); c.drawCircle(minS.x, ty(minS.feels!!), F(6f), fp)
-                stp.color = Color.parseColor("#FF7A45"); stp.strokeWidth = F(3f); c.drawCircle(minS.x, ty(minS.feels!!), F(6f), stp)
+                fp.color = Color.parseColor("#111315"); c.drawCircle(minS.x, ty(minS.feels!!), F(9f), fp)
+                fp.color = Color.parseColor("#FACC15"); c.drawCircle(minS.x, ty(minS.feels!!), F(6.5f), fp)   // zolta = minimum
                 lab(minS, Paint.Align.CENTER)
             }
         } else none(c, X(240f), (TT + TB) / 2f, "brak")
@@ -975,8 +975,26 @@ object StatsV2Renderer {
                 for (sm in samples) { val v = sm.head ?: 0f; p.lineTo(sm.x, Y0 - (if (pos) Math.max(0f, v) else Math.min(0f, v)) * ky) }
                 p.lineTo(X1, Y0); p.close(); return p
             }
-            fp.color = Color.parseColor("#D96AA8"); fp.alpha = 230; c.drawPath(area(true), fp)
-            fp.color = Color.parseColor("#3F8F45"); c.drawPath(area(false), fp); fp.alpha = 255
+            // 16.10: cieniowanie -- im slabszy wiatr (pod wiatr / w plecy), tym bardziej kolor zanika do tla
+            fun mix(cBase: Int, k: Float): Int {
+                val bg = Color.parseColor("#14181D")
+                fun ch(a: Int, b: Int) = (a + (b - a) * k).toInt().coerceIn(0, 255)
+                return Color.rgb(ch(Color.red(bg), Color.red(cBase)), ch(Color.green(bg), Color.green(cBase)), ch(Color.blue(bg), Color.blue(cBase)))
+            }
+            val pink = Color.parseColor("#E07AB4"); val green = Color.parseColor("#4CAF50")
+            for (i in 0 until samples.size - 1) {
+                val sa = samples[i]; val sb = samples[i + 1]
+                val va = sa.head ?: 0f; val vb = sb.head ?: 0f
+                for (pos in listOf(true, false)) {
+                    val ya = if (pos) Math.max(0f, va) else Math.min(0f, va)
+                    val yb = if (pos) Math.max(0f, vb) else Math.min(0f, vb)
+                    val vm = kotlin.math.abs((ya + yb) / 2f)
+                    if (vm < 0.05f) continue
+                    fp.color = mix(if (pos) pink else green, (0.12f + 0.88f * (vm / wmax)).coerceIn(0f, 1f))
+                    val q = Path(); q.moveTo(sa.x, Y0); q.lineTo(sa.x, Y0 - ya * ky); q.lineTo(sb.x + F(0.6f), Y0 - yb * ky); q.lineTo(sb.x + F(0.6f), Y0); q.close()
+                    c.drawPath(q, fp)
+                }
+            }
             stp.strokeWidth = F(2f); stp.pathEffect = android.graphics.DashPathEffect(floatArrayOf(F(2f), F(5f)), 0f); stp.color = Color.parseColor("#F2F4F7")
             var gp: Path? = null
             for (sm in samples) {
