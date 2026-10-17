@@ -55,3 +55,13 @@ Schemat 2 (plan v2): jak 1 + qext2_schema (=2) + qext2_np5_w; cp_eff_w = CP Mode
 Serwer (fit_ingest): model_schema w fitmodel_qext2_ride (brak pola = 1); wbal_zero_seconds z timestampow. Porownania historii tylko w obrebie schematu.
 Pola dodatkowe od 0.4.1 (2026-10-17, schemat BEZ zmian - nie dziela historii W'): qext2_aero_state (0 brak / 1 zbiera / 2 wynik),
   qext2_aero_dw_w, qext2_aero_cda, qext2_aero_ref_cda - pole AERO (docs/AERO.md). Serwer ich jeszcze nie czyta (do oceny dzialania pola).
+
+
+### Dev fields WIATR (17.10.2026, schemat bez zmian)
+| nr | nazwa | typ | jedn. | znaczenie |
+|---|---|---|---|---|
+| 14 | qext2_course_deg | float32 | deg | kurs GPS Karoo (OnLocationChanged.orientation), 0 = N |
+| 15 | qext2_wind_from_deg | float32 | deg | wiatr z prognozy QExt2: kierunek, Z ktorego wieje |
+| 16 | qext2_wind_ms | float32 | m/s | predkosc wiatru z prognozy QExt2 |
+| 17 | qext2_wind_rel_deg | float32 | deg | kat, W KTORY wieje wiatr, wzgledem kierunku jazdy (0 = w plecy, 180 = w twarz) -- to rysuje KOKPIT |
+Zapisywane tylko gdy znane (na postoju brak kursu). Strona B: QBot fit_ingest -> kontrola wiatru po jezdzie.

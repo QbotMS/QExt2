@@ -301,6 +301,12 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         val fAeroDw = DeveloperField(11.toShort(), 136.toShort(), "qext2_aero_dw_w", "W")
         val fAeroCda = DeveloperField(12.toShort(), 136.toShort(), "qext2_aero_cda", "m2")
         val fAeroRef = DeveloperField(13.toShort(), 136.toShort(), "qext2_aero_ref_cda", "m2")
+        // 2026-10-17 KONTROLA WIATRU (QBot po jezdzie): to, z czego KOKPIT liczy strzalke wiatru -- kurs GPS, wiatr (skad, m/s)
+        // i kat wiatru wzgledem jazdy. Zapisywane tylko gdy znane. Kontrakt: docs/KONTRAKT_DANYCH.md pkt 6.
+        val fCourse = DeveloperField(14.toShort(), 136.toShort(), "qext2_course_deg", "deg")
+        val fWindFrom = DeveloperField(15.toShort(), 136.toShort(), "qext2_wind_from_deg", "deg")
+        val fWindMs = DeveloperField(16.toShort(), 136.toShort(), "qext2_wind_ms", "m/s")
+        val fWindRel = DeveloperField(17.toShort(), 136.toShort(), "qext2_wind_rel_deg", "deg")
         val job = serviceScope.launch {
             while (true) {
                 val agg = _aggregator
@@ -325,7 +331,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                                     com.qext2.primary.engine.AeroEstimator.out.let { FieldValue(fAeroDw, it.dW.toDouble()) },
                                     com.qext2.primary.engine.AeroEstimator.out.let { FieldValue(fAeroCda, it.cdaNow.toDouble()) },
                                     com.qext2.primary.engine.AeroEstimator.out.let { FieldValue(fAeroRef, it.cdaRef.toDouble()) },
-                                )
+                                ) + windFitValues(agg, fCourse, fWindFrom, fWindMs, fWindRel)
                             )
                         )
                     }
@@ -334,7 +340,18 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
             }
         }
         emitter.setCancellable { job.cancel() }
-        Log.i(TAG, "QEXT_FIT_START writing 14 developer fields @1Hz schema=$FIT_SCHEMA (w tym 4 AERO)")
+        Log.i(TAG, "QEXT_FIT_START writing 18 developer fields @1Hz schema=$FIT_SCHEMA (w tym 4 AERO, 4 WIATR)")
+    }
+
+    /** Pola kontroli wiatru do FIT -- tylko te, ktore sa znane (brak kursu na postoju / brak prognozy = nic nie piszemy). */
+    private fun windFitValues(agg: RideDataAggregator, fC: DeveloperField, fF: DeveloperField, fM: DeveloperField, fR: DeveloperField): List<FieldValue> {
+        val out = ArrayList<FieldValue>(4)
+        try {
+            agg.getHeadingDeg()?.let { out.add(FieldValue(fC, it)) }
+            agg.getWindNow()?.let { w -> out.add(FieldValue(fF, w.fromDeg.toDouble())); out.add(FieldValue(fM, w.mps.toDouble())) }
+            agg.getHeadwindRel()?.let { out.add(FieldValue(fR, it.first.toDouble())) }
+        } catch (_: Exception) {}
+        return out
     }
 
     fun refetchAthleteData() {
