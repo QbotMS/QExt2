@@ -645,8 +645,11 @@ object Kokpit2NavRenderer {
     /** pole dynamiczne (2026-10-14): rotacja co 4 s (ATD przewyzszenie do konca / ASC zrobione bez trasy, wiatr w twarz km,
      *  najblizszy sklep/woda/jedzenie) albo wymagana srednia, gdy ETA blisko granicy (zolta / czerwona) */
     private fun gDyn(c: Canvas, d: KokpitNavData, base: Float, vs: Float): G {
-        val ds = vs * 0.8f; val capH = ds * CAP; val us = 16f
-        val ref = w("sklep", us, false) + 3f + w("88,8", ds) + 3f + w("km/h", us, false)
+        // 2026-10-17 (Michal): AERO w pelnej wielkosci jak pozostale wartosci wiersza; reszta pola dynamicznego 0.8
+        val aero = d.dyn?.kind == "AERO"
+        val ds = if (aero) vs else vs * 0.8f; val capH = ds * CAP; val us = 16f
+        val ref = if (aero) w("aero", us, false) + 3f + w("−88", ds) + 3f + w("W", us, false) + 3f + 12f
+                  else w("sklep", us, false) + 3f + w("88,8", ds) + 3f + w("km/h", us, false)
         val di = d.dyn ?: return G(emptyList(), ref, 3f)
         val col = when (di.warn) { 2 -> RED; 1 -> Color.parseColor("#FACC15"); else -> WHITE }
         val g = ArrayList<Item>()
