@@ -68,6 +68,8 @@ data class StatsV2Data(
     val planStopDelta: Int? = null,
     val planFromQbot: Boolean = false,
     val light: com.qext2.primary.light.LightController.Ui? = null,
+    /** 18.10: ciagle NP z ostatnich 5 min ruchu (StatsCalculator.np5Watts) */
+    val np5Now: Int? = null,
 )
 
 object StatsV2Renderer {
@@ -593,7 +595,7 @@ object StatsV2Renderer {
             tp.textSize = sumSize; tp.color = WHITE; c.drawText(value, x0 + lw, sb, tp)
             if (unit.isNotEmpty()) { tp.textSize = F(18f); tp.color = UNIT; c.drawText(unit, x0 + lw + vw + F(5f), sb, tp) }
         }
-        grp(l, "5′", np[li].toString(), "W", Paint.Align.LEFT)
+        grp(l, "5′", (d.np5Now ?: np[li]).toString(), "W", Paint.Align.LEFT)
         ef.getOrNull(li)?.let { e -> grp((l + rr) / 2f, "EF", fmt("%.2f", e), d.typEf?.let { "(" + fmt("%.2f", it) + ")" } ?: "", Paint.Align.CENTER) }
         best?.let { grp(rr, "max", np[it].toString(), "W", Paint.Align.RIGHT) }
     }

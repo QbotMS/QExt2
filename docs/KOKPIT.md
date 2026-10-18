@@ -135,3 +135,11 @@ AERO zastępuje pole w całości, bez wyjątków. Szczegóły i algorytm: `docs/
 `WX_OK / WX_FAIL / WX_ERR (timeout|http|parse|onError)`, nawierzchnia i POI (`SURFACE_*`, `POI_FETCH*`), `HEADWIND`, `MSG`,
 `TURN_RAW` (surowa odległość od Karoo) i `TURN … kind=` (rozpoznanie), `POWER_ALARM on/off`, `RENDER_FAIL`.
 Znane: pierwsze zapytanie EF po starcie pada (`karoo_system_not_ready`), ponowienie przechodzi.
+
+
+### 18.10.2026 -- znak sredniej, NP 5, pogoda bez zasiegu
+- Znak sredniej predkosci (Ø przy sr. V w KOKPIT 2 instr): zielony + strzalka w gore = biezaca predkosc (wygladzona ~60 s)
+  jest wyzsza od sredniej o > 0,5 km/h (podnosisz srednia); czerwony + strzalka w dol = obnizasz; szary = bez zmian / postoj.
+- NP 5 = NP z ostatnich 5 min ruchu, liczone na biezaco (StatsCalculator.np5Watts). Kolor podpisu = zmiana wzgledem 10 min temu,
+  dopiero od 10 W (bylo 3 W -> prawie zawsze czerwony/zielony). STATS v2 "5′" pokazuje to samo ciagle NP 5.
+- INFO: brak zasiegu (code 0) nie przelacza na "bez trasy" -- zostaje ostatnia prognoza z trasy; tryb bez trasy bierze ostatni znany kurs.

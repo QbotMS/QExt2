@@ -71,7 +71,7 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
         }
 
         // trendy srednich (zmiana w ~10 min)
-        val trCp = Trend(3f); val trSpd = Trend(0.3f); val trHr = Trend(2f); val trCad = Trend(2f)
+        val trCp = Trend(10f); val trSpd = SpeedVsAvg(); val trHr = Trend(2f); val trCad = Trend(2f)
         // srednie tetno liczone lokalnie (tylko w ruchu)
         var hrSum = 0L
         var hrN = 0L
@@ -99,7 +99,7 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
                     if (p.hrFreshnessMs < 12_000L && p.hr > 40 && p.speedKmh > 3.0) { hrSum += p.hr; hrN++ }
                     val d = try { toData(agg, p, s, s.avgHrBpm.takeIf { it > 0 }).let { dd ->
                         val now = System.currentTimeMillis()
-                        dd.copy(route = if (v2) Kokpit2Route.of(agg, s) else null, cpTrend = trCp.push(now, dd.cpe5W), avgSpeedTrend = trSpd.push(now, dd.avgSpeedKmh),
+                        dd.copy(route = if (v2) Kokpit2Route.of(agg, s) else null, cpTrend = trCp.push(now, dd.cpe5W), avgSpeedTrend = trSpd.push(now, dd.speedKmh, dd.avgSpeedKmh),
                             hrAvgTrend = trHr.push(now, dd.hrAvg?.toFloat()), cadAvgTrend = trCad.push(now, dd.cadenceAvg?.toFloat()))
                     } } catch (e: Throwable) {
                         Log.w(TAG, "QEXT_KOKPIT_INST_DATA_FAIL msg=${e.message}")
@@ -192,6 +192,23 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
             powerCeilingW = pc?.takeIf { it.isActive }?.ceilingW,
             hrDriftLevel = (agg?.getHrDecouplingPct() ?: 0f).let { if (it >= 10f) 2 else if (it >= 6f) 1 else 0 },
         )
+    }
+}
+
+/** 18.10.2026: znak sredniej predkosci -- czy jazda TERAZ podnosi (+1, zielony) czy obniza (-1, czerwony) srednia:
+ *  predkosc wygladzona z ~60 s wzgledem sredniej, martwa strefa 0,5 km/h. Na postoju / bez danych 0 (szary). */
+class SpeedVsAvg {
+    private var ema: Float? = null
+    private var lastMs = 0L
+    fun push(now: Long, v: Float?, avg: Float?): Int {
+        if (v == null || avg == null || avg <= 0f) return 0
+        val dt = if (lastMs == 0L) 1f else ((now - lastMs) / 1000f).coerceIn(0.2f, 10f)
+        lastMs = now
+        val a = (dt / 60f).coerceIn(0.01f, 1f)
+        val e = ema?.let { it + a * (v - it) } ?: v
+        ema = e
+        if (v < 3f) return 0
+        return when { e > avg + 0.5f -> 1; e < avg - 0.5f -> -1; else -> 0 }
     }
 }
 

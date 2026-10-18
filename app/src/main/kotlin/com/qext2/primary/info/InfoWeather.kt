@@ -39,6 +39,7 @@ object InfoWeather {
     private var lastEtaMs: Long? = null
     @Volatile private var unknownRoute: String? = null
     @Volatile private var unknownSinceMs = 0L
+    @Volatile private var lastHeading: Double? = null
 
     fun cycleScale() {
         scale = (scale + 1) % 3
@@ -49,6 +50,7 @@ object InfoWeather {
     @Synchronized
     fun tick(routeNameIn: String?, km: Float, etaMs: Long?, lat: Double?, lon: Double?, heading: Double?) {
         if (inflight) return
+        heading?.let { lastHeading = it }
         if (unknownRoute != null && System.currentTimeMillis() - unknownSinceMs > 15 * 60_000L) unknownRoute = null   // co 15 min znow proba trasy
         val routeName = routeNameIn?.takeIf { it != unknownRoute }   // trasa spoza QBota / blad trasy -> tryb bez trasy
         val now = System.currentTimeMillis()
@@ -64,7 +66,7 @@ object InfoWeather {
         } else {
             if (lat == null || lon == null) return
             String.format(Locale.US, "%s/api/weather/point?lat=%.4f&lon=%.4f&hours=7", base, lat, lon) +
-                (heading?.let { String.format(Locale.US, "&heading=%.0f", it) } ?: "")
+                ((heading ?: lastHeading)?.let { String.format(Locale.US, "&heading=%.0f", it) } ?: "")   // 18.10: na postoju ostatni znany kurs
         }
         inflight = true
         log("INFO_WX fetch mode=${if (routeName != null) "trasa" else "punkt"} km=${"%.1f".format(Locale.US, km)}")
@@ -84,7 +86,8 @@ object InfoWeather {
                         log("INFO_WX ok items=${parsed.items.size}")
                     } else {
                         lastFailMs = System.currentTimeMillis()
-                        if (key.startsWith("R:")) { if (data?.route == true) data = null; unknownRoute = routeName; unknownSinceMs = System.currentTimeMillis(); lastFailMs = 0L; log("INFO_WX trasa code=$code -> pogoda bez trasy (ponowna proba trasy za 15 min)") }
+                        // 18.10: brak zasiegu (code 0) -> zostaje ostatnia prognoza z trasy, ponowna proba za 2 min
+                        if (key.startsWith("R:") && code != 0) { if (data?.route == true) data = null; unknownRoute = routeName; unknownSinceMs = System.currentTimeMillis(); lastFailMs = 0L; log("INFO_WX trasa code=$code -> pogoda bez trasy (ponowna proba trasy za 15 min)") }
                         log("INFO_WX_FAIL code=$code")
                     }
                 }

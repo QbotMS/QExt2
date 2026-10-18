@@ -225,6 +225,7 @@ class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: 
             planStopDelta = dStop,
             planFromQbot = pq != null,
             light = com.qext2.primary.light.LightController.ui(),
+            np5Now = s.np5Watts.takeIf { it > 0 },
             tempo = tp.first,
             tempoPartial = tp.second,
             gate = com.qext2.primary.gate.GateController.ui.value,

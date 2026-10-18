@@ -253,8 +253,17 @@ object Kokpit2InstRenderer {
         t(c, "5", lRight - lw / 2f, capTop + ls * CAP + ls * 0.85f, ls, lc, false, Paint.Align.CENTER)
         val avTxt = d.avgSpeedKmh?.let { fmt("%.1f", it) } ?: "—"
         t(c, avTxt, cx + g, refBase, ref, if (d.avgSpeedKmh != null) WHITE else NONE)
-        val sym = 20f
-        avgSym(c, cx + g + w(avTxt, ref) + 2f, refBase - ref * CAP / 2f - sym / 2f, sym, trendCol(d.avgSpeedTrend))
+        // 18.10: znak sredniej wiekszy i grubszy + strzalka: zielona w gore = podnosisz srednia, czerwona w dol = obnizasz
+        val sym = 24f
+        val sx0 = cx + g + w(avTxt, ref) + 3f; val sy0 = refBase - ref * CAP / 2f - sym / 2f
+        avgSym(c, sx0, sy0, sym, if (d.avgSpeedTrend == 0) SUB else trendCol(d.avgSpeedTrend))
+        if (d.avgSpeedTrend != 0) {
+            val ax = sx0 + sym + 3f; val aw = 14f; val ah = 16f; val ay = sy0 + (sym - ah) / 2f
+            val p = Path()
+            if (d.avgSpeedTrend > 0) { p.moveTo(ax + aw / 2f, ay); p.lineTo(ax + aw, ay + ah); p.lineTo(ax, ay + ah) }
+            else { p.moveTo(ax, ay); p.lineTo(ax + aw, ay); p.lineTo(ax + aw / 2f, ay + ah) }
+            p.close(); fp.color = trendCol(d.avgSpeedTrend); c.drawPath(p, fp)
+        }
 
         // --- dolny wiersz: W' (lewo), MOC | PREDKOSC (przy srodku), BIEG (prawo); wszystko na linii base
         val wb = d.wbalPct
@@ -402,7 +411,7 @@ object Kokpit2InstRenderer {
     }
 
     private fun avgSym(c: Canvas, x: Float, y: Float, sz: Float, color: Int) {
-        sp.color = color; sp.strokeWidth = sz * 0.12f
+        sp.color = color; sp.strokeWidth = sz * 0.16f
         c.drawCircle(x + sz / 2f, y + sz / 2f, sz * 0.325f, sp)
         c.drawLine(x + sz * 0.15f, y + sz * 0.85f, x + sz * 0.85f, y + sz * 0.15f, sp)
     }
