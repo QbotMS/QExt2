@@ -819,6 +819,32 @@ object StatsV2Renderer {
         return sel(a)!! + (sel(b)!! - sel(a)!!) * f
     }
 
+    /** serie prognozy (os: km na trasie albo minuty od pobrania), budowane RAZ na obiekt prognozy */
+    private class Ser(val x: FloatArray, val y: FloatArray)
+    private class Sers(val t: Ser, val feels: Ser, val mm: Ser, val prob: Ser, val head: Ser, val gust: Ser)
+    private var sersFor: com.qext2.primary.info.InfoWx? = null
+    private var sersVal: Sers? = null
+    private fun sers(wx: com.qext2.primary.info.InfoWx): Sers {
+        sersVal?.let { if (sersFor === wx) return it }
+        fun mk(sel: (com.qext2.primary.info.WxItem) -> Float?): Ser {
+            val pts = wx.items.mapNotNull { w -> sel(w)?.let { v -> (if (wx.route) (w.km ?: 0f) else w.t) to v } }.sortedBy { it.first }
+            return Ser(FloatArray(pts.size) { pts[it].first }, FloatArray(pts.size) { pts[it].second })
+        }
+        val s = Sers(mk { it.t }, mk { it.feels }, mk { it.mm }, mk { it.prob }, mk { it.head }, mk { it.gust })
+        sersFor = wx; sersVal = s
+        return s
+    }
+    private fun lerpS(s: Ser, q: Float): Float? {
+        val x = s.x; val y = s.y; val n = x.size
+        if (n == 0) return null
+        if (q <= x[0]) return y[0]
+        if (q >= x[n - 1]) return y[n - 1]
+        var lo = 0; var hi = n - 1
+        while (hi - lo > 1) { val m = (lo + hi) ushr 1; if (x[m] <= q) lo = m else hi = m }
+        val dx = x[hi] - x[lo]
+        return if (dx <= 0f) y[lo] else y[lo] + (y[hi] - y[lo]) * (q - x[lo]) / dx
+    }
+
     private fun hmm(min: Float): String { val m = Math.round(min); return "${m / 60}:" + (m % 60).toString().padStart(2, '0') }
 
     /** wartosc duza + jednostka mala (szara), wyrownanie wzgledem x */
@@ -877,22 +903,20 @@ object StatsV2Renderer {
             val lastKm = items.last().km ?: kmNow
             val rest = ((d.totalKm ?: lastKm) - kmNow).coerceAtLeast(1f)
             spanKm = when (scale) { 0 -> 20f; 1 -> 50f; else -> rest }.coerceAtMost(rest.coerceAtLeast(1f))
+            val S = sers(wx)   // 18.10: serie liczone raz na prognoze (wczesniej filtrowanie listy przy kazdej probce, co 1,5 s)
             for (i in 0..n) {
                 val f = i / n.toFloat(); val km = kmNow + spanKm * f
-                val key: (com.qext2.primary.info.WxItem) -> Float = { it.km ?: 0f }
-                val t = (lerpBy(items, key, km) { it.t } ?: 0f) - since
-                samples.add(WxS(XN + W * f, t, km, lerpBy(items, key, km) { it.feels }, lerpBy(items, key, km) { it.mm } ?: 0f,
-                    lerpBy(items, key, km) { it.prob }, lerpBy(items, key, km) { it.head }, lerpBy(items, key, km) { it.gust }))
+                val t = (lerpS(S.t, km) ?: 0f) - since
+                samples.add(WxS(XN + W * f, t, km, lerpS(S.feels, km), lerpS(S.mm, km) ?: 0f, lerpS(S.prob, km), lerpS(S.head, km), lerpS(S.gust, km)))
             }
             spanMin = (samples.last().tMin - samples.first().tMin).coerceAtLeast(1f)
         } else {
             spanKm = 0f
             spanMin = when (scale) { 0 -> 60f; 1 -> 180f; else -> 360f }
+            val S = sers(wx)
             for (i in 0..n) {
-                val f = i / n.toFloat(); val tm = spanMin * f
-                val key: (com.qext2.primary.info.WxItem) -> Float = { it.t - since }
-                samples.add(WxS(XN + W * f, tm, 0f, lerpBy(items, key, tm) { it.feels }, lerpBy(items, key, tm) { it.mm } ?: 0f,
-                    lerpBy(items, key, tm) { it.prob }, lerpBy(items, key, tm) { it.head }, lerpBy(items, key, tm) { it.gust }))
+                val f = i / n.toFloat(); val tm = spanMin * f; val q = tm + since
+                samples.add(WxS(XN + W * f, tm, 0f, lerpS(S.feels, q), lerpS(S.mm, q) ?: 0f, lerpS(S.prob, q), lerpS(S.head, q), lerpS(S.gust, q)))
             }
         }
         val t0 = samples.first().tMin

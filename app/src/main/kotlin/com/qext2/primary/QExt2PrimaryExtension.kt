@@ -201,6 +201,28 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         }
     }
 
+    private var diagN = 0
+    private var diagCpu0 = 0L
+    private var diagT0 = 0L
+    /** 18.10.2026 DIAG: bateria Karoo, czas procesora QExt2 (lacznie i od ostatniego wpisu), pamiec, liczba widocznych pol. */
+    private fun logDiag() {
+        try {
+            val bm = applicationContext.getSystemService(android.content.Context.BATTERY_SERVICE) as android.os.BatteryManager
+            val bat = bm.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY)
+            val cpu = android.os.Process.getElapsedCpuTime()
+            val now = System.currentTimeMillis()
+            val cpuPct = if (diagT0 > 0L && now > diagT0) 100.0 * (cpu - diagCpu0) / (now - diagT0) else -1.0
+            diagCpu0 = cpu; diagT0 = now
+            val rt = Runtime.getRuntime()
+            val heap = (rt.totalMemory() - rt.freeMemory()) / 1_048_576
+            val pss = android.os.Debug.getPss() / 1024
+            com.qext2.primary.util.RideFileLog.append(String.format(java.util.Locale.US,
+                "DIAG bat=%d%% cpu_s=%d cpu_now=%.1f%% heap_mb=%d pss_mb=%d visible=%d", bat, cpu / 1000, cpuPct, heap, pss, visibleFieldCount))
+        } catch (e: Exception) {
+            com.qext2.primary.util.RideFileLog.append("DIAG_FAIL ${e.javaClass.simpleName}")
+        }
+    }
+
     fun onFieldVisible() {
         visibleFieldCount++
         stopJob?.cancel()
@@ -586,6 +608,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         ridePingJob = serviceScope.launch {
             while (true) {
                 try { sendRidePing() } catch (e: Exception) { com.qext2.primary.util.RideFileLog.append("PING_FAIL crash ${e.javaClass.simpleName}") }
+                if (diagN++ % 2 == 0) logDiag()   // 18.10: co ~10 min bateria / CPU / pamiec QExt2
                 delay(com.qext2.primary.kokpit.QbotRadar.PING_EVERY_MS)
             }
         }

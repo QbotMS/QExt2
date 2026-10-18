@@ -89,7 +89,7 @@ class InfoDataType : DataTypeImpl("qext2", "qext2-info") {
                     } catch (e: Exception) {
                         Log.w(TAG, "tick fail ${e.message}")
                     }
-                    if (now - lastMs < 1500L && ver == lastVer) return@collect   // zmiana skali / nowa pogoda -> od razu
+                    if (now - lastMs < 4000L && ver == lastVer) return@collect   // zmiana skali / nowa pogoda -> od razu
                     lastVer = ver
                     lastMs = now
                     val dawn = if (demo) now - 6 * 3_600_000L else agg?.getCivilDawnMs()?.takeIf { it > 0L }
