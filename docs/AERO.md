@@ -30,3 +30,12 @@ Strona QBota (porównania odzieży, kół, rowerów między jazdami): `/opt/qbot
 Dziennik `ride_log.txt`: `AERO_STEP ref= new= v= thr=`, `AERO_RESET przerwa|kierunek`.
 Po co w FIT: ocena, jak pole działało na żywo (kiedy wykryło zmianę, czy zgadza się z odczuciem). Analiza QBota liczy własnym
 modelem z surowych danych 1 Hz — pola AERO nie są jej wejściem.
+
+
+## v2 (18.10.2026)
+Po jezdzie 18.10 (AERO policzylo 1 raz; 87 restartow 'kierunek', a na prostym odcinku km 10-12 pole stalo na 0 W):
+- licza sie tylko sekundy ROWNEJ jazdy: kadencja w ostatnich 20 s +-8 obr/min, moc 3 s +-20% sredniej z 20 s, |a| <= 0,4 m/s2, kadencja >= 50;
+- zmiana = ostatnie 30 s vs poprzednie 60 s (z sum mocy i v^3), prog 0,10 CdA, utrzymana 5 s;
+- kazda zmiana oporu jest zmiana (nawierzchnia, jazda za kims, pozycja) -- Crr stale;
+- restart po zmianie kierunku > 35 st. tylko przy wietrze >= 3 m/s; przerwa / nierowna jazda > 30 s -> od nowa.
+Symulacja na FIT 18.10: ok. 8 zmian/h rownej jazdy, w tescie wykryte 3 z 4 zmian chwytu (bez pierwszego zejscia -- przed nim rozpedzanie).
