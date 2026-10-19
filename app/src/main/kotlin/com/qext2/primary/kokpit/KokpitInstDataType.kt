@@ -71,7 +71,7 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
         }
 
         // trendy srednich (zmiana w ~10 min)
-        val trNp = FrameTrend(); val trSpd = SpeedVsAvg(); val trHr = Trend(2f); val trCad = Trend(2f)
+        val trNp = SpeedVsAvg(tauS = 30f, thr = 5f, vMin = -1f);   // NP 5: moc 30 s vs NP 5 val trSpd = SpeedVsAvg(); val trHr = Trend(2f); val trCad = Trend(2f)
         // srednie tetno liczone lokalnie (tylko w ruchu)
         var hrSum = 0L
         var hrN = 0L
@@ -99,7 +99,7 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
                     if (p.hrFreshnessMs < 12_000L && p.hr > 40 && p.speedKmh > 3.0) { hrSum += p.hr; hrN++ }
                     val d = try { toData(agg, p, s, s.avgHrBpm.takeIf { it > 0 }).let { dd ->
                         val now = System.currentTimeMillis()
-                        dd.copy(route = if (v2) Kokpit2Route.of(agg, s) else null, cpTrend = trNp.push(dd.cpe5W), avgSpeedTrend = trSpd.push(now, dd.speedKmh, dd.avgSpeedKmh),
+                        dd.copy(route = if (v2) Kokpit2Route.of(agg, s) else null, cpTrend = trNp.push(now, dd.powerW?.toFloat(), dd.cpe5W), avgSpeedTrend = trSpd.push(now, dd.speedKmh, dd.avgSpeedKmh),
                             hrAvgTrend = trHr.push(now, dd.hrAvg?.toFloat()), cadAvgTrend = trCad.push(now, dd.cadenceAvg?.toFloat()))
                     } } catch (e: Throwable) {
                         Log.w(TAG, "QEXT_KOKPIT_INST_DATA_FAIL msg=${e.message}")
@@ -197,20 +197,6 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
 
 /** 18.10.2026: znak sredniej predkosci -- czy jazda TERAZ podnosi (+1, zielony) czy obniza (-1, czerwony) srednia:
  *  predkosc wygladzona z ~60 s wzgledem sredniej, martwa strefa 0,5 km/h. Na postoju / bez danych 0 (szary). */
-/** NP 5 (ciagle z ostatnich 5 min) -- kierunek zmiany wzgledem POPRZEDNIEJ RAMKI (decyzja Michala 19.10): +1 wzroslo, -1 spadlo
- *  (od 0,5 W); bez zmiany = trzyma ostatni kierunek, zeby trojkat nie migal przy kazdej ramce z ta sama wartoscia. */
-class FrameTrend(private val thr: Float = 0.5f) {
-    private var last: Float? = null
-    private var dir = 0
-    fun push(v: Float?): Int {
-        if (v == null) { last = null; dir = 0; return 0 }
-        val l = last
-        last = v
-        if (l != null) { val d = v - l; if (d > thr) dir = 1 else if (d < -thr) dir = -1 }
-        return dir
-    }
-}
-
 /** Czy biezaca wartosc podnosi (+1) czy obniza (-1) srednia: srednia wykladnicza z tauS s vs srednia, prog thr.
  *  Predkosc vs srednia (tau 60 s, 0,5 km/h, ponizej 3 km/h = postoj -> 0); 19.10.2026 NP 5: moc vs NP 5 (tau 30 s jak okno NP,
  *  prog 5 W, bez progu postoju -- toczenie sie bez pedalowania tez obniza NP 5). */

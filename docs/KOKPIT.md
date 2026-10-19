@@ -150,3 +150,6 @@ Znane: pierwsze zapytanie EF po starcie pada (`karoo_system_not_ready`), ponowie
   Kolor podpisu NP 5 ten sam. Zastapilo stare porownanie z NP 5 sprzed 10 min (spoznione o kilka minut). `SpeedVsAvg(30 s, 5 W)`.
 - Poprawka 19.10 (decyzja Michala): NP 5 jest ciagle z ostatnich 5 min, wiec trojkat = kierunek zmiany NP 5 wzgledem POPRZEDNIEJ
   RAMKI (od 0,5 W; bez zmiany trzyma ostatni kierunek). `FrameTrend` w KokpitInstDataType.kt zamiast porownania mocy 30 s z NP 5.
+- Ostatecznie 19.10 (decyzja Michala): trojkat ma mowic „jade teraz mocniej” -> moc (srednia wykladnicza 30 s) vs NP 5, prog 5 W
+  (`SpeedVsAvg(30 s, 5 W)`), jak znak sredniej predkosci. Zmiana samego NP 5 (ramka / 10 s) odrzucona: zalezy tez od tego,
+  co wypada z okna sprzed 5 min, wiec potrafi spadac mimo przyspieszenia.
