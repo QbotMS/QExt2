@@ -148,3 +148,5 @@ Znane: pierwsze zapytanie EF po starcie pada (`karoo_system_not_ready`), ponowie
 - Przy NP 5 (z lewej podpisu, lustrzanie do sredniej predkosci) trojkat: zielony w gore = biezaca moc (srednia wykladnicza 30 s)
   jest wyzsza od NP 5 o > 5 W, czyli NP 5 rosnie; czerwony w dol = nizsza (takze toczenie sie bez pedalowania); brak = bez zmian.
   Kolor podpisu NP 5 ten sam. Zastapilo stare porownanie z NP 5 sprzed 10 min (spoznione o kilka minut). `SpeedVsAvg(30 s, 5 W)`.
+- Poprawka 19.10 (decyzja Michala): NP 5 jest ciagle z ostatnich 5 min, wiec trojkat = kierunek zmiany NP 5 wzgledem POPRZEDNIEJ
+  RAMKI (od 0,5 W; bez zmiany trzyma ostatni kierunek). `FrameTrend` w KokpitInstDataType.kt zamiast porownania mocy 30 s z NP 5.
