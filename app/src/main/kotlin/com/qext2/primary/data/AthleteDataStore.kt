@@ -575,6 +575,10 @@ object AthleteDataStore {
     fun saveEtaModel(json: String) { prefs?.edit()?.putString("eta_model_v1", json)?.apply() }
     fun loadEtaModel(): String? = prefs?.getString("eta_model_v1", null)
 
+    /** AERO v3: parametry modelu oporu z QBota -- JSON z /ride-readiness "aeroModel" (fitmodel/cda.py karoo_aero_model). */
+    fun saveAeroModel(json: String) { prefs?.edit()?.putString("aero_model_v1", json)?.apply() }
+    fun loadAeroModel(): String? = prefs?.getString("aero_model_v1", null)
+
     /** zapas prognozy na brak sieci (WeatherCache, 2026-10-14) */
     fun saveWxCache(s: String) { prefs?.edit()?.putString("wx_cache_v1", s)?.apply() }
     fun loadWxCache(): String? = prefs?.getString("wx_cache_v1", null)

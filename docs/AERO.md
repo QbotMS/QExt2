@@ -39,3 +39,33 @@ Po jezdzie 18.10 (AERO policzylo 1 raz; 87 restartow 'kierunek', a na prostym od
 - kazda zmiana oporu jest zmiana (nawierzchnia, jazda za kims, pozycja) -- Crr stale;
 - restart po zmianie kierunku > 35 st. tylko przy wietrze >= 3 m/s; przerwa / nierowna jazda > 30 s -> od nowa.
 Symulacja na FIT 18.10: ok. 8 zmian/h rownej jazdy, w tescie wykryte 3 z 4 zmian chwytu (bez pierwszego zejscia -- przed nim rozpedzanie).
+
+## v3 „POZYCJA” (19.10.2026, QExt2 0.4.2)
+Zadanie: QBot `docs/QEXT2_AERO_V3_TASK.md`. Cel (decyzja Michała 19.10): optymalizować opór, na który Michał ma wpływ (pozycja),
+z odjętym wiatrem i drogą; zmiana nawierzchni to NIE pozycja.
+Logika: `engine/AeroCore.kt` (bez Androida — ten sam kod na Karoo, w testach i w odtwarzaniu jazd); most Karoo: `engine/AeroEstimator.kt`.
+- **Bilans energii** co sekundę: Pa = P·η − m·g·dh/dt − ½·m·d(v²)/dt − m·g·Crr[nawierzchnia]·v; X = ½·ρ·va·|va|·v; CdA = ΣPa/ΣX.
+  Sumy na odcinku = różnica wysokości i prędkości na końcach (nie chwilowe nachylenie). Wysokość: barometr Karoo
+  (`PRESSURE_ELEVATION_CORRECTION`), surowa (Karoo już wygładza; średnie 3–5 s psuły bilans na załamaniach profilu).
+  Przetwarzanie opóźnione o 2 s, żeby moc 3 s była wyśrodkowana względem prędkości.
+- **Wiatr:** va = v + wiatr czołowy × 0,2 (`AeroParams.WIND_FACTOR`; QBot może nadpisać `windFactor`). Prognoza (10 m) przy rowerzyście
+  jest dużo słabsza: odtworzenie 18.10 — rozrzut CdA najmniejszy i brak korelacji z wiatrem przy 0,15–0,2; przy 0,6 korelacja −0,56.
+  Wiatr nieznany → po zmianie kursu > 35° od nowa (jak v2).
+- **Nawierzchnia:** z profilu trasy QBota w bieżącym miejscu (PAVED = asfalt, GRAVEL/LOOSE = szuter); bez trasy = nieznana (Crr asfaltu).
+  Zmiana klasy → od nowa (`AERO_RESET nawierzchnia`).
+- **Pewność:** 2 dobra = asfalt + wiatr znany + parametry QBota; 1 niska = szuter / nieznana / bez QBota / bez wiatru. Kropka: zielona = 2, żółta = 1.
+- **Sekunda ważna:** świeże dane, v ≥ 18 km/h, ostatnie 5 s pedałowania (P ≥ 60 W, kadencja ≥ 50), |nachylenie z 10 s| ≤ 4 %,
+  |a| ≤ 1,5 m/s² (tylko błędy czujnika — przyspieszanie liczy bilans). Bez filtra równości mocy (sprawdzone: mało pomaga, zabiera do 2/3 wyniku).
+- **Zmiana:** ostatnie 30 s vs poprzednie (do 60 s), ≥ 10 % CdA i ≥ 6 W przy bieżącej prędkości, utrzymana 8 s → nowe odniesienie.
+- **Parametry z QBota** (`/ride-readiness` → `aeroModel`, zapis w pamięci Karoo): masa = riderKg + extraKg, Crr asfalt/szuter, η.
+  Brak → zapas jak v2 (waga z Setup + 9 kg, Crr 0,007), pewność zawsze niska.
+- **FIT (nowe pola):** `qext2_aero_ver` (3), `qext2_aero_conf` (0/1/2), `qext2_aero_wind_head` (m/s użyte w równaniu), `qext2_aero_surface` (0/1/2).
+
+### Testy (`app/src/test/.../engine/`)
+- `AeroCoreSyntheticTest` — fizyka do przodu co 0,1 s, szum miernika 3 %, prawdziwe wahania mocy 15 %, barometr 0,2 m:
+  zakręt 90°/180° przy wietrze 3–6 m/s bez fałszywej zmiany > 10 W; pętla z wiatrem 5 m/s; skok −15 % CdA wykryty ≤ 30 s (i powrót);
+  asfalt → szuter = „od nowa”, nie pozycja; dryf barometru 0,1 %; pagórki ±3 %; interwały 150/280 W; wiatr nieznany; JSON z QBota.
+- `AeroReplayTest` — odtworzenie jazd 16.10 i 18.10 (eksport QBota 1 Hz, `src/test/resources/aero`):
+  16.10 (asfalt): wynik 33 % czasu, pewność dobra 91 %, CdA mediana 0,44 (QBot Centrum CdA 0,45); 18.10 (szuter): wynik 44 %, CdA 0,555 (QBot 0,51).
+  **Uczciwie:** na prawdziwych jazdach 30-sekundowe CdA ma rozstęp ćwiartkowy ~22 % (wahania wiatru, drogi, ruch), więc pole
+  zgłasza ~50 zmian na godzinę wyniku. Skok −15 % jest na granicy szumu — sprawdzian na jeździe: asfalt, pętla, „okrążenie” przy zmianie chwytu.

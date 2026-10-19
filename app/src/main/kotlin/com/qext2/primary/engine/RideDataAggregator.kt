@@ -160,6 +160,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val speedFreshnessRef = AtomicReference(0L)
     private val gearFreshnessRef = AtomicReference(0L)
     private val gradeFreshnessRef = AtomicReference(0L)
+    // AERO v3 (2026-10-19): wysokosc z barometru Karoo (PRESSURE_ELEVATION) -- bilans energii na odcinku zamiast chwilowego nachylenia
+    private val altitudeMRef = AtomicReference(Double.NaN)
+    private val altitudeMsRef = AtomicReference(0L)
     private val gradeLastRawRef = AtomicReference(Double.NaN)
     private var hrAssessTick = 0
     private var lastTickNs = 0L          // E1.5: zegar monotoniczny
@@ -729,6 +732,19 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                             gradeLastRawRef.set(v)
                             if (QExt2DebugConfig.DEBUG_LOGGING) Log.d(TAG, "GRADE raw=$v")
                         }
+                    }
+                }
+            )
+        )
+
+        consumerIds.add(
+            karooSystem.addConsumer<OnStreamState>(
+                params = OnStreamState.StartStreaming(DataType.Type.PRESSURE_ELEVATION_CORRECTION),
+                onEvent = { event ->
+                    val s = event.state
+                    if (s is StreamState.Streaming) {
+                        val v = (s.dataPoint.values[DataType.Field.PRESSURE_ELEVATION] as? Double) ?: s.dataPoint.singleValue
+                        if (v != null && v.isFinite() && v in -500.0..9000.0) { altitudeMRef.set(v); altitudeMsRef.set(System.currentTimeMillis()) }
                     }
                 }
             )
@@ -2016,6 +2032,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         }
         return powerRef.get()
     }
+
+    /** AERO v3: wysokosc barometryczna [m], gdy swieza (< 5 s); inaczej null */
+    fun getAltitudeM(): Double? = if (System.currentTimeMillis() - altitudeMsRef.get() < 5_000L) altitudeMRef.get().takeIf { it.isFinite() } else null
 
     fun getEffectiveGrade(): Double {
         if (QExt2DebugConfig.DEBUG_FAKE_RIDE_MODE) {

@@ -51,7 +51,7 @@ data class KokpitNavData(
 )
 
 /** Pole dynamiczne KOKPIT 2: kind = ATD | ASC | WIND | water | shop | food | AVG; warn 0 brak, 1 zolty, 2 czerwony. */
-/** conf (2026-10-17, AERO): -1 brak kropki, 0 zolta (wynik sie zbiera), 1 zielona (pewny) */
+/** conf (AERO): -1 brak kropki, 0 zolta (v3: niska pewnosc -- szuter, brak trasy/wiatru/QBota), 1 zielona (dobra) */
 data class DynItem(val kind: String, val value: String, val unit: String, val warn: Int = 0, val conf: Int = -1)
 
 /**

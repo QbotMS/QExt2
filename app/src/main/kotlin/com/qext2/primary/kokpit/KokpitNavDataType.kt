@@ -211,7 +211,7 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
         // 2026-10-17 (decyzja Michala): SETUP AERO -> pole dynamiczne zawsze AERO, bez wyjatkow i bez rotacji
         if (AthleteDataStore.loadKokpit2DynAero()) {
             val o = com.qext2.primary.engine.AeroEstimator.out
-            return DynItem("AERO", com.qext2.primary.engine.AeroEstimator.valueText(o), "W", 0, if (o.state == 2) o.conf else -1)
+            return DynItem("AERO", com.qext2.primary.engine.AeroEstimator.valueText(o), "W", 0, if (o.state == 2) (if (o.conf >= 2) 1 else 0) else -1)   // v3: kropka zielona = pewnosc dobra (asfalt, wiatr, QBot), zolta = niska
         }
         val target = agg?.getDeadlineMs()?.takeIf { it > 0L } ?: twMs.takeIf { it > now }
         if (eta != null && target != null && total != null && dtdKm > 0.1f) {

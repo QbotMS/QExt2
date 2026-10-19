@@ -84,6 +84,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         com.qext2.primary.engine.CadenceAdvisor.load(AthleteDataStore.loadCadenceModel())
         com.qext2.primary.eta.EtaSpeedTable.historyMinPerKm = AthleteDataStore.loadEtaStopsMinPerKm()
         com.qext2.primary.eta.EtaModelJson.apply(AthleteDataStore.loadEtaModel())   // 2026-10-19: model czasu QBota (zapas: wbudowany)
+        com.qext2.primary.engine.AeroEstimator.setModel(AthleteDataStore.loadAeroModel())   // 2026-10-19: AERO v3 parametry QBota
         com.qext2.primary.eta.EtaFileLog.init(getExternalFilesDir(null) ?: filesDir)
         com.qext2.primary.util.RideFileLog.init(getExternalFilesDir(null) ?: filesDir)
         com.qext2.primary.util.RideFileLog.append("START QExt2 versionCode=${BuildConfig.VERSION_CODE}")
@@ -330,6 +331,12 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         val fWindFrom = DeveloperField(15.toShort(), 136.toShort(), "qext2_wind_from_deg", "deg")
         val fWindMs = DeveloperField(16.toShort(), 136.toShort(), "qext2_wind_ms", "m/s")
         val fWindRel = DeveloperField(17.toShort(), 136.toShort(), "qext2_wind_rel_deg", "deg")
+        // 2026-10-19 AERO v3 (docs/AERO.md): wersja algorytmu, pewnosc 0 brak / 1 niska / 2 dobra, wiatr czolowy uzyty w rownaniu
+        // (m/s, po przeskalowaniu prognozy), nawierzchnia sekundy 0 nieznana / 1 asfalt / 2 szuter. Kontrakt: KONTRAKT_DANYCH.md pkt 6.
+        val fAeroVer = DeveloperField(18.toShort(), 2.toShort(), "qext2_aero_ver", "v")
+        val fAeroConf = DeveloperField(19.toShort(), 2.toShort(), "qext2_aero_conf", "conf")
+        val fAeroWind = DeveloperField(20.toShort(), 136.toShort(), "qext2_aero_wind_head", "m/s")
+        val fAeroSurf = DeveloperField(21.toShort(), 2.toShort(), "qext2_aero_surface", "class")
         val job = serviceScope.launch {
             while (true) {
                 val agg = _aggregator
@@ -354,6 +361,10 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                                     com.qext2.primary.engine.AeroEstimator.out.let { FieldValue(fAeroDw, it.dW.toDouble()) },
                                     com.qext2.primary.engine.AeroEstimator.out.let { FieldValue(fAeroCda, it.cdaNow.toDouble()) },
                                     com.qext2.primary.engine.AeroEstimator.out.let { FieldValue(fAeroRef, it.cdaRef.toDouble()) },
+                                    FieldValue(fAeroVer, com.qext2.primary.engine.AeroCore.VERSION.toDouble()),
+                                    com.qext2.primary.engine.AeroEstimator.out.let { FieldValue(fAeroConf, it.conf.toDouble()) },
+                                    com.qext2.primary.engine.AeroEstimator.out.let { FieldValue(fAeroWind, it.windHead.toDouble()) },
+                                    com.qext2.primary.engine.AeroEstimator.out.let { FieldValue(fAeroSurf, it.surface.toDouble()) },
                                 ) + windFitValues(agg, fCourse, fWindFrom, fWindMs, fWindRel)
                             )
                         )
@@ -579,6 +590,12 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                                 if (nv != null && nv != com.qext2.primary.eta.EtaSpeedTable.version && com.qext2.primary.eta.EtaModelJson.apply(em)) {
                                     AthleteDataStore.saveEtaModel(em)
                                     com.qext2.primary.util.RideFileLog.append("ETA_MODEL updated=$nv")
+                                }
+                            }
+                            json.optJSONObject("aeroModel")?.toString()?.let { am ->   // 2026-10-19: AERO v3 (masa, Crr, sprawnosc z QBota)
+                                if (com.qext2.primary.engine.AeroParams.fromJson(am) != null) {
+                                    AthleteDataStore.saveAeroModel(am); com.qext2.primary.engine.AeroEstimator.setModel(am)
+                                    com.qext2.primary.util.RideFileLog.append("AERO_MODEL ${com.qext2.primary.engine.AeroEstimator.modelVersion()}")
                                 }
                             }
                             json.optDouble("shortStopsMinPerKm", 0.0).takeIf { it > 0.0 && it < 5.0 }?.let {
