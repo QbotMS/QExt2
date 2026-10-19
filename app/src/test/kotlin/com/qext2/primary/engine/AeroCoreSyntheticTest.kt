@@ -85,6 +85,29 @@ class AeroCoreSyntheticTest {
         assertTrue("petla: |dW| ${maxAbsDw(outs)}", maxAbsDw(outs) <= 10)
     }
 
+    /** windScale (QBot 19.10): petla przy wietrze 3-6 m/s na 10 m; przy rowerze wieje 0,25 x tyle. Z mnoznikiem 0,25 -- bez
+     *  falszywych zmian na zakretach; bez mnoznika (1,0 = wiatr z prognozy wprost) -- wyraznie widac blad (dla porownania). */
+    @Test fun petla_windScale_025_vs_bez_skalowania() {
+        val ws = 0.25
+        var worstNoScale = 0
+        for (w10 in listOf(3.0, 4.5, 6.0)) {
+            val secs = List(900) { Sec(200.0, 0.43, 0.0055, (it * 0.8) % 360.0) }
+            fun go(scale: Double): List<Pair<Int, AeroCore.Out>> {
+                val core = AeroCore(params().copy(windFactor = scale)); val outs = ArrayList<Pair<Int, AeroCore.Out>>()
+                // prawdziwy wiatr przy rowerze = ws x w10; Karoo dostaje prognoze 10 m (forecastFactor = 1/ws)
+                Sim(windMs = ws * w10, windFrom = 250.0, seed = (w10 * 10).toLong(), forecastFactor = 1.0 / ws).run(core, secs) { k, _, o -> outs.add(k to o) }
+                return outs
+            }
+            val ok = go(ws)
+            assertTrue("w10=$w10 ze skalowaniem: zmiany ${steps(ok).filter { abs(it.second.dW) > 10 }}", steps(ok).none { abs(it.second.dW) > 10 })
+            assertTrue("w10=$w10 ze skalowaniem: |dW| ${maxAbsDw(ok)}", maxAbsDw(ok) <= 10)
+            val bad = go(1.0)
+            worstNoScale = maxOf(worstNoScale, maxAbsDw(bad))
+            println("AERO_WINDSCALE w10=$w10 m/s: z 0,25 max|dW|=${maxAbsDw(ok)} W, zmian ${steps(ok).size}; bez skalowania max|dW|=${maxAbsDw(bad)} W, zmian ${steps(bad).size}")
+        }
+        assertTrue("bez skalowania blad powinien byc widoczny (> 10 W), jest $worstNoScale", worstNoScale > 10)
+    }
+
     @Test fun skok_pozycji_minus_15_procent_wykryty_w_30_s() {
         val secs = flat(300) + flat(120, cda = 0.43 * 0.85) + flat(180)
         val outs = run(Sim(seed = 3), secs)
@@ -164,6 +187,10 @@ class AeroCoreSyntheticTest {
         assertEquals(117.04, p!!.massKg, 1e-6)
         assertEquals(0.01026, p.crrGravel, 1e-9)
         assertTrue(p.fromQbot)
+        assertEquals(AeroParams.WIND_FACTOR, p.windFactor, 1e-9)   // brak windScale -> 0,3
+        val p2 = AeroParams.fromJson(j.replace("\"cdaDefault\":0.3918", "\"cdaDefault\":0.3918,\"windScale\":0.25,\"windScaleN\":22"))
+        assertEquals(0.25, p2!!.windFactor, 1e-9)
+        assertEquals(0.3, AeroParams.WIND_FACTOR, 1e-9)
         assertNull(AeroParams.fromJson("{}"))
         assertNull(AeroParams.fromJson("nie json"))
         assertTrue(!AeroParams.fallback(95.0).fromQbot)

@@ -69,3 +69,13 @@ Logika: `engine/AeroCore.kt` (bez Androida — ten sam kod na Karoo, w testach i
   16.10 (asfalt): wynik 33 % czasu, pewność dobra 91 %, CdA mediana 0,44 (QBot Centrum CdA 0,45); 18.10 (szuter): wynik 44 %, CdA 0,555 (QBot 0,51).
   **Uczciwie:** na prawdziwych jazdach 30-sekundowe CdA ma rozstęp ćwiartkowy ~22 % (wahania wiatru, drogi, ruch), więc pole
   zgłasza ~50 zmian na godzinę wyniku. Skok −15 % jest na granicy szumu — sprawdzian na jeździe: asfalt, pętla, „okrążenie” przy zmianie chwytu.
+
+## v3.1 — windScale z QBota (19.10.2026, QExt2 0.4.3, ver w FIT = 4)
+Zadanie: QBot `docs/QEXT2_AERO_V3_TASK.md`, sekcja „windScale”. QBot sprawdził na 22 jazdach (ten sam model co Centrum CdA), że wiatr
+z prognozy Open-Meteo na 10 m pasuje do jazdy dopiero po pomnożeniu przez k ≈ 0,25–0,5 (mediana 0,25).
+- Wiatr czołowy w równaniu = `aeroModel.windScale` × składowa czołowa wiatru z prognozy (QExt2 bierze własną prognozę Open-Meteo 10 m,
+  `RideDataAggregator.getHeadwindSignedMps` — ten sam rodzaj danych, z którego QBot liczy k). Starsze pole `windFactor` nadal czytane;
+  brak obu / stary pakiet → 0,3 (domyślny QBota). Poprzednio stała 0,2 z jednej jazdy (18.10).
+- FIT `qext2_aero_wind_head` = wartość już po pomnożeniu (bez zmian w zapisie); `qext2_aero_ver` = 4.
+- Test `petla_windScale_025_vs_bez_skalowania`: pętla przy wietrze 3 / 4,5 / 6 m/s na 10 m, przy rowerze 0,25 × tyle —
+  z mnożnikiem 0,25 zero fałszywych zmian; bez mnożnika (prognoza wprost) błąd 120 / 242 / 471 W i 18–20 fałszywych zmian.

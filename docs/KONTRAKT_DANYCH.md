@@ -55,7 +55,7 @@ Schemat 2 (plan v2): jak 1 + qext2_schema (=2) + qext2_np5_w; cp_eff_w = CP Mode
 Serwer (fit_ingest): model_schema w fitmodel_qext2_ride (brak pola = 1); wbal_zero_seconds z timestampow. Porownania historii tylko w obrebie schematu.
 Pola dodatkowe od 0.4.1 (2026-10-17, schemat BEZ zmian - nie dziela historii W'): qext2_aero_state (0 brak / 1 zbiera / 2 wynik),
   qext2_aero_dw_w, qext2_aero_cda, qext2_aero_ref_cda - pole AERO (docs/AERO.md). Serwer: qbot_v2.qext2_aero_record (sprawdzian Centrum CdA).
-Od 0.4.2 (2026-10-19, AERO v3, schemat bez zmian): nr 18 qext2_aero_ver (uint8, wersja algorytmu = 3), nr 19 qext2_aero_conf (uint8,
+Od 0.4.2 (2026-10-19, AERO v3, schemat bez zmian): nr 18 qext2_aero_ver (uint8, wersja algorytmu: 3 = v3, od 0.4.3 = 4 z windScale), nr 19 qext2_aero_conf (uint8,
   0 brak / 1 niska / 2 dobra), nr 20 qext2_aero_wind_head (float32, m/s - wiatr czolowy uzyty w rownaniu, po skalowaniu prognozy),
   nr 21 qext2_aero_surface (uint8, 0 nieznana / 1 asfalt / 2 szuter). Zapisywane co sekunde razem z 4 polami AERO.
 

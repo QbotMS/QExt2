@@ -33,7 +33,7 @@ class AeroCore(var params: AeroParams = AeroParams.FALLBACK, val stepRel: Double
     )
 
     companion object {
-        const val VERSION = 3
+        const val VERSION = 4           // 4 (19.10): wiatr x windScale z QBota (aeroModel), domyslnie 0,3
         const val G = 9.81
         const val VMIN = 5.0            // m/s (18 km/h)
         const val PMIN = 60.0
@@ -188,13 +188,21 @@ data class AeroParams(
     val windFactor: Double, val fromQbot: Boolean, val version: String,
 ) {
     companion object {
-        /** wiatr z prognozy (10 m nad ziemia) -> przy rowerzyscie. Odtworzenie 18.10: najmniejszy rozrzut CdA i brak korelacji
-         *  z wiatrem przy 0,15-0,2 (0,6 -> korelacja -0,56); QBot z jazdy 0,75 m/s przy prognozie 2,4. QBot moze nadpisac (windFactor). */
-        const val WIND_FACTOR = 0.2
+        /** wiatr z prognozy Open-Meteo (10 m) -> przy rowerzyscie. QBot (QEXT2_AERO_V3_TASK.md „windScale”, 19.10): mnoznik k z jazd
+         *  (ten sam model co Centrum CdA), mediana 0,25; aeroModel.windScale; brak pola / stary pakiet -> 0,3 (domyslny QBota). */
+        const val WIND_FACTOR = 0.3
         /** zapas bez QBota = stale jak w v1/v2 (waga z Setup + 9 kg, Crr 0,007) */
         val FALLBACK = AeroParams(100.0 + 9.0, 0.976, 0.007, 0.007, WIND_FACTOR, false, "-")
         fun fallback(bodyKg: Double?): AeroParams =
             FALLBACK.copy(massKg = (bodyKg?.takeIf { it in 40.0..200.0 } ?: 100.0) + 9.0)
+
+        /** aeroModel.windScale (QBot, od 19.10); starsze pole windFactor; brak / poza 0..1,2 -> 0,3 */
+        fun windScale(o: org.json.JSONObject): Double {
+            val ws = o.optDouble("windScale", Double.NaN)
+            if (!ws.isNaN() && ws in 0.0..1.2) return ws
+            val wf = o.optDouble("windFactor", Double.NaN)
+            return if (!wf.isNaN() && wf in 0.0..1.2) wf else WIND_FACTOR
+        }
 
         /** null = zly / pusty JSON */
         fun fromJson(json: String?): AeroParams? = try {
@@ -206,7 +214,7 @@ data class AeroParams(
             val cg = crr?.optDouble("gravel", Double.NaN) ?: Double.NaN
             if (rider.isNaN() || rider !in 40.0..200.0 || ca.isNaN() || cg.isNaN() || ca !in 0.002..0.03 || cg !in 0.002..0.04) null
             else AeroParams(rider + extra, o.optDouble("eta", 0.976).takeIf { it in 0.85..1.0 } ?: 0.976, ca, cg,
-                o.optDouble("windFactor", WIND_FACTOR).takeIf { it in 0.0..1.2 } ?: WIND_FACTOR, true,
+                windScale(o), true,
                 o.optString("version", "?") + "/" + o.optString("updatedAt", ""))
         } catch (e: Exception) { null }
     }
