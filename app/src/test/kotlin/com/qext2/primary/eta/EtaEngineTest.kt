@@ -106,6 +106,63 @@ class EtaEngineTest {
         assertEquals(3600.0, o.remMovingSec, 1.0)
     }
 
+    @org.junit.After
+    fun resetModel() { EtaSpeedTable.resetBuiltin() }
+
+    // --- 2026-10-19: model czasu QBota (profile jazd, plan QBota = poziom 1)
+
+    @Test
+    fun serverModelReplacesTableAndRejectsBadData() {
+        val p = DoubleArray(11) { 25.0 }; val u = DoubleArray(11) { 20.0 }
+        assertTrue(EtaSpeedTable.setModel("2026-10-19p", p, u, mapOf("trening" to doubleArrayOf(0.2, 5.0)), null, 2.0))
+        assertEquals(25.0, EtaSpeedTable.speedKmh(0.0, SurfaceType.PAVED), 1e-9)
+        assertEquals("2026-10-19p", EtaSpeedTable.version)
+        assertTrue(!EtaSpeedTable.setModel("x", DoubleArray(3) { 20.0 }, u, emptyMap(), null, 2.0))
+        assertTrue(!EtaSpeedTable.setModel("x", DoubleArray(11) { 99.0 }, u, emptyMap(), null, 2.0))
+        assertEquals("2026-10-19p", EtaSpeedTable.version)
+    }
+
+    @Test
+    fun profileStopsFromFirstKm() {
+        EtaSpeedTable.setModel("v", DoubleArray(11) { 22.0 }, DoubleArray(11) { 18.0 },
+            mapOf("trening" to doubleArrayOf(0.2, 5.0)), null, 2.0)
+        assertEquals((0.2 * 20 + 5.0 * 1.0) * 60.0, EtaSpeedTable.shortStopsSec(20.0, 1.0, "trening"), 1e-6)
+        // brak profilu -> stary wzor
+        assertEquals((0.22 * 20 + 20 / 9.0 * 4.5) * 60.0, EtaSpeedTable.shortStopsSec(20.0, 1.0, null), 1e-6)
+    }
+
+    @Test
+    fun profileForSeasonAndWeekday() {
+        EtaSpeedTable.setModel("v", DoubleArray(11) { 22.0 }, DoubleArray(11) { 18.0 }, emptyMap(),
+            DoubleArray(12) { if (it == 6) 3.1 else 1.6 }, 2.0)
+        assertEquals("dluga", EtaSpeedTable.profileFor(2.4, 10, 3))
+        assertEquals("trening", EtaSpeedTable.profileFor(2.4, 7, 3))
+        assertEquals("trening", EtaSpeedTable.profileFor(1.0, 10, 3))
+        assertEquals("krotka_weekend", EtaSpeedTable.profileFor(1.0, 10, 7))
+    }
+
+    @Test
+    fun qbotPlanIsLevel1() {
+        val e = EtaEngine()
+        e.setRoute(encode(flat), 20000.0, true, paved)
+        val items = (1..20).map { floatArrayOf(it.toFloat(), it * 3f, it * 0.5f) }   // 3 min/km ruchu, 0,5 min/km postojow
+        e.setQbotPlan(items)
+        val o = e.tick(1_000_000_000L, true, 20.0, 20000.0, true, 0.0, 0L, true, paved)
+        assertEquals(1, o.level)
+        assertEquals(60.0 * 60.0, o.remMovingSec, 60.0)
+        assertEquals(10.0 * 60.0, o.stopsSec, 30.0)
+        e.setQbotPlan(emptyList())   // brak planu -> poziom 2
+        assertEquals(2, e.tick(1_000_001_000L, true, 20.0, 20000.0, true, 0.0, 0L, true, paved).level)
+    }
+
+    @Test
+    fun qbotPlanWithWrongLengthIsIgnored() {
+        val e = EtaEngine()
+        e.setRoute(encode(flat), 20000.0, true, paved)
+        e.setQbotPlan((1..40).map { floatArrayOf(it.toFloat(), it * 3f, 0f) })
+        assertEquals(2, e.tick(1_000_000_000L, true, 20.0, 20000.0, true, 0.0, 0L, true, paved).level)
+    }
+
     @Test
     fun noRouteNoEta() {
         val e = EtaEngine()

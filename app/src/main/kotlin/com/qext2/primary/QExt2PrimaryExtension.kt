@@ -83,6 +83,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         AthleteDataStore.init(this)
         com.qext2.primary.engine.CadenceAdvisor.load(AthleteDataStore.loadCadenceModel())
         com.qext2.primary.eta.EtaSpeedTable.historyMinPerKm = AthleteDataStore.loadEtaStopsMinPerKm()
+        com.qext2.primary.eta.EtaModelJson.apply(AthleteDataStore.loadEtaModel())   // 2026-10-19: model czasu QBota (zapas: wbudowany)
         com.qext2.primary.eta.EtaFileLog.init(getExternalFilesDir(null) ?: filesDir)
         com.qext2.primary.util.RideFileLog.init(getExternalFilesDir(null) ?: filesDir)
         com.qext2.primary.util.RideFileLog.append("START QExt2 versionCode=${BuildConfig.VERSION_CODE}")
@@ -572,6 +573,13 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                             } else pushSettings()
                             json.optJSONObject("cadenceModel")?.toString()?.let {
                                 AthleteDataStore.saveCadenceModel(it); com.qext2.primary.engine.CadenceAdvisor.load(it)   // E6.4
+                            }
+                            json.optJSONObject("etaModel")?.toString()?.let { em ->   // 2026-10-19: model czasu QBota dla ETA
+                                val nv = com.qext2.primary.eta.EtaModelJson.version(em)
+                                if (nv != null && nv != com.qext2.primary.eta.EtaSpeedTable.version && com.qext2.primary.eta.EtaModelJson.apply(em)) {
+                                    AthleteDataStore.saveEtaModel(em)
+                                    com.qext2.primary.util.RideFileLog.append("ETA_MODEL updated=$nv")
+                                }
                             }
                             json.optDouble("shortStopsMinPerKm", 0.0).takeIf { it > 0.0 && it < 5.0 }?.let {
                                 AthleteDataStore.saveEtaStopsMinPerKm(it)

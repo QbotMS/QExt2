@@ -1285,6 +1285,14 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     (now + (remainingKm / movingAvgKph * 3600_000L).toLong()).coerceAtLeast(now + 60_000L)
                 } else 0L
                 // ETA v2 (docs/ETA_V2_PLAN.md); stare ETA liczone dalej jako zapas i do porownania w logu
+                // 2026-10-19: poziom 1 = plan czasu QBota dla trasy (ten sam co PLAN CZASU w STATS v2), pobierany niezaleznie od pola
+                try {
+                    val rn = if (hasRoute) com.qext2.primary.surface.SurfaceBridge.lastRouteName else null
+                    com.qext2.primary.statsv2.PlanProfile.tick(rn)
+                    etaEngine.setQbotPlan(if (rn != null) com.qext2.primary.statsv2.PlanProfile.snapshot() else emptyList())
+                } catch (e: Exception) {
+                    Log.w(TAG, "QEXT_ETA_QBOT_FAIL msg=${e.message}")
+                }
                 val etaV2 = try {
                     etaEngine.tick(
                         nowMs = now, isMoving = isMoving, speedKmh = speedKmhNow,

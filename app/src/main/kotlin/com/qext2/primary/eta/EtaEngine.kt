@@ -15,14 +15,49 @@ import kotlin.math.min
  * Czysta logika (bez Androida) -> testowalna jednostkowo.
  */
 
-/** Tabela predkosci QBota (qbot_route_time_tools.SPEED_TABLE, tryb "normalny"), km/h. */
+/**
+ * Tabela predkosci QBota (tryb "normalny"), km/h, + postoje wg profilu jazdy (QBot model czasu v4, 2026-10-19).
+ * Wartosci wbudowane = zapas (model v2 z 06.2026); aktualne przychodza z /ride-readiness ("etaModel", z wersja)
+ * i sa trzymane na Karoo (AthleteDataStore) -- setModel(). Uzywane, gdy QBot nie zna trasy (poziom 2);
+ * dla trasy znanej QBotowi ETA liczy sie z planu QBota (poziom 1, EtaEngine.setQbotPlan).
+ */
 object EtaSpeedTable {
     val GRADE_EDGES = doubleArrayOf(-8.0, -6.0, -4.0, -2.0, -1.0, 1.0, 2.0, 4.0, 6.0, 8.0)
-    val PAVED = doubleArrayOf(20.0, 20.0, 30.6, 25.5, 23.7, 22.5, 20.6, 17.2, 12.4, 9.3, 7.2)
-    val UNPAVED = doubleArrayOf(21.8, 22.7, 21.3, 19.4, 19.4, 18.8, 16.7, 14.2, 11.8, 9.3, 7.2)
+    val PAVED_BUILTIN = doubleArrayOf(20.0, 20.0, 30.6, 25.5, 23.7, 22.5, 20.6, 17.2, 12.4, 9.3, 7.2)
+    val UNPAVED_BUILTIN = doubleArrayOf(21.8, 22.7, 21.3, 19.4, 19.4, 18.8, 16.7, 14.2, 11.8, 9.3, 7.2)
+    @Volatile var PAVED: DoubleArray = PAVED_BUILTIN.copyOf()
+    @Volatile var UNPAVED: DoubleArray = UNPAVED_BUILTIN.copyOf()
+    /** wersja modelu z QBota; "wbudowana" = zapas w aplikacji */
+    @Volatile var version: String = "wbudowana"
+    /** profil -> [mikro min/km, krotkie min na godzine ruchu] (od 1. km); pusta = stary wzor */
+    @Volatile var profileStops: Map<String, DoubleArray> = emptyMap()
+    /** prog "dlugiej" jazdy: p75 czasu ruchu [h] wg miesiaca (indeks 0 = styczen); null = brak */
+    @Volatile var p75ByMonthH: DoubleArray? = null
+    @Volatile var minLongH: Double = 2.0
     const val MICRO_MIN_PER_KM = 0.22
     const val SHORT_BREAK_EVERY_KM = 9.0
     const val SHORT_BREAK_MIN = 4.5
+
+    /** Model z QBota (wywolywane po odczycie /ride-readiness albo z pamieci Karoo). Zle dane -> bez zmian, false. */
+    @Synchronized
+    fun setModel(ver: String, paved: DoubleArray, unpaved: DoubleArray, stops: Map<String, DoubleArray>,
+                 p75: DoubleArray?, minH: Double): Boolean {
+        val n = GRADE_EDGES.size + 1
+        if (paved.size != n || unpaved.size != n) return false
+        if ((paved + unpaved).any { !it.isFinite() || it < 2.0 || it > 70.0 }) return false
+        PAVED = paved.copyOf(); UNPAVED = unpaved.copyOf(); version = ver
+        profileStops = stops.filterValues { it.size == 2 && it.all { v -> v.isFinite() && v >= 0.0 && v < 60.0 } }
+        p75ByMonthH = p75?.takeIf { it.size == 12 && it.all { v -> v.isFinite() && v > 0.0 } }
+        minLongH = if (minH.isFinite() && minH > 0.0) minH else 2.0
+        return true
+    }
+
+    /** Powrot do wartosci wbudowanych (testy). */
+    @Synchronized
+    fun resetBuiltin() {
+        PAVED = PAVED_BUILTIN.copyOf(); UNPAVED = UNPAVED_BUILTIN.copyOf(); version = "wbudowana"
+        profileStops = emptyMap(); p75ByMonthH = null; minLongH = 2.0; historyMinPerKm = 0.0
+    }
 
     fun bin(gradePct: Double): Int {
         for (j in GRADE_EDGES.indices) if (gradePct < GRADE_EDGES[j]) return j
@@ -32,20 +67,54 @@ object EtaSpeedTable {
     /** Nieznana nawierzchnia -> srednia asfalt/szuter (jak QBot, bez biasu). */
     fun speedKmh(gradePct: Double, surface: SurfaceType?): Double {
         val b = bin(gradePct)
+        val p = PAVED; val u = UNPAVED
         return when (surface) {
-            SurfaceType.PAVED -> PAVED[b]
-            SurfaceType.GRAVEL, SurfaceType.LOOSE -> UNPAVED[b]
-            null -> (PAVED[b] + UNPAVED[b]) / 2.0
+            SurfaceType.PAVED -> p[b]
+            SurfaceType.GRAVEL, SurfaceType.LOOSE -> u[b]
+            null -> (p[b] + u[b]) / 2.0
         }
     }
 
-    /** Krotkie postoje (mikro + przerwy) na danym dystansie, w sekundach. Ciagle, bez skokow. */
+    /**
+     * Profil jazdy jak w QBocie (bez miasta i bikepackingu -- Karoo ich nie rozpozna): planowany czas ruchu >= p75 jazd
+     * z tego miesiaca (min. minLongH) -> "dluga"; dzien roboczy -> "trening"; weekend -> "krotka_weekend".
+     * month 1..12, isoWeekday 1 (pn) .. 7 (nd).
+     */
+    fun profileFor(planMovingH: Double, month: Int, isoWeekday: Int): String {
+        val p75 = p75ByMonthH?.getOrNull(month - 1) ?: 3.0
+        return when {
+            planMovingH >= max(p75, minLongH) -> "dluga"
+            isoWeekday <= 5 -> "trening"
+            else -> "krotka_weekend"
+        }
+    }
+
     /** E4.4: mediana krotkich postojow Michala [min/km] z serwera (/ride-readiness); <=0 -> stala QBota (0.72). */
     @Volatile var historyMinPerKm: Double = 0.0
 
-    fun shortStopsSec(km: Double): Double =
-        if (historyMinPerKm > 0.0) historyMinPerKm * km * 60.0
+    /**
+     * Krotkie postoje (mikro + przerwy) [s]. Gdy znany profil i model QBota: mikro x km + krotkie x godziny ruchu
+     * (od 1. km, jak QBot v4). Inaczej stary wzor: historia min/km albo stala.
+     */
+    fun shortStopsSec(km: Double, movingH: Double? = null, profile: String? = null): Double {
+        val ps = profile?.let { profileStops[it] }
+        if (ps != null && movingH != null) return (ps[0] * km + ps[1] * max(0.0, movingH)) * 60.0
+        return if (historyMinPerKm > 0.0) historyMinPerKm * km * 60.0
         else (MICRO_MIN_PER_KM * km + (km / SHORT_BREAK_EVERY_KM) * SHORT_BREAK_MIN) * 60.0
+    }
+}
+
+/** Interpolacja planu QBota [km, ruch_min, postoje_min] (jak PlanProfile.interp; tu bez zaleznosci od Androida). */
+internal fun planInterp(its: List<FloatArray>, km: Float): Pair<Float, Float>? {
+    if (its.isEmpty()) return null
+    val f0 = its.first()
+    if (km <= f0[0]) { val f = (km / f0[0].coerceAtLeast(0.01f)).coerceIn(0f, 1f); return f0[1] * f to f0[2] * f }
+    if (km >= its.last()[0]) return its.last()[1] to its.last()[2]
+    var i = 1
+    while (i < its.size && its[i][0] < km) i++
+    val a = its[i - 1]; val b = its[i]
+    val f = if (b[0] == a[0]) 0f else (km - a[0]) / (b[0] - a[0])
+    return (a[1] + (b[1] - a[1]) * f) to (a[2] + (b[2] - a[2]) * f)
 }
 
 /** Dekoder Google encoded polyline; profil wysokosci Karoo: precyzja 1, pary (dystans_m, wysokosc_m). */
@@ -196,6 +265,12 @@ class EtaEngine(
     private var routeDistanceM: Double? = null
     private var plan: EtaPlan? = null
     private var planSurfaceKnown = false
+    /** profil jazdy dla postojow (wg planu Karoo, gdy brak planu QBota) */
+    private var profile: String? = null
+    /** poziom 1: plan czasu z QBota (GET /api/plan/by-name) -- ruch i postoje skumulowane co STEP_M */
+    private var qPlan: EtaPlan? = null
+    private var qStopsCum: DoubleArray? = null
+    private var qItemsRef: List<FloatArray>? = null
 
     // --- przejazd
     private var lastTickMs = 0L
@@ -238,18 +313,64 @@ class EtaEngine(
     @Synchronized
     fun clearRoute() {
         routeKey = null; routePoints = emptyList(); plan = null; prevPos = null
+        qPlan = null; qStopsCum = null; qItemsRef = null; profile = null
     }
 
     private fun rebuild(surfaceKnown: Boolean, surfaceAtKm: ((Double) -> SurfaceType?)?) {
         val r = EtaPlanner.build(routePoints, routeDistanceM, if (surfaceKnown) surfaceAtKm else null)
         plan = r.plan
         planSurfaceKnown = surfaceKnown
+        profile = r.plan?.let {
+            val c = java.util.Calendar.getInstance()
+            val dow = c.get(java.util.Calendar.DAY_OF_WEEK).let { d -> if (d == java.util.Calendar.SUNDAY) 7 else d - 1 }
+            EtaSpeedTable.profileFor(it.totalSec / 3600.0, c.get(java.util.Calendar.MONTH) + 1, dow)
+        }
         log(
             "QEXT_ETA_PROFILE points=${r.points} len_m=${"%.0f".format(r.lengthM)} " +
                 "avg_spacing_m=${"%.1f".format(r.avgSpacingM)} route_m=${routeDistanceM?.let { "%.0f".format(it) } ?: "--"} " +
                 "valid=${r.plan != null} reason=${r.reason} surface=${if (surfaceKnown) "known" else "unknown"} " +
-                "plan_move_min=${r.plan?.let { "%.0f".format(it.totalSec / 60.0) } ?: "--"}"
+                "plan_move_min=${r.plan?.let { "%.0f".format(it.totalSec / 60.0) } ?: "--"} " +
+                "model=${EtaSpeedTable.version} profile=${profile ?: "--"}"
         )
+    }
+
+    /**
+     * Poziom 1 (2026-10-19): plan czasu QBota dla tej trasy -- items [km, ruch_min, postoje_min] od startu
+     * (te same dane co PLAN CZASU w STATS v2). Pusta lista = brak planu (wraca poziom 2). Dlugosc niezgodna
+     * z trasa Karoo o > 5% -> plan odrzucony.
+     */
+    @Synchronized
+    fun setQbotPlan(items: List<FloatArray>) {
+        if (items === qItemsRef) return
+        qItemsRef = items
+        val had = qPlan != null
+        qPlan = null; qStopsCum = null
+        if (items.size >= 2) {
+            val lengthM = items.last()[0] * 1000.0
+            val rd = routeDistanceM
+            val ok = lengthM >= 500.0 && (rd == null || rd <= 0.0 || abs(lengthM - rd) / rd <= EtaPlanner.MAX_LENGTH_MISMATCH)
+            if (ok) {
+                val n = kotlin.math.ceil(lengthM / EtaPlanner.STEP_M).toInt().coerceAtLeast(1)
+                val cum = DoubleArray(n + 1); val st = DoubleArray(n + 1)
+                for (i in 1..n) {
+                    val km = (min(i * EtaPlanner.STEP_M, lengthM) / 1000.0).toFloat()
+                    val q = planInterp(items, km) ?: (0f to 0f)
+                    cum[i] = max(cum[i - 1], q.first * 60.0); st[i] = max(st[i - 1], q.second * 60.0)
+                }
+                qPlan = EtaPlan(EtaPlanner.STEP_M, lengthM, cum)
+                qStopsCum = st
+            }
+            log("QEXT_ETA_QBOT items=${items.size} len_m=${"%.0f".format(lengthM)} route_m=${rd?.let { "%.0f".format(it) } ?: "--"} " +
+                "valid=${qPlan != null} plan_move_min=${qPlan?.let { "%.0f".format(it.totalSec / 60.0) } ?: "--"} " +
+                "plan_stops_min=${qStopsCum?.let { "%.0f".format(it.last() / 60.0) } ?: "--"}")
+        }
+        if (had != (qPlan != null)) { prevPos = null; aF = 0.0; pF = 0.0; aS = 0.0; pS = 0.0 }   // inne zrodlo planu = kalibracja od zera
+    }
+
+    private fun stopsAt(cum: DoubleArray, stepM: Double, posM: Double): Double {
+        val i = (posM / stepM).toInt().coerceIn(0, cum.size - 2)
+        val f = ((posM - i * stepM) / stepM).coerceIn(0.0, 1.0)
+        return cum[i] + f * (cum[i + 1] - cum[i])
     }
 
     /** E1.7: nowa jazda (trasa zostaje, kalibracja i postoje od zera). */
@@ -272,8 +393,10 @@ class EtaEngine(
         longStopsKm.clear()
     }
 
-    private fun posFromRemaining(remainingM: Double): Double? {
-        val p = plan ?: return null
+    private fun posFromRemaining(remainingM: Double): Double? = posIn(plan, remainingM)
+
+    private fun posIn(p: EtaPlan?, remainingM: Double): Double? {
+        p ?: return null
         val rd = routeDistanceM
         val scale = if (rd != null && rd > 0.0) p.lengthM / rd else 1.0
         return (p.lengthM - remainingM * scale).coerceIn(0.0, p.lengthM)
@@ -323,8 +446,9 @@ class EtaEngine(
         }
 
         // --- poziom 2: korekta planu
-        val pos = if (hasRoute && remainingM > 0.0) posFromRemaining(remainingM) else null
-        val p = plan
+        val qp = qPlan
+        val p = qp ?: plan
+        val pos = if (hasRoute && remainingM > 0.0) posIn(p, remainingM) else null
         if (p != null && pos != null) {
             val prev = prevPos
             if (isMoving && prev != null) {
@@ -350,7 +474,7 @@ class EtaEngine(
         var remMoving = 0.0
         if (hasRoute && remainingM > 0.0) {
             if (p != null && pos != null) {
-                level = 2
+                level = if (qp != null) 1 else 2
                 remMoving = (p.totalSec - p.timeAt(pos)) * factor
             } else {
                 level = 3
@@ -361,12 +485,16 @@ class EtaEngine(
 
         // --- pula krotkich postojow
         val doneKm = rideDistanceM / 1000.0
-        val expDone = EtaSpeedTable.shortStopsSec(doneKm)
+        val qs = qStopsCum
+        val useQ = qp != null && qs != null && pos != null
+        val expDone = if (useQ) stopsAt(qs!!, qp!!.stepM, pos!!)
+            else EtaSpeedTable.shortStopsSec(doneKm, movingSec / 3600.0, profile)
         val s = if (doneKm >= 15.0 && expDone > 0.0) {
             val raw = (shortStopSec / expDone).coerceIn(0.5, 2.0)
             1.0 + min(1.0, doneKm / 40.0) * (raw - 1.0)
         } else 1.0
-        var pool = EtaSpeedTable.shortStopsSec(remKm) * s
+        var pool = (if (useQ) max(0.0, qs!!.last() - stopsAt(qs, qp!!.stepM, pos!!))
+            else EtaSpeedTable.shortStopsSec(remKm, remMoving / 3600.0, profile)) * s
         if (!isMoving && curStopSec in 0.0..LONG_STOP_SEC) pool = max(0.0, pool - curStopSec)
 
         val etaMs = if (level > 0) (nowMs + ((remMoving + pool) * 1000.0).toLong()).coerceAtLeast(nowMs + 60_000L) else 0L

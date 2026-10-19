@@ -39,6 +39,9 @@ object PlanProfile {
         (0 until arr.length()).map { i -> val a = arr.getJSONArray(i); floatArrayOf(a.getDouble(0).toFloat(), a.getDouble(1).toFloat(), a.getDouble(2).toFloat()) }
     } catch (e: Exception) { emptyList() }
 
+    /** Biezacy plan (ta sama lista dopoki trasa sie nie zmieni) -- ETA poziom 1 (EtaEngine.setQbotPlan). */
+    fun snapshot(): List<FloatArray> = items
+
     /** (ruch_min, postoje_min) wg planu w danym km; null = brak profilu. */
     fun at(km: Float): Pair<Float, Float>? = interp(items, km)
 

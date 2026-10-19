@@ -40,3 +40,8 @@ ETA = godzina przyjazdu NA MIEJSCE (czas calkowity: jazda + krotkie postoje).
 - Barberfish (Apache 2.0): dwie srednie DEWMA + prior w ETA; docs/sdk-findings.md.
 - QBot: `docs/ROUTE_TIME_ESTIMATE_V2.md` (dokladnosc czesci jezdnej ~+-15%).
 - Powiazane: `docs/FIELD_LOOK_PLAN.md` (wyglad pol).
+
+
+## 2026-10-19 -- poziom 1 + model z QBota
+- Poziom 1: trasa znana QBotowi -> plan czasu QBota (GET /api/plan/by-name, te same dane co PLAN CZASU) jako plan ruchu i postojow co 100 m; korekta 'jak jedziesz dzis' bez zmian; plan dluzszy/krotszy od trasy Karoo o > 5% -> odrzucony (log QEXT_ETA_QBOT).
+- Poziom 2: tabela predkosci i postoje profili z /ride-readiness 'etaModel' (wersja; podmiana tylko przy nowej wersji, AthleteDataStore eta_model_v1). Profil: dluga wg p75 miesiaca, dzien roboczy = trening, weekend = krotka. Postoje od 1. km: mikro x km + krotkie x godziny ruchu (QBot model czasu v4, docs/RIDE_PROFILES.md w QBot). Tabela wbudowana = zapas.
