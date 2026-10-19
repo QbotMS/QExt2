@@ -71,7 +71,7 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
         }
 
         // trendy srednich (zmiana w ~10 min)
-        val trNp = SpeedVsAvg(tauS = 30f, thr = 5f, vMin = -1f);   // NP 5: moc 30 s vs NP 5 val trSpd = SpeedVsAvg(); val trHr = Trend(2f); val trCad = Trend(2f)
+        val trNp = SpeedVsAvg(tauS = 30f, thr = 5f, vMin = -1f); val trSpd = SpeedVsAvg(); val trHr = Trend(2f); val trCad = Trend(2f)
         // srednie tetno liczone lokalnie (tylko w ruchu)
         var hrSum = 0L
         var hrN = 0L
