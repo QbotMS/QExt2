@@ -71,7 +71,7 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
         }
 
         // trendy srednich (zmiana w ~10 min)
-        val trCp = Trend(10f); val trSpd = SpeedVsAvg(); val trHr = Trend(2f); val trCad = Trend(2f)
+        val trNp = SpeedVsAvg(tauS = 30f, thr = 5f, vMin = -1f); val trSpd = SpeedVsAvg(); val trHr = Trend(2f); val trCad = Trend(2f)
         // srednie tetno liczone lokalnie (tylko w ruchu)
         var hrSum = 0L
         var hrN = 0L
@@ -99,7 +99,7 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
                     if (p.hrFreshnessMs < 12_000L && p.hr > 40 && p.speedKmh > 3.0) { hrSum += p.hr; hrN++ }
                     val d = try { toData(agg, p, s, s.avgHrBpm.takeIf { it > 0 }).let { dd ->
                         val now = System.currentTimeMillis()
-                        dd.copy(route = if (v2) Kokpit2Route.of(agg, s) else null, cpTrend = trCp.push(now, dd.cpe5W), avgSpeedTrend = trSpd.push(now, dd.speedKmh, dd.avgSpeedKmh),
+                        dd.copy(route = if (v2) Kokpit2Route.of(agg, s) else null, cpTrend = trNp.push(now, dd.powerW?.toFloat(), dd.cpe5W), avgSpeedTrend = trSpd.push(now, dd.speedKmh, dd.avgSpeedKmh),
                             hrAvgTrend = trHr.push(now, dd.hrAvg?.toFloat()), cadAvgTrend = trCad.push(now, dd.cadenceAvg?.toFloat()))
                     } } catch (e: Throwable) {
                         Log.w(TAG, "QEXT_KOKPIT_INST_DATA_FAIL msg=${e.message}")
@@ -197,18 +197,21 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
 
 /** 18.10.2026: znak sredniej predkosci -- czy jazda TERAZ podnosi (+1, zielony) czy obniza (-1, czerwony) srednia:
  *  predkosc wygladzona z ~60 s wzgledem sredniej, martwa strefa 0,5 km/h. Na postoju / bez danych 0 (szary). */
-class SpeedVsAvg {
+/** Czy biezaca wartosc podnosi (+1) czy obniza (-1) srednia: srednia wykladnicza z tauS s vs srednia, prog thr.
+ *  Predkosc vs srednia (tau 60 s, 0,5 km/h, ponizej 3 km/h = postoj -> 0); 19.10.2026 NP 5: moc vs NP 5 (tau 30 s jak okno NP,
+ *  prog 5 W, bez progu postoju -- toczenie sie bez pedalowania tez obniza NP 5). */
+class SpeedVsAvg(private val tauS: Float = 60f, private val thr: Float = 0.5f, private val vMin: Float = 3f) {
     private var ema: Float? = null
     private var lastMs = 0L
     fun push(now: Long, v: Float?, avg: Float?): Int {
         if (v == null || avg == null || avg <= 0f) return 0
         val dt = if (lastMs == 0L) 1f else ((now - lastMs) / 1000f).coerceIn(0.2f, 10f)
         lastMs = now
-        val a = (dt / 60f).coerceIn(0.01f, 1f)
+        val a = (dt / tauS).coerceIn(0.01f, 1f)
         val e = ema?.let { it + a * (v - it) } ?: v
         ema = e
-        if (v < 3f) return 0
-        return when { e > avg + 0.5f -> 1; e < avg - 0.5f -> -1; else -> 0 }
+        if (v < vMin) return 0
+        return when { e > avg + thr -> 1; e < avg - thr -> -1; else -> 0 }
     }
 }
 
@@ -247,7 +250,7 @@ object KokpitInstDemo {
             cadence = cad, cadenceAvg = 85, optCadLow = 80, optCadHigh = 95,
             gearFront = 36, gearRear = rear, cogs = cogs, recCog = null,
             // demo: trend sredniej predkosci zmienia sie w cyklu 3 min: rosnie / bez zmian / spada
-            cpTrend = if (alarm) -1 else 0, avgSpeedTrend = when (((now / 60000L) % 3L).toInt()) { 0 -> 1; 1 -> 0; else -> -1 }, hrAvgTrend = 0, cadAvgTrend = 0,
+            cpTrend = when (((now / 40000L) % 3L).toInt()) { 0 -> 1; 1 -> -1; else -> 0 }, avgSpeedTrend = when (((now / 60000L) % 3L).toInt()) { 0 -> 1; 1 -> 0; else -> -1 }, hrAvgTrend = 0, cadAvgTrend = 0,
             powerCeilingW = 285,
             hrDriftLevel = if (alarm) 2 else if (t >= 40f) 1 else 0,
             demo = true,

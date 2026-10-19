@@ -251,6 +251,14 @@ object Kokpit2InstRenderer {
         val lRight = cx - g - w(npTxt, ref) - 2f
         t(c, "NP", lRight, capTop + ls * CAP, ls, lc, false, Paint.Align.RIGHT)
         t(c, "5", lRight - lw / 2f, capTop + ls * CAP + ls * 0.85f, ls, lc, false, Paint.Align.CENTER)
+        // 19.10: trojkat trendu NP 5 jak przy sredniej (lustrzanie, z lewej podpisu): zielony w gore = biezaca moc podnosi NP 5
+        if (d.cpTrend != 0) {
+            val aw = 14f; val ah = 16f; val ax = lRight - lw - 4f - aw; val ay = refBase - ref * CAP / 2f - ah / 2f
+            val p = Path()
+            if (d.cpTrend > 0) { p.moveTo(ax + aw / 2f, ay); p.lineTo(ax + aw, ay + ah); p.lineTo(ax, ay + ah) }
+            else { p.moveTo(ax, ay); p.lineTo(ax + aw, ay); p.lineTo(ax + aw / 2f, ay + ah) }
+            p.close(); fp.color = lc; c.drawPath(p, fp)
+        }
         val avTxt = d.avgSpeedKmh?.let { fmt("%.1f", it) } ?: "—"
         t(c, avTxt, cx + g, refBase, ref, if (d.avgSpeedKmh != null) WHITE else NONE)
         // 18.10: znak sredniej wiekszy i grubszy + strzalka: zielona w gore = podnosisz srednia, czerwona w dol = obnizasz

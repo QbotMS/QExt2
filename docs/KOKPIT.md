@@ -143,3 +143,8 @@ Znane: pierwsze zapytanie EF po starcie pada (`karoo_system_not_ready`), ponowie
 - NP 5 = NP z ostatnich 5 min ruchu, liczone na biezaco (StatsCalculator.np5Watts). Kolor podpisu = zmiana wzgledem 10 min temu,
   dopiero od 10 W (bylo 3 W -> prawie zawsze czerwony/zielony). STATS v2 "5′" pokazuje to samo ciagle NP 5.
 - INFO: brak zasiegu (code 0) nie przelacza na "bez trasy" -- zostaje ostatnia prognoza z trasy; tryb bez trasy bierze ostatni znany kurs.
+
+### 19.10.2026 -- trojkat trendu przy NP 5
+- Przy NP 5 (z lewej podpisu, lustrzanie do sredniej predkosci) trojkat: zielony w gore = biezaca moc (srednia wykladnicza 30 s)
+  jest wyzsza od NP 5 o > 5 W, czyli NP 5 rosnie; czerwony w dol = nizsza (takze toczenie sie bez pedalowania); brak = bez zmian.
+  Kolor podpisu NP 5 ten sam. Zastapilo stare porownanie z NP 5 sprzed 10 min (spoznione o kilka minut). `SpeedVsAvg(30 s, 5 W)`.
