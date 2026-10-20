@@ -746,10 +746,21 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         if (homeBgJob?.isActive == true) return
         homeBgJob = serviceScope.launch {
             while (true) {
+                if (!rideRecording) runDarkMenu()   // 0.4.6: ciemne menu po restarcie (raz na uruchomienie Karoo)
                 if (!rideRecording) refreshHomeBg()
                 delay(30 * 60_000L)
             }
         }
+    }
+
+    private var darkThread: Thread? = null
+
+    private fun runDarkMenu() {
+        if (rideRecording || darkThread?.isAlive == true) return
+        darkThread = Thread {
+            val r = com.qext2.primary.launcher.DarkMenu.ensure(this)
+            if (r != "DONE_THIS_BOOT" && r != "GIVEUP") com.qext2.primary.util.RideFileLog.append("DARKMENU $r")
+        }.apply { isDaemon = true; start() }
     }
 
     private fun refreshHomeBg() {

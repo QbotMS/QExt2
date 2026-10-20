@@ -41,7 +41,7 @@ android {
         targetSdk = 35
         versionCode = (System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1).coerceAtLeast(1)
         // wersja widoczna na Karoo: numer wersji + numer buildu CI (np. "0.4.0 (313)")
-        versionName = "0.4.5 (" + (System.getenv("GITHUB_RUN_NUMBER") ?: "lokalny") + ")"
+        versionName = "0.4.6 (" + (System.getenv("GITHUB_RUN_NUMBER") ?: "lokalny") + ")"
         buildConfigField("String", "QEXT_GATE_URL", "\"$gateUrl\"")
         buildConfigField("String", "QEXT_GATE_TOKEN", "\"$gateToken\"")
         buildConfigField("String", "QEXT_READINESS_URL", "\"$readinessUrl\"")
@@ -96,6 +96,9 @@ android {
 
 dependencies {
     implementation("io.hammerhead:karoo-ext:1.1.9")
+    // 0.4.6: ciemne menu Karoo po restarcie - polaczenie adb (TLS) z samym soba
+    implementation("com.github.MuntashirAkon:libadb-android:3.1.1")
+    implementation("org.conscrypt:conscrypt-android:2.5.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
