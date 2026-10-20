@@ -35,6 +35,23 @@
                 android:resource="@xml/extension_info" />
         </service>
 
+        <!-- 20.10.2026: Karoo nie zapamietuje zaufanych sieci dla debugowania bezprzewodowego (lista pusta mimo
+             "Always allow") - ta usluga zatwierdza TYLKO okno com.android.systemui WifiDebuggingActivity i TYLKO
+             przez 45 s po wlaczeniu debugowania przez DarkMenu (ciemne menu po restarcie). Wlacza ja sam QExt2
+             (Settings.Secure, WRITE_SECURE_SETTINGS). Opis: QBot docs/KAROO_CIEMNE_MENU_AUDYT.md -->
+        <service
+            android:name=".launcher.DebugDialogClicker"
+            android:exported="true"
+            android:label="QExt2 - ciemne menu"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/qext2_accessibility" />
+        </service>
+
         <activity
             android:name=".setup.SetupActivity"
             android:exported="true"
