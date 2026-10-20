@@ -113,6 +113,9 @@ object H10Recorder {
                 lastBattery = level
                 log("H10_BATTERY $level%")
             }
+            // 8.4.0-java17: klasa bazowa nie implementuje tych dwoch -- puste (nieuzywane)
+            override fun disInformationReceived(identifier: String, disInfo: com.polar.androidcommunications.api.ble.model.DisInfo) {}
+            override fun htsNotificationReceived(identifier: String, data: com.polar.sdk.api.model.PolarHealthThermometerData) {}
         })
         api = a
         return a
