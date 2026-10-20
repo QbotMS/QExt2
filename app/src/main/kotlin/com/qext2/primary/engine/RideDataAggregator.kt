@@ -71,6 +71,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val monsterDevBuf = ArrayDeque<Double>()
     @Volatile private var monsterCand = 0
     @Volatile private var monsterCandN = 0
+    @Volatile private var resumeIdleSinceMs = 0L   // 20.10: wznowiona jazda bez nagrywania -> odrzuc po 10 s
     private val lastMonsterLogMsRef = AtomicReference(0L)
     private val gradeRef = AtomicReference(0.0)
     private val filteredGradeRef = AtomicReference(0.0)
@@ -1041,7 +1042,18 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                 val elapsedSec = if (sdkPlausible) karooElapsedSec else localElapsedSec
                 lastChosenElapsedRef.set(elapsedSec)
                 if (karooElapsedSec > 0L) lastSdkElapsedRef.set(karooElapsedSec)
-                if (elapsedSec % 5 == 0L && elapsedSec > 0L) {
+                // 20.10: po jezdzie Karoo jest w Idle, a pola dalej licza podglad. Migawka tylko w trakcie nagrywania,
+                // a wznowienie starej jazdy bez nagrywania odrzucamy (inaczej po restarcie DST = dystans poprzedniej jazdy).
+                val recNow = com.qext2.primary.active.ActiveMessageHub.recording
+                if (resumedRef.get() && !recNow) {
+                    if (resumeIdleSinceMs == 0L) resumeIdleSinceMs = now
+                    else if (now - resumeIdleSinceMs > 10_000L) {
+                        discardResumedRide(0.0, resumedDistanceRef.get())
+                        distanceMetersRef.set(0.0)
+                        resumeIdleSinceMs = 0L
+                    }
+                } else resumeIdleSinceMs = 0L
+                if (recNow && elapsedSec % 5 == 0L && elapsedSec > 0L) {
                     AthleteDataStore.saveElapsedSnapshot(elapsedSec, distanceMetersRef.get())
                     val snap = statsCalc.snapshotForCrashRecovery()
                     AthleteDataStore.saveStatsCalcSnapshot(
