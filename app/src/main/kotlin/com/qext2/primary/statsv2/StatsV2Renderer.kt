@@ -803,7 +803,7 @@ object StatsV2Renderer {
         return bmp
     }
 
-    private class WxS(val x: Float, val tMin: Float, val km: Float, val feels: Float?, val mm: Float, val prob: Float?, val head: Float?, val gust: Float?)
+    private class WxS(val x: Float, val tMin: Float, val km: Float, val feels: Float?, val mm: Float, val prob: Float?, val head: Float?, val gust: Float?, val ws: Float? = null)
 
     private fun lerpBy(items: List<com.qext2.primary.info.WxItem>, key: (com.qext2.primary.info.WxItem) -> Float, v: Float,
                        sel: (com.qext2.primary.info.WxItem) -> Float?): Float? {
@@ -821,7 +821,7 @@ object StatsV2Renderer {
 
     /** serie prognozy (os: km na trasie albo minuty od pobrania), budowane RAZ na obiekt prognozy */
     private class Ser(val x: FloatArray, val y: FloatArray)
-    private class Sers(val t: Ser, val feels: Ser, val mm: Ser, val prob: Ser, val head: Ser, val gust: Ser)
+    private class Sers(val t: Ser, val feels: Ser, val mm: Ser, val prob: Ser, val head: Ser, val gust: Ser, val ws: Ser)
     private var sersFor: com.qext2.primary.info.InfoWx? = null
     private var sersVal: Sers? = null
     private fun sers(wx: com.qext2.primary.info.InfoWx): Sers {
@@ -830,7 +830,7 @@ object StatsV2Renderer {
             val pts = wx.items.mapNotNull { w -> sel(w)?.let { v -> (if (wx.route) (w.km ?: 0f) else w.t) to v } }.sortedBy { it.first }
             return Ser(FloatArray(pts.size) { pts[it].first }, FloatArray(pts.size) { pts[it].second })
         }
-        val s = Sers(mk { it.t }, mk { it.feels }, mk { it.mm }, mk { it.prob }, mk { it.head }, mk { it.gust })
+        val s = Sers(mk { it.t }, mk { it.feels }, mk { it.mm }, mk { it.prob }, mk { it.head }, mk { it.gust }, mk { it.ws })
         sersFor = wx; sersVal = s
         return s
     }
@@ -907,7 +907,7 @@ object StatsV2Renderer {
             for (i in 0..n) {
                 val f = i / n.toFloat(); val km = kmNow + spanKm * f
                 val t = (lerpS(S.t, km) ?: 0f) - since
-                samples.add(WxS(XN + W * f, t, km, lerpS(S.feels, km), lerpS(S.mm, km) ?: 0f, lerpS(S.prob, km), lerpS(S.head, km), lerpS(S.gust, km)))
+                samples.add(WxS(XN + W * f, t, km, lerpS(S.feels, km), lerpS(S.mm, km) ?: 0f, lerpS(S.prob, km), lerpS(S.head, km), lerpS(S.gust, km), lerpS(S.ws, km)))
             }
             spanMin = (samples.last().tMin - samples.first().tMin).coerceAtLeast(1f)
         } else {
@@ -916,7 +916,7 @@ object StatsV2Renderer {
             val S = sers(wx)
             for (i in 0..n) {
                 val f = i / n.toFloat(); val tm = spanMin * f; val q = tm + since
-                samples.add(WxS(XN + W * f, tm, 0f, lerpS(S.feels, q), lerpS(S.mm, q) ?: 0f, lerpS(S.prob, q), lerpS(S.head, q), lerpS(S.gust, q)))
+                samples.add(WxS(XN + W * f, tm, 0f, lerpS(S.feels, q), lerpS(S.mm, q) ?: 0f, lerpS(S.prob, q), lerpS(S.head, q), lerpS(S.gust, q), lerpS(S.ws, q)))
             }
         }
         val t0 = samples.first().tMin
@@ -999,10 +999,13 @@ object StatsV2Renderer {
         text(c, "WIATR", X(16f), yy(306f + dw), F(24f), LABEL)
         text(c, "m/s", X(16f) + textW("WIATR", F(24f)) + F(6f), yy(308f + dw), F(20f), UNIT)
         val WT = yy(if (showRain) 334f else 282f); val Y0 = yy(if (showRain) 364f else 338f)
-        val hs = samples.mapNotNull { it.head }
+        // 0.4.10: bez trasy kierunek wzgledny nie ma sensu (kurs sie zmienia) -> sama sila wiatru w czasie
+        val hs = if (route) samples.mapNotNull { it.head } else emptyList()
+        val wsv = if (route) emptyList() else samples.mapNotNull { it.ws }
         val gmax = samples.filter { (it.head ?: 0f) > 0f }.mapNotNull { it.gust }.maxOrNull() ?: 0f
         // 16.10: bez porywow -- w jezdzie liczy sie staly wiatr; skala wg wiatru (min. 4 m/s, zeby slaby wiatr nie wygladal jak mocny)
-        val wmax = Math.max(4.0, Math.ceil((hs.maxOfOrNull { kotlin.math.abs(it) } ?: 0f).toDouble())).toFloat()
+        val wmax = if (route) Math.max(4.0, Math.ceil((hs.maxOfOrNull { kotlin.math.abs(it) } ?: 0f).toDouble())).toFloat()
+                   else Math.max(4.0, Math.ceil((wsv.maxOrNull() ?: 0f).toDouble())).toFloat() / 2f   // cala wysokosc = 0..maks
         val ky = (Y0 - WT) / wmax
         stp.color = Color.parseColor("#2A3341"); stp.strokeWidth = F(1.5f)
         c.drawLine(X0, Y0 - wmax * ky, X1, Y0 - wmax * ky, stp); c.drawLine(X0, Y0 + wmax * ky, X1, Y0 + wmax * ky, stp)
@@ -1037,8 +1040,25 @@ object StatsV2Renderer {
             text(c, (if (mx > 0.5f) "maks. czołowy ${Math.round(mx)}" else "maks. w plecy ${Math.round(-(hs.minOrNull() ?: 0f))}") +
                 (samples.first().gust?.let { " · porywy teraz ${Math.round(it)}" } ?: ""), X1, yy(308f + dw), F(22f), SUB, Paint.Align.RIGHT)
         }
-        stp.color = Color.parseColor("#C9D2DC"); stp.strokeWidth = F(1.5f); c.drawLine(X0, Y0, X1, Y0, stp)
-        ylab(c, "+${wmax.toInt()}", X(14f), Y0 - wmax * ky, Color.parseColor("#F0A6CF")); ylab(c, "−${wmax.toInt()}", X(14f), Y0 + wmax * ky, Color.parseColor("#8FD18A"))
+        if (route) {
+            stp.color = Color.parseColor("#C9D2DC"); stp.strokeWidth = F(1.5f); c.drawLine(X0, Y0, X1, Y0, stp)
+            ylab(c, "+${wmax.toInt()}", X(14f), Y0 - wmax * ky, Color.parseColor("#F0A6CF")); ylab(c, "−${wmax.toInt()}", X(14f), Y0 + wmax * ky, Color.parseColor("#8FD18A"))
+        } else if (wsv.isNotEmpty()) {
+            val YB = Y0 + wmax * ky; val topV = 2f * wmax
+            val ar = Path(); ar.moveTo(X0, YB)
+            for (sm in samples) ar.lineTo(sm.x, YB - (sm.ws ?: 0f) * ky)
+            ar.lineTo(X1, YB); ar.close()
+            fp.color = Color.parseColor("#2E5F8F"); c.drawPath(ar, fp)
+            val ln = Path(); var f1 = true
+            for (sm in samples) { val y = YB - (sm.ws ?: 0f) * ky; if (f1) { ln.moveTo(sm.x, y); f1 = false } else ln.lineTo(sm.x, y) }
+            stp.color = Color.BLACK; stp.strokeWidth = F(8f); c.drawPath(ln, stp)
+            stp.color = Color.parseColor("#9CC7FF"); stp.strokeWidth = F(4.5f); c.drawPath(ln, stp)
+            stp.color = Color.parseColor("#C9D2DC"); stp.strokeWidth = F(1.5f); c.drawLine(X0, YB, X1, YB, stp)
+            ylab(c, "${topV.toInt()}", X(14f), Y0 - wmax * ky, SUB); ylab(c, "0", X(14f), YB, SUB)
+            val mxS = samples.filter { it.ws != null }.maxByOrNull { it.ws!! }
+            text(c, "teraz ${Math.round(samples.first().ws ?: 0f)}" + (mxS?.let { " · maks. ${Math.round(it.ws!!)} o ${clockAt(it.tMin)}" } ?: "") +
+                (samples.first().gust?.let { " · porywy ${Math.round(it)}" } ?: ""), X1, yy(308f + dw), F(22f), SUB, Paint.Align.RIGHT)
+        }
         // ---------------- os X: teraz + rowne podzialki (+ meta przy calosci), swit/zmierzch
         data class Tk(val x: Float, val top: String, val u: String, val bot: String, val end: Boolean = false)
         val ticks = ArrayList<Tk>()
@@ -1095,7 +1115,7 @@ object StatsV2Renderer {
         fun nowDot(y: Float) { fp.color = Color.parseColor("#111315"); c.drawCircle(XN, y, F(9f), fp); fp.color = Color.parseColor("#39FF14"); c.drawCircle(XN, y, F(6.5f), fp) }
         samples.first().feels?.let { f0 -> if (fs.isNotEmpty()) { val lo2 = Math.floor(fs.minOrNull()!!.toDouble()).toFloat() - 1f; val hi2 = Math.ceil(fs.maxOrNull()!!.toDouble()).toFloat() + 1f; nowDot(TB - (f0 - lo2) / (hi2 - lo2) * (TB - TT)) } }
         if (showRain) nowDot(RB - samples.first().mm.coerceAtMost(Math.max(2.0, Math.ceil(samples.maxOf { it.mm }.toDouble())).toFloat()) / Math.max(2.0, Math.ceil(samples.maxOf { it.mm }.toDouble())).toFloat() * (RB - RT))
-        nowDot(Y0 - (samples.first().head ?: 0f) * ky)
+        nowDot(if (route) Y0 - (samples.first().head ?: 0f) * ky else Y0 + wmax * ky - (samples.first().ws ?: 0f) * ky)
         for (t in sunTicks) {
             val al = if (t.x > X1 - F(40f)) Paint.Align.RIGHT else Paint.Align.CENTER
             text(c, t.top, t.x, yy(416f), F(22f), SUB, al)

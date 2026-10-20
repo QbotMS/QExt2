@@ -12,7 +12,8 @@ import java.net.URLEncoder
 import java.util.Locale
 
 /** Punkt pogody z QBota. route: km + t (min od chwili pobrania); bez trasy: tylko t. head: + = wiatr w twarz, - = w plecy (m/s). */
-data class WxItem(val km: Float?, val t: Float, val feels: Float?, val mm: Float?, val prob: Float?, val head: Float?, val gust: Float?)
+data class WxItem(val km: Float?, val t: Float, val feels: Float?, val mm: Float?, val prob: Float?, val head: Float?, val gust: Float?,
+                  val ws: Float? = null)   // 0.4.10: sila wiatru m/s (bez trasy)
 
 /** radarUntilMin: do ktorej minuty (od pobrania) opad pochodzi z radaru QBota; null = sam model. */
 data class InfoWx(val route: Boolean, val items: List<WxItem>, val fetchedMs: Long, val radarUntilMin: Float? = null,
@@ -115,7 +116,7 @@ object InfoWeather {
                 val j = arr.getJSONObject(i)
                 val t = f(j, "t") ?: continue
                 if (j.optString("src") == "radar") radarMax = maxOf(radarMax ?: t, t)
-                out.add(WxItem(if (route) f(j, "km") else null, t, f(j, "feels"), f(j, "mm"), f(j, "prob"), f(j, "head"), f(j, "gust")))
+                out.add(WxItem(if (route) f(j, "km") else null, t, f(j, "feels"), f(j, "mm"), f(j, "prob"), f(j, "head"), f(j, "gust"), f(j, "ws")))
             }
             InfoWx(route, if (route) out.filter { it.km != null }.sortedBy { it.km } else out.sortedBy { it.t }, System.currentTimeMillis(), radarMax,
                 o.optBoolean("live", false), o.optDouble("age_min", 0.0).toFloat())

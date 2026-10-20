@@ -41,7 +41,7 @@ android {
         targetSdk = 35
         versionCode = (System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1).coerceAtLeast(1)
         // wersja widoczna na Karoo: numer wersji + numer buildu CI (np. "0.4.0 (313)")
-        versionName = "0.4.9 (" + (System.getenv("GITHUB_RUN_NUMBER") ?: "lokalny") + ")"
+        versionName = "0.4.10 (" + (System.getenv("GITHUB_RUN_NUMBER") ?: "lokalny") + ")"
         buildConfigField("String", "QEXT_GATE_URL", "\"$gateUrl\"")
         buildConfigField("String", "QEXT_GATE_TOKEN", "\"$gateToken\"")
         buildConfigField("String", "QEXT_READINESS_URL", "\"$readinessUrl\"")
