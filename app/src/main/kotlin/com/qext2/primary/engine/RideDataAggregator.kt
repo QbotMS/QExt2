@@ -68,6 +68,9 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
     private val lastLoggedPowerSrcRef = AtomicReference<String?>(null)
     private val bikeDetector = BikeDetector()
     private val lastMonsterCogRef = AtomicReference(0)
+    private val monsterDevBuf = ArrayDeque<Double>()
+    @Volatile private var monsterCand = 0
+    @Volatile private var monsterCandN = 0
     private val lastMonsterLogMsRef = AtomicReference(0L)
     private val gradeRef = AtomicReference(0.0)
     private val filteredGradeRef = AtomicReference(0.0)
@@ -244,7 +247,12 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
         val AXS_DEFAULT_CASSETTE = listOf(10, 11, 12, 13, 15, 17, 19, 21, 24, 28, 32, 38, 46)  // 10-46 XPLR 13s
         val MONSTER_CASSETTE = listOf(11, 13, 15, 17, 19, 22, 25, 28, 32, 36, 42, 50)           // 11-50 Eagle 12s
         const val MONSTER_CHAINRING = 36
-        const val MONSTER_CIRC_M = 2.300            // 29x2.4 Wicked Will (1:1 z serwerem)
+        // 0.4.13: 2,35 m - skalibrowane z jazdy 20.10 (skupiska rozwiniecia 4,4 i 5,0 m/obr = 36x19 i 36x17 przy 2,35 m;
+        // przy 2,30 m srodki wypadaly miedzy koronkami i bieg skakal)
+        const val MONSTER_CIRC_M = 2.350            // 29x2.4 Wicked Will
+        const val MONSTER_MIN_POWER_W = 50          // 0.4.13: lancuch pod obciazeniem; ponizej (wybieg z krecaca korba) bieg niemierzalny
+        const val MONSTER_MEDIAN_N = 5              // 0.4.13: mediana z 5 s
+        const val MONSTER_HOLD_N = 3                // 0.4.13: nowy bieg dopiero po 3 kolejnych zgodnych odczytach
         const val MONSTER_MIN_CADENCE = 20          // ponizej = zjazd/wybieg -> trzymaj ostatnia
         fun routeStateDecision(rawRoute: Boolean, lastRouteSeenMs: Long, nowMs: Long, graceMs: Long): RouteStateDecision {
             if (rawRoute) return RouteStateDecision(rawRoute = true, effectiveRoute = true, source = "NAV")
@@ -1000,7 +1008,14 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                         gearFrontRef.set(0); gearRearRef.set(0); lastMonsterCogRef.set(0)
                         Log.i(TAG, "QEXT_MONSTER_INIT cleared stale AXS gear")
                     }
-                    val est = estimateMonsterCog(speedRef.get(), cadenceRef.get())
+                    val raw = estimateMonsterCog(speedRef.get(), cadenceRef.get(), powerRef.get())
+                    // 0.4.13: zmiana biegu dopiero po MONSTER_HOLD_N zgodnych odczytach (pojedyncze odczyty to szum)
+                    var est = 0
+                    if (raw > 0) {
+                        if (raw == monsterCand) monsterCandN++ else { monsterCand = raw; monsterCandN = 1 }
+                        val last = lastMonsterCogRef.get()
+                        est = if (last == 0 || raw == last || monsterCandN >= MONSTER_HOLD_N) raw else last
+                    }
                     val cog = if (est > 0) { lastMonsterCogRef.set(est); est } else lastMonsterCogRef.get()
                     val inputsAlive = (now - cadenceFreshnessRef.get()) <= 5000L && (now - speedFreshnessRef.get()) <= 5000L
                     if (now - lastMonsterLogMsRef.get() >= 3000L) {
@@ -1702,9 +1717,14 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
 
     /** Estymacja koronki Monstera: dopasowanie rozwiniecia na obrot korby do 11-50.
      *  Zwraca 0 gdy brak pedalowania/ruchu -> wtedy trzymamy ostatnia. */
-    private fun estimateMonsterCog(speedKmh: Double, cadenceRpm: Int): Int {
-        if (cadenceRpm < MONSTER_MIN_CADENCE || speedKmh <= 0.0) return 0
-        val devObs = (speedKmh / 3.6) * 60.0 / cadenceRpm      // metry na obrot korby
+    private fun estimateMonsterCog(speedKmh: Double, cadenceRpm: Int, powerW: Int): Int {
+        if (cadenceRpm < MONSTER_MIN_CADENCE || speedKmh <= 0.0 || powerW < MONSTER_MIN_POWER_W) return 0
+        val dev1 = (speedKmh / 3.6) * 60.0 / cadenceRpm      // metry na obrot korby
+        // 0.4.13: mediana z ostatnich MONSTER_MEDIAN_N sekund (kadencja i predkosc nie zmieniaja sie w tej samej chwili)
+        monsterDevBuf.addLast(dev1)
+        while (monsterDevBuf.size > MONSTER_MEDIAN_N) monsterDevBuf.removeFirst()
+        val sorted = monsterDevBuf.sorted()
+        val devObs = sorted[sorted.size / 2]
         var best = 0
         var bestErr = Double.MAX_VALUE
         for (cog in MONSTER_CASSETTE) {
