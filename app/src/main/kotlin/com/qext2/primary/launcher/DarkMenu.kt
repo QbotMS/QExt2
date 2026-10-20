@@ -30,6 +30,17 @@ object DarkMenu {
     // 0.4.9: echo PRZED restartem ekranu startowego, zeby potwierdzenie doszlo zanim adbd zamknie strumien
     private const val CMD = "shell:setprop debug.hwui.force_dark true && echo QEXT2_OK; am force-stop io.hammerhead.launcherapp"
 
+    /** 0.4.18: czy ciemne menu juz ustawione w tym uruchomieniu Karoo */
+    fun doneThisBoot(ctx: Context): Boolean {
+        val boot = Settings.Global.getInt(ctx.contentResolver, "boot_count", -1)
+        return boot >= 0 && ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("done_boot", -2) == boot
+    }
+
+    fun onWifi(ctx: Context): Boolean = try {
+        val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        cm.getNetworkCapabilities(cm.activeNetwork)?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) == true
+    } catch (e: Exception) { true }
+
     /** Wynik: DONE_THIS_BOOT | GIVEUP | NO_KEY | CONNECT_FAIL | SET ... | ERR:... (blokuje - wolac z osobnego watku). */
     fun ensure(ctx: Context): String {
         val cr = ctx.contentResolver

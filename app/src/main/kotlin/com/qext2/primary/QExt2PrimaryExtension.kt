@@ -766,8 +766,25 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         }
     }
 
+    /** 0.4.18: 45 s po starcie Karoo bez Wi-Fi i bez ciemnego menu -> obudz hotspot iPhone'a (potem co 10 min, max 3). */
+    private var hsJob: Job? = null
+
+    private fun scheduleHotspotWake() {
+        if (hsJob?.isActive == true) return
+        hsJob = serviceScope.launch {
+            delay((45_000L - android.os.SystemClock.elapsedRealtime()).coerceAtLeast(5_000L))
+            repeat(3) {
+                if (com.qext2.primary.launcher.DarkMenu.doneThisBoot(this@QExt2PrimaryExtension) ||
+                    com.qext2.primary.launcher.DarkMenu.onWifi(this@QExt2PrimaryExtension)) return@launch
+                _karooSystem?.let { com.qext2.primary.launcher.HotspotWake.request(this@QExt2PrimaryExtension, it, "no_wifi") }
+                delay(10 * 60_000L + 5_000L)
+            }
+        }
+    }
+
     private fun startHomeBgPolling() {
         watchWifi()
+        scheduleHotspotWake()
         if (homeBgJob?.isActive == true) return
         homeBgJob = serviceScope.launch {
             while (true) {
