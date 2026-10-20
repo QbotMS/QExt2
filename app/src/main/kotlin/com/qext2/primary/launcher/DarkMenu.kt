@@ -27,7 +27,8 @@ class QAdbManager(private val key: PrivateKey, private val cert: Certificate) : 
 
 object DarkMenu {
     private const val PREFS = "qext2_dark_menu"
-    private const val CMD = "shell:setprop debug.hwui.force_dark true; am force-stop io.hammerhead.launcherapp; echo QEXT2_OK"
+    // 0.4.9: echo PRZED restartem ekranu startowego, zeby potwierdzenie doszlo zanim adbd zamknie strumien
+    private const val CMD = "shell:setprop debug.hwui.force_dark true && echo QEXT2_OK; am force-stop io.hammerhead.launcherapp"
 
     /** Wynik: DONE_THIS_BOOT | GIVEUP | NO_KEY | CONNECT_FAIL | SET ... | ERR:... (blokuje - wolac z osobnego watku). */
     fun ensure(ctx: Context): String {
@@ -60,7 +61,19 @@ object DarkMenu {
             m = QAdbManager(key, cert)
             if (!m.autoConnect(ctx.applicationContext, 25_000)) return "CONNECT_FAIL try=${att + 1}"
             val s = m.openStream(CMD)
-            val out = s.openInputStream().bufferedReader().readText()
+            // 0.4.9: adbd zamyka strumien po wykonaniu -> IOException 'Stream closed'; liczy sie zebrane wyjscie
+            val sb = StringBuilder()
+            try {
+                val ins = s.openInputStream()
+                val buf = ByteArray(256)
+                while (true) {
+                    val n = ins.read(buf)
+                    if (n < 0) break
+                    sb.append(String(buf, 0, n))
+                    if (sb.contains("QEXT2_OK")) break
+                }
+            } catch (e: java.io.IOException) { }
+            val out = sb.toString()
             try { s.close() } catch (e: Exception) { }
             if (out.contains("QEXT2_OK")) {
                 p.edit().putInt("done_boot", boot).apply()
