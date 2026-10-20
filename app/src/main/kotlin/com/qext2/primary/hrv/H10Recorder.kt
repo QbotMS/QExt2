@@ -52,6 +52,7 @@ import java.util.zip.GZIPOutputStream
 object H10Recorder {
     private const val PREFS = "qext2_h10"
     private const val K_DEV = "device_id"
+    private const val K_ADDR = "address"   // 0.4.15: adres Bluetooth -- polaczenie bez skanowania (w tle skan nie dziala)
     private const val K_REC = "rec_id"
     private const val READY_TIMEOUT_MS = 45_000L
     private const val SEND_GUARD_MS = 10 * 60_000L
@@ -77,11 +78,15 @@ object H10Recorder {
 
     fun deviceId(): String? = app?.let { prefs().getString(K_DEV, null) }
 
-    fun saveDeviceId(id: String?) {
+    fun saveDeviceId(id: String?, address: String? = null) {
         val e = prefs().edit()
-        if (id == null) e.remove(K_DEV) else e.putString(K_DEV, id)
+        if (id == null) e.remove(K_DEV).remove(K_ADDR) else e.putString(K_DEV, id)
+        if (id != null && !address.isNullOrBlank()) e.putString(K_ADDR, address)
         e.apply()
     }
+
+    /** Czym sie laczyc: adres Bluetooth (bez skanowania), a gdy go brak -- numer pasa (SDK skanuje). */
+    private fun target(): String? = app?.let { prefs().getString(K_ADDR, null) } ?: deviceId()
 
     fun neededPermissions(): Array<String> =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
@@ -107,7 +112,13 @@ object H10Recorder {
                 if (feature == PolarBleApi.PolarBleSdkFeature.FEATURE_POLAR_H10_EXERCISE_RECORDING) ready?.complete(Unit)
             }
             override fun deviceConnected(polarDeviceInfo: PolarDeviceInfo) {
-                log("H10_CONNECTED ${polarDeviceInfo.deviceId}")
+                log("H10_CONNECTED ${polarDeviceInfo.deviceId} ${polarDeviceInfo.address}")
+                // 0.4.15: zapamietaj adres pasa przy kazdym udanym polaczeniu
+                if (polarDeviceInfo.deviceId == deviceId() && polarDeviceInfo.address.isNotBlank() &&
+                    prefs().getString(K_ADDR, null) != polarDeviceInfo.address) {
+                    prefs().edit().putString(K_ADDR, polarDeviceInfo.address).apply()
+                    log("H10_ADDRESS ${polarDeviceInfo.address}")
+                }
             }
             override fun batteryLevelReceived(identifier: String, level: Int) {
                 lastBattery = level
@@ -146,7 +157,7 @@ object H10Recorder {
     // ---------------- start / koniec jazdy ----------------
 
     fun onRideStart(system: KarooSystemService) {
-        val id = deviceId() ?: return
+        val id = target() ?: return
         val ctx = app ?: return
         if (!hasPermissions(ctx)) {
             log("H10_NO_PERMISSION")
@@ -195,7 +206,7 @@ object H10Recorder {
     }
 
     fun onRideEnd(system: KarooSystemService) {
-        val id = deviceId() ?: return
+        val id = target() ?: return
         val exId = prefs().getString(K_REC, null) ?: return
         scope.launch {
             mutex.withLock {
@@ -336,8 +347,8 @@ object H10Recorder {
                 null
             }
             if (found != null) {
-                saveDeviceId(found.deviceId)
-                log("H10_PAIRED ${found.deviceId} ${found.name}")
+                saveDeviceId(found.deviceId, found.address)
+                log("H10_PAIRED ${found.deviceId} ${found.name} ${found.address}")
             }
             withContext(Dispatchers.Main) { onDone(found?.deviceId) }
         }
@@ -345,7 +356,7 @@ object H10Recorder {
 
     /** Sprawdzenie bez jazdy (ustawienia QExt2): polaczenie, stan zapisu, nagrania w pamieci, bateria. */
     fun check(onDone: (String) -> Unit) {
-        val id = deviceId()
+        val id = target()
         if (id == null) { onDone("Najpierw znajdź pas."); return }
         scope.launch {
             val msg = mutex.withLock {
@@ -354,7 +365,7 @@ object H10Recorder {
                     val st = api().requestRecordingStatus(id)
                     val ex = api().listExercises(id).toList().map { it.identifier }
                     delay(1500)
-                    "Połączono z pasem $id.\nZapis teraz: ${if (st.ongoing) "trwa" else "wyłączony"}\n" +
+                    "Połączono z pasem ${deviceId()} (adres ${prefs().getString(K_ADDR, null) ?: "brak"}).\nZapis teraz: ${if (st.ongoing) "trwa" else "wyłączony"}\n" +
                         "Nagrania w pamięci: ${if (ex.isEmpty()) "brak" else ex.joinToString()}\n" +
                         "Bateria pasa: ${if (lastBattery >= 0) "$lastBattery%" else "brak odczytu"}"
                 } catch (e: Exception) {
