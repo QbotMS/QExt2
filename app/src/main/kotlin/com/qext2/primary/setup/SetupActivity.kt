@@ -291,6 +291,11 @@ class SetupActivity : Activity() {
                 h10Msg = "Łączę z pasem…"; render()
                 h.check { m -> h10Msg = m; render() }
             })
+            c.addView(button("Pobierz z pasa", btn) {
+                h10Msg = "Łączę z pasem i pobieram…"; render()
+                h.pullNow { m -> h10Msg = m; render() }
+            })
+            c.addView(label("Gdy Telegram napisze, że HRV nie dotarło (np. Karoo wyłączone zaraz po jeździe).", 13, sub).apply { setPadding(0, dp(4), 0, 0) })
             c.addView(button("Zmień pas", btn) { h.saveDeviceId(null); h10Msg = null; render() })
         }
         return c

@@ -65,6 +65,9 @@ object H10Recorder {
     @Volatile private var api: PolarBleApi? = null
     @Volatile private var ready: CompletableDeferred<Unit>? = null
     @Volatile private var sendingSince = 0L
+    @Volatile private var sys: KarooSystemService? = null   // 0.4.16: do wysylki z przycisku w ustawieniach
+    @Volatile var rideActive = false                         // 0.4.16: trwa jazda (start..koniec)
+        private set
     @Volatile var lastBattery: Int = -1
         private set
 
@@ -157,6 +160,8 @@ object H10Recorder {
     // ---------------- start / koniec jazdy ----------------
 
     fun onRideStart(system: KarooSystemService) {
+        sys = system
+        rideActive = true
         val id = target() ?: return
         val ctx = app ?: return
         if (!hasPermissions(ctx)) {
@@ -206,6 +211,8 @@ object H10Recorder {
     }
 
     fun onRideEnd(system: KarooSystemService) {
+        sys = system
+        rideActive = false
         val id = target() ?: return
         val exId = prefs().getString(K_REC, null) ?: return
         scope.launch {
@@ -284,6 +291,7 @@ object H10Recorder {
 
     /** Wyslij najstarsza oczekujaca paczke; po sukcesie kolejna. Bez tokenu w buildzie -> nic. */
     fun trySend(system: KarooSystemService) {
+        sys = system
         val d = dir ?: return
         val tok = BuildConfig.QEXT_READINESS_TOKEN.trim()
         if (tok.isEmpty()) return
@@ -375,6 +383,49 @@ object H10Recorder {
                 }
             }
             log("H10_CHECK ${msg.replace('\n', ' ')}")
+            withContext(Dispatchers.Main) { onDone(msg) }
+        }
+    }
+
+    /**
+     * 0.4.16: "Pobierz z pasa" w ustawieniach QExt2 -- bez nowej jazdy. Gdy Karoo wylaczono zaraz po zapisaniu jazdy
+     * i nagranie zostalo w pasie: zatrzymaj zapis (jesli nie trwa jazda), pobierz nasze nagrania (QX...) bez kopii,
+     * wyslij do QBota. Pasa NIE czysci -- to dalej robi start kolejnej jazdy (dane sa juz bezpieczne).
+     */
+    fun pullNow(onDone: (String) -> Unit) {
+        val id = target()
+        if (id == null) { onDone("Najpierw znajdź pas."); return }
+        scope.launch {
+            val msg = mutex.withLock {
+                if (!connect(id)) "Brak połączenia. Załóż pas (mokre elektrody) i spróbuj jeszcze raz."
+                else try {
+                    val a = api()
+                    val st = a.requestRecordingStatus(id)
+                    if (st.ongoing && rideActive) {
+                        "Trwa jazda – pas zapisuje. Dane pobiorą się same po jej zakończeniu."
+                    } else {
+                        if (st.ongoing) { a.stopRecording(id); log("H10_PULL_STOPPED ${st.entryId}") }
+                        val ours = a.listExercises(id).toList().filter { it.identifier.startsWith("QX") }
+                        var n = 0; var already = 0
+                        for (e in ours) {
+                            if (savedLocally(e.identifier)) already++ else n += saveExercise(id, e, endMs = null)
+                        }
+                        prefs().edit().remove(K_REC).apply()
+                        when {
+                            ours.isEmpty() -> "W pasie nie ma nagrania jazdy."
+                            n > 0 -> "Pobrano $n uderzeń. Wysyłam do QBota."
+                            else -> "Nagranie było już pobrane wcześniej ($already). Nic do zrobienia."
+                        }
+                    }
+                } catch (e: Exception) {
+                    log("H10_PULL_FAIL ${e.javaClass.simpleName}: ${e.message}")
+                    "Połączono, ale błąd: ${e.javaClass.simpleName}"
+                } finally {
+                    disconnect(id)
+                }
+            }
+            log("H10_PULL ${msg.replace('\n', ' ')}")
+            sys?.let { trySend(it) }
             withContext(Dispatchers.Main) { onDone(msg) }
         }
     }
