@@ -148,6 +148,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                     fetchAthleteData(system)
                     subscribeRideState(system)
                     com.qext2.primary.util.RideLogUpload.trySend(system)   // 20.10.2026: zalegle dzienniki jazdy
+                    startHomeBgPolling()   // 20.10.2026 (0.4.5): tlo ekranu startowego z QBota
                 } else {
                     batteryPollJob?.cancel()
                     batteryPollJob = null
@@ -195,6 +196,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
             stopRidePing()
             // 20.10.2026: dziennik tej jazdy -> QBot (SETUP > QExt2 > Dzienniki jazdy); bez sieci czeka i idzie pozniej
             com.qext2.primary.util.RideLogUpload.onRideEnd(BuildConfig.VERSION_CODE)
+            refreshHomeBg()   // 0.4.5: po jezdzie od razu swieze tlo
             _karooSystem?.let { com.qext2.primary.util.RideLogUpload.trySend(it) }
             _aggregator?.stopStreaming()
             aggregatorStreaming = false
@@ -612,6 +614,12 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                                 AthleteDataStore.saveQext2Config(it); com.qext2.primary.kokpit.Kokpit2Config.load(it)
                                 com.qext2.primary.util.RideFileLog.append("QEXT2_CONFIG updated=${com.qext2.primary.kokpit.Kokpit2Config.updatedAt ?: "domyslne"}")
                             }
+                            // 20.10.2026 (0.4.5): adres 'aktualny' tla ekranu startowego (QBot, docs/KAROO_TLO.md)
+                            json.optString("homeBgUrl", "").takeIf { it.startsWith("https://") }?.let { u ->
+                                val first = com.qext2.primary.launcher.HomeBackground.sourceUrl(this@QExt2PrimaryExtension) == null
+                                com.qext2.primary.launcher.HomeBackground.saveSourceUrl(this@QExt2PrimaryExtension, u)
+                                if (first) refreshHomeBg()
+                            }
                             val adjusted = data.applyBaroAdjustment(false)
                             _aggregator?.updateAthleteData(adjusted)
                             AthleteDataStore.saveLastRefresh()
@@ -731,6 +739,40 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         } catch (e: Exception) { Log.w(TAG, "QEXT_CASSETTE_POST_CRASH msg=${e.message}") }
     }
 
+    /** 0.4.5 TLO: co 30 min (i po jezdzie) pyta QBota o adres aktualnego tla i wpisuje go do Karoo. Tylko poza jazda. */
+    private var homeBgJob: Job? = null
+
+    private fun startHomeBgPolling() {
+        if (homeBgJob?.isActive == true) return
+        homeBgJob = serviceScope.launch {
+            while (true) {
+                if (!rideRecording) refreshHomeBg()
+                delay(30 * 60_000L)
+            }
+        }
+    }
+
+    private fun refreshHomeBg() {
+        if (rideRecording) return
+        val src = com.qext2.primary.launcher.HomeBackground.sourceUrl(this)
+        if (src == null) { com.qext2.primary.util.RideFileLog.append("HOMEBG_SKIP brak adresu z QBota"); return }
+        karooHttpGet(src, emptyMap()) { code, body ->
+            if (code != 200 || body == null) {
+                com.qext2.primary.util.RideFileLog.append("HOMEBG_FAIL http=$code")
+            } else {
+                try {
+                    val url = org.json.JSONObject(body).optString("url", "")
+                    if (url.startsWith("https://")) {
+                        val r = com.qext2.primary.launcher.HomeBackground.apply(this, url)
+                        com.qext2.primary.util.RideFileLog.append("HOMEBG $r ${url.substringAfterLast('/')}")
+                    } else com.qext2.primary.util.RideFileLog.append("HOMEBG_FAIL brak url")
+                } catch (e: Exception) {
+                    com.qext2.primary.util.RideFileLog.append("HOMEBG_FAIL parse ${e.javaClass.simpleName}")
+                }
+            }
+        }
+    }
+
     override fun onDestroy() {
         exportCarbData()
         _aggregator?.stopStreaming()
@@ -740,6 +782,8 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         batteryPollJob = null
         weatherPollJob?.cancel()
         weatherPollJob = null
+        homeBgJob?.cancel()
+        homeBgJob = null
         _karooSystem?.disconnect()
         _karooSystem = null
         _karooSystemFlow.value = null
