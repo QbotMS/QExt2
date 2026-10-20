@@ -43,9 +43,12 @@ object DarkMenu {
         val cf = File(dir, "qext2_cert.der")
         if (!kf.exists() || !cf.exists()) return "NO_KEY"
         // 0.4.7: bez Wi-Fi debugowanie bezprzewodowe nie wystartuje - nie zuzywaj proby
-        val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
-        val caps = cm.getNetworkCapabilities(cm.activeNetwork)
-        if (caps == null || !caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)) {
+        // 0.4.8: sprawdzenie nigdy nie moze wywrocic uslugi (0.4.7 padalo bez ACCESS_NETWORK_STATE)
+        val onWifi = try {
+            val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+            cm.getNetworkCapabilities(cm.activeNetwork)?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) == true
+        } catch (e: Exception) { true }
+        if (!onWifi) {
             p.edit().putInt("att", att).apply(); return "NO_WIFI"
         }
         var m: QAdbManager? = null
