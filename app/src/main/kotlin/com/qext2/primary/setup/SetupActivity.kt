@@ -52,6 +52,7 @@ class SetupActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         AthleteDataStore.init(this)
+        com.qext2.primary.hrv.H10Recorder.init(this, getExternalFilesDir(null) ?: filesDir)   // 0.4.14: pas H10
         root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(18), dp(16), dp(18)) }
         setContentView(ScrollView(this).apply { setBackgroundColor(bg); addView(root) })
         render()
@@ -73,6 +74,7 @@ class SetupActivity : Activity() {
         root.addView(cassetteCard())
         root.addView(demoCard())
         root.addView(aeroCard())
+        root.addView(h10Card())
         root.addView(label("Wersja ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) · ustawienia zapisywane na serwerze", 13, sub).apply {
             setPadding(dp(4), dp(14), 0, 0)
         })
@@ -258,6 +260,49 @@ class SetupActivity : Activity() {
         })
         c.addView(row)
         return c
+    }
+
+    /** 0.4.14 (20.10.2026): pas Polar H10 -- HRV z jazdy (QBot TODO [HRV-JAZDA]). Zapis steruje sie sam (start/koniec jazdy). */
+    private var h10Msg: String? = null
+    private val reqBt = 4710
+
+    private fun h10Card(): View {
+        val c = box(card)
+        val h = com.qext2.primary.hrv.H10Recorder
+        val dev = h.deviceId()
+        c.addView(label("Pas Polar H10 (HRV z jazdy)", 15, sub))
+        c.addView(label(dev?.let { "pas $it" } ?: "nie wybrany", 19, if (dev != null) txt else orange, bold = true))
+        c.addView(label("Zapis włącza się sam na starcie jazdy, dane idą do QBota po jeździe. Pas musi być założony.", 13, sub))
+        h10Msg?.let { c.addView(label(it, 14, amber).apply { setPadding(0, dp(8), 0, 0) }) }
+        if (!h.hasPermissions(this)) {
+            c.addView(button("Zezwól na Bluetooth", btn) { requestPermissions(h.neededPermissions(), reqBt) })
+            return c
+        }
+        if (dev == null) {
+            c.addView(button("Znajdź pas (załóż go)", btn) {
+                h10Msg = "Szukam pasa…"; render()
+                h.search { id ->
+                    h10Msg = if (id != null) "Znaleziono pas $id." else "Nie znaleziono. Załóż pas (mokre elektrody) i spróbuj ponownie."
+                    render()
+                }
+            })
+        } else {
+            c.addView(button("Sprawdź połączenie", btn) {
+                h10Msg = "Łączę z pasem…"; render()
+                h.check { m -> h10Msg = m; render() }
+            })
+            c.addView(button("Zmień pas", btn) { h.saveDeviceId(null); h10Msg = null; render() })
+        }
+        return c
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == reqBt) {
+            h10Msg = if (com.qext2.primary.hrv.H10Recorder.hasPermissions(this)) null
+                else "Brak zgody – bez niej QExt2 nie połączy się z pasem."
+            render()
+        }
     }
 
     // ---------- pomocnicze widoki ----------

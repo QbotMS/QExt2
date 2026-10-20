@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 20.10.2026 (hrv-h10-2010): kolory komunikatow Karoo o pasie Polar H10 (hrv/H10Recorder.kt) -->
+<resources>
+    <color name="h10_ok">#FF15803D</color>
+    <color name="h10_warn">#FFB45309</color>
+    <color name="h10_text">#FFFFFFFF</color>
+</resources>

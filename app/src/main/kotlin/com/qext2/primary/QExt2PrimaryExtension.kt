@@ -88,6 +88,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         com.qext2.primary.eta.EtaFileLog.init(getExternalFilesDir(null) ?: filesDir)
         com.qext2.primary.util.RideFileLog.init(getExternalFilesDir(null) ?: filesDir)
         com.qext2.primary.util.RideLogUpload.init(getExternalFilesDir(null) ?: filesDir)   // 20.10.2026: dziennik jazdy -> QBot
+        com.qext2.primary.hrv.H10Recorder.init(this, getExternalFilesDir(null) ?: filesDir)   // 0.4.14: pas Polar H10 (HRV z jazdy)
         com.qext2.primary.util.RideFileLog.append("START QExt2 versionCode=${BuildConfig.VERSION_CODE}")
         val surfaceCache = SurfaceProfileCache(
             qbotBaseUrl = BuildConfig.QBOT_BASE_URL,
@@ -148,6 +149,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                     fetchAthleteData(system)
                     subscribeRideState(system)
                     com.qext2.primary.util.RideLogUpload.trySend(system)   // 20.10.2026: zalegle dzienniki jazdy
+                    com.qext2.primary.hrv.H10Recorder.trySend(system)   // 0.4.14: zalegle nagrania RR z pasa H10
                     startHomeBgPolling()   // 20.10.2026 (0.4.5): tlo ekranu startowego z QBota
                 } else {
                     batteryPollJob?.cancel()
@@ -181,6 +183,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
             if (!rideRecording) {
                 val a = AthleteDataStore.load()
                 com.qext2.primary.util.RideFileLog.append("RIDE_START schema=$FIT_SCHEMA build=${BuildConfig.VERSION_CODE} cp=${a.ftp} ltp=${a.ltpWatts} wp=${a.wPrimeKj} form=${a.todayFactor} profileTs=${a.fetchTimestamp} bike=${_aggregator?.bikeKey()}")
+                _karooSystem?.let { com.qext2.primary.hrv.H10Recorder.onRideStart(it) }   // 0.4.14: start zapisu RR w pasie H10
             }
             rideRecording = true
             startRidePing()
@@ -196,6 +199,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
             stopRidePing()
             // 20.10.2026: dziennik tej jazdy -> QBot (SETUP > QExt2 > Dzienniki jazdy); bez sieci czeka i idzie pozniej
             com.qext2.primary.util.RideLogUpload.onRideEnd(BuildConfig.VERSION_CODE)
+            _karooSystem?.let { com.qext2.primary.hrv.H10Recorder.onRideEnd(it) }   // 0.4.14: stop + pobranie RR z pasa H10 -> QBot
             refreshHomeBg()   // 0.4.5: po jezdzie od razu swieze tlo
             _karooSystem?.let { com.qext2.primary.util.RideLogUpload.trySend(it) }
             _aggregator?.stopStreaming()

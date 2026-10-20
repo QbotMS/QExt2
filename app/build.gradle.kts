@@ -37,11 +37,11 @@ android {
 
     defaultConfig {
         applicationId = "com.qext2.primary"
-        minSdk = 23
+        minSdk = 26   // 0.4.14: SDK Polara (pas H10) wymaga 26; Karoo 3 = Android 12
         targetSdk = 35
         versionCode = (System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1).coerceAtLeast(1)
         // wersja widoczna na Karoo: numer wersji + numer buildu CI (np. "0.4.0 (313)")
-        versionName = "0.4.13 (" + (System.getenv("GITHUB_RUN_NUMBER") ?: "lokalny") + ")"
+        versionName = "0.4.14 (" + (System.getenv("GITHUB_RUN_NUMBER") ?: "lokalny") + ")"
         buildConfigField("String", "QEXT_GATE_URL", "\"$gateUrl\"")
         buildConfigField("String", "QEXT_GATE_TOKEN", "\"$gateToken\"")
         buildConfigField("String", "QEXT_READINESS_URL", "\"$readinessUrl\"")
@@ -96,6 +96,9 @@ android {
 
 dependencies {
     implementation("io.hammerhead:karoo-ext:1.1.9")
+    // 0.4.14 (20.10.2026): pas Polar H10 -- zapis RR do pamieci pasa i pobranie po jezdzie (hrv/H10Recorder.kt).
+    // Wariant -java17 (jak reszta projektu); 8.x bez -java17 wymaga JDK 21.
+    implementation("com.github.polarofficial:polar-ble-sdk:8.4.0-java17")
     // 0.4.6: ciemne menu Karoo po restarcie - polaczenie adb (TLS) z samym soba
     implementation("com.github.MuntashirAkon:libadb-android:3.1.1")
     implementation("org.conscrypt:conscrypt-android:2.5.2")
