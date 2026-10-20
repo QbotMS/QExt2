@@ -104,7 +104,10 @@ object PacingEngine {
             SurfaceType.PAVED   -> 1.00f
         }
 
-        val ceilingRaw = ltp * minOf(wFactor, rsvFactor) * modeFactor * decFactor * windFactor * surfMult
+        // 0.4.12 (decyzja Michala 20.10): pulap od polowy drogi LTP-CP, nie od samego LTP. Jazda 20.10: pulap 200-206 W
+        // dawal 4 alarmy na plaskim przy W'bal 79-92% (LTP 191, CP 240) - za nisko.
+        val ceilBase = (ltp + ftp) / 2f
+        val ceilingRaw = ceilBase * minOf(wFactor, rsvFactor) * modeFactor * decFactor * windFactor * surfMult
         val ceilingW = ceilingRaw.toInt().coerceAtLeast((ltp * 0.75f).toInt())
 
         // --- B. Target (endurance lub climbing) ---

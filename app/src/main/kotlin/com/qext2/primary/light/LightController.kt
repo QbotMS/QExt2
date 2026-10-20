@@ -27,6 +27,8 @@ object LightController {
     @Volatile private var flashUntil = 0L
     private var consumerId: String? = null
     @Volatile private var lastSig = ""
+    /** 0.4.12: tryby odrzucone przez lampe (nie kazda lampa ma wszystkie tryby ANT+) - pomijane do konca sesji */
+    private val rejected = java.util.Collections.synchronizedSet(HashSet<String>())
 
     fun init(context: Context, karoo: KarooSystemService?) {
         if (control == null) control = LightControl(context.applicationContext).also { it.bind() }
@@ -66,10 +68,19 @@ object LightController {
         val c = control
         if (id == null) { show("brak lampy"); log("LIGHT_TAP no_light"); return }
         if (c == null || !c.ready()) { c?.bind(); show("brak sterowania"); log("LIGHT_TAP not_ready"); return }
-        val next = MODES[(MODES.indexOf(mode ?: "OFF") + 1) % MODES.size]
-        val ok = c.setMode(id, next)
-        if (ok) { mode = next; show(null) } else show("błąd zmiany")
-        log("LIGHT_SET mode=$next ok=$ok" + (if (!ok) " err=${c.lastError}" else ""))
+        // 0.4.12: wczesniej odrzucony tryb blokowal przelaczanie (kazde tapniecie probowalo tego samego).
+        // Teraz: kolejne tryby po kolei, az lampa ktorys przyjmie; odrzucone sa pomijane.
+        var idx = MODES.indexOf(mode ?: "OFF")
+        for (i in 1..MODES.size) {
+            val next = MODES[(idx + i) % MODES.size]
+            if (next in rejected && next != "OFF") continue
+            val ok = c.setMode(id, next)
+            log("LIGHT_SET mode=$next ok=$ok" + (if (!ok) " err=${c.lastError}" else ""))
+            if (ok) { mode = next; show(null); return }
+            rejected.add(next)
+            if (c.lastError == "no_binder") break   // brak polaczenia z usluga - kolejne proby nic nie dadza
+        }
+        show("błąd zmiany")
     }
 
     private fun show(m: String?) { flash = m; flashUntil = if (m == null) 0L else System.currentTimeMillis() + 4_000L }
