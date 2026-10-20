@@ -87,6 +87,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         com.qext2.primary.engine.AeroEstimator.setModel(AthleteDataStore.loadAeroModel())   // 2026-10-19: AERO v3 parametry QBota
         com.qext2.primary.eta.EtaFileLog.init(getExternalFilesDir(null) ?: filesDir)
         com.qext2.primary.util.RideFileLog.init(getExternalFilesDir(null) ?: filesDir)
+        com.qext2.primary.util.RideLogUpload.init(getExternalFilesDir(null) ?: filesDir)   // 20.10.2026: dziennik jazdy -> QBot
         com.qext2.primary.util.RideFileLog.append("START QExt2 versionCode=${BuildConfig.VERSION_CODE}")
         val surfaceCache = SurfaceProfileCache(
             qbotBaseUrl = BuildConfig.QBOT_BASE_URL,
@@ -146,6 +147,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                     ensureDefaultLocation()
                     fetchAthleteData(system)
                     subscribeRideState(system)
+                    com.qext2.primary.util.RideLogUpload.trySend(system)   // 20.10.2026: zalegle dzienniki jazdy
                 } else {
                     batteryPollJob?.cancel()
                     batteryPollJob = null
@@ -191,6 +193,9 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
             // KONIEC jazdy: zamknij sesje (baza RSRV dnia, reset licznikow); pola widoczne -> czysty start na podglad.
             rideRecording = false
             stopRidePing()
+            // 20.10.2026: dziennik tej jazdy -> QBot (SETUP > QExt2 > Dzienniki jazdy); bez sieci czeka i idzie pozniej
+            com.qext2.primary.util.RideLogUpload.onRideEnd(BuildConfig.VERSION_CODE)
+            _karooSystem?.let { com.qext2.primary.util.RideLogUpload.trySend(it) }
             _aggregator?.stopStreaming()
             aggregatorStreaming = false
             batteryPollJob?.cancel(); batteryPollJob = null
