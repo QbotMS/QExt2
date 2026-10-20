@@ -760,6 +760,8 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         darkThread = Thread {
             val r = com.qext2.primary.launcher.DarkMenu.ensure(this)
             if (r != "DONE_THIS_BOOT" && r != "GIVEUP") com.qext2.primary.util.RideFileLog.append("DARKMENU $r")
+            // 0.4.7: po starcie Karoo Wi-Fi/mDNS bywa jeszcze niegotowe -> ponow za 60 s (limit 3 proby w DarkMenu)
+            if (r.startsWith("CONNECT_FAIL") || r.startsWith("ERR")) serviceScope.launch { delay(60_000L); runDarkMenu() }
         }.apply { isDaemon = true; start() }
     }
 

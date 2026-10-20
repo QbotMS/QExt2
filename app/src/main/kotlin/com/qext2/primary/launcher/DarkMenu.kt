@@ -42,15 +42,20 @@ object DarkMenu {
         val kf = File(dir, "qext2_key.der")
         val cf = File(dir, "qext2_cert.der")
         if (!kf.exists() || !cf.exists()) return "NO_KEY"
-        val wasOn = try { Settings.Global.getInt(cr, "adb_wifi_enabled", 0) == 1 } catch (e: Exception) { false }
+        // 0.4.7: bez Wi-Fi debugowanie bezprzewodowe nie wystartuje - nie zuzywaj proby
+        val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork)
+        if (caps == null || !caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)) {
+            p.edit().putInt("att", att).apply(); return "NO_WIFI"
+        }
         var m: QAdbManager? = null
         return try {
             val key = KeyFactory.getInstance("RSA").generatePrivate(PKCS8EncodedKeySpec(kf.readBytes()))
             val cert = cf.inputStream().use { CertificateFactory.getInstance("X.509").generateCertificate(it) }
-            if (!wasOn) Settings.Global.putInt(cr, "adb_wifi_enabled", 1)
-            Thread.sleep(3000)
+            Settings.Global.putInt(cr, "adb_wifi_enabled", 1)
+            Thread.sleep(5000)
             m = QAdbManager(key, cert)
-            if (!m.autoConnect(ctx.applicationContext, 15_000)) return "CONNECT_FAIL try=${att + 1}"
+            if (!m.autoConnect(ctx.applicationContext, 25_000)) return "CONNECT_FAIL try=${att + 1}"
             val s = m.openStream(CMD)
             val out = s.openInputStream().bufferedReader().readText()
             try { s.close() } catch (e: Exception) { }
@@ -62,7 +67,8 @@ object DarkMenu {
             "ERR:" + e.javaClass.simpleName + ":" + (e.message ?: "").take(80)
         } finally {
             try { m?.close() } catch (e: Exception) { }
-            if (!wasOn) try { Settings.Global.putInt(cr, "adb_wifi_enabled", 0) } catch (e: Exception) { }
+            // 0.4.7: zawsze wylacz - debugowanie bezprzewodowe nie zostaje wlaczone
+            try { Settings.Global.putInt(cr, "adb_wifi_enabled", 0) } catch (e: Exception) { }
         }
     }
 }
