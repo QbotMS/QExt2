@@ -27,6 +27,8 @@ class LightControl(private val context: Context) {
     }
 
     @Volatile private var lightCmdBinder: IBinder? = null
+    /** 0.4.11: przyczyna ostatniego bledu setMode (do dziennika jazdy) */
+    @Volatile var lastError: String? = null
     private var modeCreator: ((String) -> Parcelable)? = null
     private var deviceCreator: ((String) -> Parcelable)? = null
     private var bound = false
@@ -87,9 +89,17 @@ class LightControl(private val context: Context) {
 
     fun ready(): Boolean = lightCmdBinder != null && modeCreator != null
 
+    /** 0.4.11: usluga czujnikow Karoo mogla sie zrestartowac - polacz od nowa */
+    fun rebind() {
+        lightCmdBinder = null
+        try { if (bound) context.unbindService(conn) } catch (_: Exception) {}
+        bound = false
+        bind()
+    }
+
     fun setMode(deviceId: String, karooMode: String): Boolean {
-        val b = lightCmdBinder ?: return false
-        val mode = try { modeCreator?.invoke(karooMode) } catch (e: Exception) { null } ?: return false
+        val b = lightCmdBinder ?: run { lastError = "no_binder"; return false }
+        val mode = try { modeCreator?.invoke(karooMode) } catch (e: Exception) { null } ?: run { lastError = "no_mode_class"; return false }
         val data = Parcel.obtain(); val reply = Parcel.obtain()
         return try {
             data.writeInterfaceToken(LIGHT_CMD_DESCRIPTOR)
@@ -100,9 +110,12 @@ class LightControl(private val context: Context) {
             data.writeInt(1); bundle.writeToParcel(data, 0)
             b.transact(TX_SET_LIGHT_MODE, data, reply, 0)
             reply.readException()
+            lastError = null
             true
         } catch (e: Exception) {
             Log.w(TAG, "setMode fail ${e.message}")
+            lastError = e.javaClass.simpleName + ":" + (e.message ?: "").take(80)
+            if (e is android.os.DeadObjectException) rebind()
             false
         } finally {
             data.recycle(); reply.recycle()

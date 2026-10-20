@@ -74,6 +74,8 @@ class BikeDetector {
         }
         if (latched.compareAndSet(Bike.UNKNOWN, decided)) {
             Log.i(TAG, "QEXT_BIKE_DETECTED bike=$decided axsFreshMs=$axsFreshMs powerSrc=$powerSourceId elapsed=$elapsedSec")
+            // 0.4.11: decyzja zapada po karencji (RIDE_START ma zawsze bike=none) - zapis do dziennika jazdy
+            try { com.qext2.primary.util.RideFileLog.append("BIKE_DETECTED bike=$decided axsFreshMs=$axsFreshMs powerSrc=$powerSourceId elapsed=${elapsedSec}s") } catch (_: Exception) {}
         }
         return latched.get()
     }

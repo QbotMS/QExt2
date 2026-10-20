@@ -69,7 +69,7 @@ object LightController {
         val next = MODES[(MODES.indexOf(mode ?: "OFF") + 1) % MODES.size]
         val ok = c.setMode(id, next)
         if (ok) { mode = next; show(null) } else show("błąd zmiany")
-        log("LIGHT_SET mode=$next ok=$ok")
+        log("LIGHT_SET mode=$next ok=$ok" + (if (!ok) " err=${c.lastError}" else ""))
     }
 
     private fun show(m: String?) { flash = m; flashUntil = if (m == null) 0L else System.currentTimeMillis() + 4_000L }
