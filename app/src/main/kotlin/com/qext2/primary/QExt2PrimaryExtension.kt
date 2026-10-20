@@ -746,7 +746,28 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
     /** 0.4.5 TLO: co 30 min (i po jezdzie) pyta QBota o adres aktualnego tla i wpisuje go do Karoo. Tylko poza jazda. */
     private var homeBgJob: Job? = null
 
+    /** 0.4.17: start poza domem - Karoo lapie hotspot iPhone'a po jakims czasie; ciemne menu od razu po polaczeniu z Wi-Fi. */
+    private var wifiCb: android.net.ConnectivityManager.NetworkCallback? = null
+
+    private fun watchWifi() {
+        if (wifiCb != null) return
+        try {
+            val cm = getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+            val req = android.net.NetworkRequest.Builder().addTransportType(android.net.NetworkCapabilities.TRANSPORT_WIFI).build()
+            val cb = object : android.net.ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: android.net.Network) {
+                    serviceScope.launch { delay(3000L); if (!rideRecording) runDarkMenu() }
+                }
+            }
+            cm.registerNetworkCallback(req, cb)
+            wifiCb = cb
+        } catch (e: Exception) {
+            com.qext2.primary.util.RideFileLog.append("WIFI_WATCH_FAIL ${e.javaClass.simpleName}")
+        }
+    }
+
     private fun startHomeBgPolling() {
+        watchWifi()
         if (homeBgJob?.isActive == true) return
         homeBgJob = serviceScope.launch {
             while (true) {
@@ -763,7 +784,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         if (rideRecording || darkThread?.isAlive == true) return
         darkThread = Thread {
             val r = try { com.qext2.primary.launcher.DarkMenu.ensure(this) } catch (e: Throwable) { "ERR:" + e.javaClass.simpleName }
-            if (r != "DONE_THIS_BOOT" && r != "GIVEUP") com.qext2.primary.util.RideFileLog.append("DARKMENU $r")
+            if (r != "DONE_THIS_BOOT" && r != "GIVEUP" && r != "NO_WIFI") com.qext2.primary.util.RideFileLog.append("DARKMENU $r")
             // 0.4.7: po starcie Karoo Wi-Fi/mDNS bywa jeszcze niegotowe -> ponow za 60 s (limit 3 proby w DarkMenu)
             if (r.startsWith("CONNECT_FAIL") || r.startsWith("ERR")) serviceScope.launch { delay(60_000L); runDarkMenu() }
         }.apply { isDaemon = true; start() }
@@ -800,6 +821,8 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         weatherPollJob?.cancel()
         weatherPollJob = null
         homeBgJob?.cancel()
+        wifiCb?.let { cb -> try { (getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager).unregisterNetworkCallback(cb) } catch (_: Exception) {} }
+        wifiCb = null
         homeBgJob = null
         _karooSystem?.disconnect()
         _karooSystem = null
