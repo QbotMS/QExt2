@@ -61,7 +61,10 @@ object DarkMenu {
             DebugDialogClicker.arm()
             if (a11y) Thread.sleep(1500)   // czas na podlaczenie uslugi przez system
             Settings.Global.putInt(cr, "adb_wifi_enabled", 1)
-            Thread.sleep(5000)
+            // aktywne odpytywanie uslugi przez 20 s (okno moze pojawic sie zanim przyjdzie zdarzenie)
+            var waited = 0
+            while (waited < 20_000 && DebugDialogClicker.armed() && !DebugDialogClicker.pokeNow()) { Thread.sleep(500); waited += 500 }
+            Thread.sleep(3000)
             m = QAdbManager(key, cert)
             if (!m.autoConnect(ctx.applicationContext, 25_000)) return "CONNECT_FAIL try=${att + 1} a11y=$a11y dialog=${DebugDialogClicker.lastResult}"
             val s = m.openStream(CMD)
