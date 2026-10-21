@@ -29,12 +29,14 @@ object FeatureGuard {
     val ALL = listOf(DARKMENU, HOMEBG, LIGHT, HOTSPOT)
 
     private const val PREFS = "qext2_guard"
+    private const val K_LOCAL_DARK = "local_dark_off"
     private const val LOOP_STARTS = 5
     private const val LOOP_WINDOW_MS = 5 * 60_000L
 
     @Volatile private var prefs: SharedPreferences? = null
     @Volatile private var remote: Set<String> = emptySet()
     @Volatile private var appCtx: Context? = null
+    @Volatile private var localDarkOff = false   // 0.4.22: przelacznik w SETUP na Karoo
     @Volatile var crashLoop = false
         private set
 
@@ -44,6 +46,7 @@ object FeatureGuard {
             val p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             prefs = p
             remote = (p.getStringSet("remote", emptySet()) ?: emptySet()).toSet()
+            localDarkOff = p.getBoolean(K_LOCAL_DARK, false)
             appCtx = ctx.applicationContext
             applyDarkOff()   // 0.4.20: tryb ciemny wylaczony w QBocie -> usluga okna zdjeta, debugowanie Wi-Fi wyl.
             // nowy build QExt2 albo nowa wersja Karoo -> stare blokady "BLEDY" kasowane (funkcja dostaje nowa szanse)
@@ -73,6 +76,7 @@ object FeatureGuard {
     fun reason(f: String): String? = when {
         crashLoop -> "petla"
         f in remote -> "zdalnie"
+        f == DARKMENU && localDarkOff -> "lokalnie"   // 0.4.22: wylaczony w SETUP na Karoo
         prefs?.getBoolean("off_$f", false) == true -> "bledy"
         f == HOTSPOT -> reason(DARKMENU)   // 0.4.20: hotspot budzony tylko dla ciemnego menu
         else -> null
@@ -89,7 +93,24 @@ object FeatureGuard {
     }
 
     /** 0.4.20: przelacznik "Tryb ciemny Karoo" w SETUP QBota wylaczony (darkmenu w liscie zdalnej). */
-    fun darkModeOff(): Boolean = DARKMENU in remote
+    fun darkModeOff(): Boolean = DARKMENU in remote || localDarkOff
+
+    /** 0.4.22 (ciemny-karoo-2110): przelacznik "Tryb ciemny Karoo" w SETUP na Karoo. Dziala obok wylacznika z QBota:
+     *  tryb jest wlaczony tylko, gdy nie wylaczyl go ani QBot, ani Karoo. Odczyt wprost z pliku ustawien
+     *  (ekran SETUP moze dzialac, zanim usluga QExt2 wystartuje). */
+    fun localDarkOff(ctx: Context): Boolean =
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(K_LOCAL_DARK, false)
+
+    fun remoteDarkOff(ctx: Context): Boolean =
+        DARKMENU in (ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getStringSet("remote", emptySet()) ?: emptySet())
+
+    fun setLocalDarkOff(ctx: Context, off: Boolean) {
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(K_LOCAL_DARK, off).apply()
+        localDarkOff = off
+        if (appCtx == null) appCtx = ctx.applicationContext
+        try { RideFileLog.append("DARKMODE SETUP Karoo: " + if (off) "wylaczony" else "wlaczony") } catch (_: Throwable) {}
+        applyDarkOff()
+    }
 
     /** 0.4.20: przy wylaczonym trybie ciemnym zdejmuje usluge zatwierdzajaca okno z ustawien systemu i pilnuje,
      *  zeby debugowanie Wi-Fi bylo wylaczone. Nigdy nie rzuca. */

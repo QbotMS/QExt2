@@ -76,6 +76,7 @@ class SetupActivity : Activity() {
         root.addView(demoCard())
         root.addView(recCard())
         root.addView(aeroCard())
+        root.addView(darkCard())
         root.addView(h10Card())
         root.addView(label("Wersja ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) · ustawienia zapisywane na serwerze", 13, sub).apply {
             setPadding(dp(4), dp(14), 0, 0)
@@ -238,6 +239,33 @@ class SetupActivity : Activity() {
             text = if (on) "DYNAMIC" else "AERO"; setTextColor(txt); setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, 17 * scale); isAllCaps = false; background = round(btn, 12)
             layoutParams = LinearLayout.LayoutParams(dp(120), dp(56))
             setOnClickListener { AthleteDataStore.saveKokpit2DynAero(!on); render() }
+        })
+        c.addView(row)
+        return c
+    }
+
+    /** 0.4.22 (21.10.2026, ciemny-karoo-2110): Tryb ciemny Karoo. Wylaczony = bez ciemnego menu, debugowania Wi-Fi,
+     *  budzenia hotspotu i uslugi zatwierdzajacej okno (health.FeatureGuard). Drugi wylacznik: SETUP QBota > QExt2. */
+    private fun darkCard(): View {
+        val g = com.qext2.primary.health.FeatureGuard
+        val remoteOff = g.remoteDarkOff(this)
+        val localOff = g.localDarkOff(this)
+        val on = !remoteOff && !localOff
+        val c = box(card)
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) }
+        col.addView(label("Tryb ciemny Karoo", 15, sub))
+        col.addView(label(if (on) "WŁĄCZONY" else "wyłączony", 19, if (on) txt else orange, bold = true))
+        col.addView(label(when {
+            remoteOff -> "Wyłączony w QBocie (SETUP → QExt2). Włączysz go tylko tam."
+            on -> "Ciemne menu po każdym starcie Karoo: chwilowe debugowanie Wi-Fi, budzenie hotspotu, zatwierdzanie okna."
+            else -> "Bez ciemnego menu, debugowania Wi-Fi, budzenia hotspotu i usługi okna. Ciemny wygląd zniknie po restarcie Karoo."
+        }, 13, sub))
+        row.addView(col)
+        if (!remoteOff) row.addView(Button(this).apply {
+            text = if (on) "Wyłącz" else "Włącz"; setTextColor(txt); setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, 17 * scale); isAllCaps = false; background = round(btn, 12)
+            layoutParams = LinearLayout.LayoutParams(dp(120), dp(56))
+            setOnClickListener { g.setLocalDarkOff(this@SetupActivity, on); render() }
         })
         c.addView(row)
         return c
