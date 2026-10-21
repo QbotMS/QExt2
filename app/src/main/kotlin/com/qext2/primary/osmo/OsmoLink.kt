@@ -426,7 +426,7 @@ object OsmoLink {
                     last0280 = b0
                     log("OSMO_0280 b0=0x" + h2(b0) + " rec=" + (if (recording) "NAGRYWA" else "stop") +
                         " ${m.payload.size}B ${OsmoProtocol.hex(m.payload, 40)}")
-                    finishCheck(statusText())
+                    if (connected) finishCheck(statusText())   // 0.4.25: stan sprzed parowania nie konczy testu
                 }
             }
             m.cmdSet == 0x0D && m.cmdId == 0x02 && m.payload.size > 20 -> {
@@ -458,6 +458,7 @@ object OsmoLink {
         main.postDelayed(summaryTick, SUMMARY_MS)
         main.postDelayed(noRecCheck, 15_000L)
         onCheck?.let { it("Sparowano. Czekam na stan kamery — włącz i wyłącz nagrywanie."); onCheck = it }
+        main.postDelayed({ if (connected) finishCheck(statusText() + " — połączenie zostaje na 2 min: włącz i wyłącz nagrywanie.") }, 2_000L)
     }
 
     private val keepalive: Runnable = object : Runnable {
