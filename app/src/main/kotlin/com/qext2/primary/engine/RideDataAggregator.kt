@@ -1000,6 +1000,7 @@ class RideDataAggregator(private val karooSystem: KarooSystemService) {
                     speedFreshMs = now - speedFreshnessRef.get(),
                     powerSourceId = powerSourceIdRef.get(),
                     elapsedSec = computeElapsedSec(),
+                    axsSourceId = axsSourceIdRef.get(),   // 21.10: rower po numerze AXS (27856 Grail, 10625 Grizl)
                 )
 
                 // Monster (mechanik): estymuj koronke; na zjezdzie/bez pedalowania trzymaj ostatnia.

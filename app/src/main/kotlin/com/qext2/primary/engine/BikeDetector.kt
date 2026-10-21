@@ -51,6 +51,7 @@ class BikeDetector {
         speedFreshMs: Long,
         powerSourceId: String?,
         elapsedSec: Long,
+        axsSourceId: String? = null,
     ): Bike {
         manual?.let { return it }
         val cur = latched.get()
@@ -63,11 +64,20 @@ class BikeDetector {
 
         val axsFresh = axsFreshMs in 0..AXS_FRESH_MS
         val decided = if (axsFresh) {
-            val q = knownQuarqSourceId
-            when {
-                q == null -> Bike.GRIZL
-                powerSourceId == q -> Bike.GRIZL
-                else -> Bike.GRAIL
+            // 21.10 (aero-2110): rower po numerze przerzutki AXS -- regula Michala: 27856 = Grail, 10625 = Grizl.
+            // Wczesniej po Quarqu, ale knownQuarqSourceId nigdy nie byl ustawiany -> kazdy rower z AXS = GRIZL
+            // (jazda 21.10 na Grailu: BIKE_DETECTED bike=GRIZL). Nieznany numer -> stara regula.
+            when (axsSourceId?.substringBefore('-')) {
+                "27856" -> Bike.GRAIL
+                "10625" -> Bike.GRIZL
+                else -> {
+                    val q = knownQuarqSourceId
+                    when {
+                        q == null -> Bike.GRIZL
+                        powerSourceId == q -> Bike.GRIZL
+                        else -> Bike.GRAIL
+                    }
+                }
             }
         } else {
             Bike.MONSTER
@@ -75,7 +85,7 @@ class BikeDetector {
         if (latched.compareAndSet(Bike.UNKNOWN, decided)) {
             Log.i(TAG, "QEXT_BIKE_DETECTED bike=$decided axsFreshMs=$axsFreshMs powerSrc=$powerSourceId elapsed=$elapsedSec")
             // 0.4.11: decyzja zapada po karencji (RIDE_START ma zawsze bike=none) - zapis do dziennika jazdy
-            try { com.qext2.primary.util.RideFileLog.append("BIKE_DETECTED bike=$decided axsFreshMs=$axsFreshMs powerSrc=$powerSourceId elapsed=${elapsedSec}s") } catch (_: Exception) {}
+            try { com.qext2.primary.util.RideFileLog.append("BIKE_DETECTED bike=$decided axsSrc=$axsSourceId axsFreshMs=$axsFreshMs powerSrc=$powerSourceId elapsed=${elapsedSec}s") } catch (_: Exception) {}
         }
         return latched.get()
     }

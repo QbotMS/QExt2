@@ -33,7 +33,7 @@ class AeroCore(var params: AeroParams = AeroParams.FALLBACK, val stepRel: Double
     )
 
     companion object {
-        const val VERSION = 4           // 4 (19.10): wiatr x windScale z QBota (aeroModel), domyslnie 0,3
+        const val VERSION = 5           // 5 (21.10): stale odniesienie = CdA roweru z Centrum CdA (aeroModel.cdaByBike); 4: windScale
         const val G = 9.81
         const val VMIN = 5.0            // m/s (18 km/h)
         const val PMIN = 60.0
@@ -65,6 +65,10 @@ class AeroCore(var params: AeroParams = AeroParams.FALLBACK, val stepRel: Double
     private var heading0: Double? = null
     private var pend = 0
     var out = Out(); private set
+    /** 21.10 (v5, decyzja Michala): STALE odniesienie = zwykle CdA roweru z Centrum CdA (QBot). null = stary tryb v3/v4
+     *  (odniesienie przestawiane po kazdej wykrytej zmianie -- na jezdzie 21.10: 33 razy w 71 min, „nie wiadomo, do czego”).
+     *  Przy stalym odniesieniu nie ma krokow: wynik = CdA z ostatnich 30 s vs to CdA, przy biezacej predkosci. */
+    var fixedRef: Double? = null
 
     fun reset() {
         buf.clear(); level.clear(); pedal.clear(); altHist.clear(); ref = null; refSurf = -1; lastT = 0L; lastV = -1.0
@@ -154,7 +158,7 @@ class AeroCore(var params: AeroParams = AeroParams.FALLBACK, val stepRel: Double
         val vaNow = v + head
         val wFactor = 0.5 * rho * vaNow * abs(vaNow) * v   // W na 1 m2 CdA przy biezacej predkosci
 
-        if (n >= RECENT + REF / 2) {
+        if (fixedRef == null && n >= RECENT + REF / 2) {
             val cOld = cda(0, n - RECENT)
             val cRec = cda(n - RECENT, n)
             val d = cRec - cOld
@@ -169,10 +173,11 @@ class AeroCore(var params: AeroParams = AeroParams.FALLBACK, val stepRel: Double
         }
         val n2 = level.size
         val cNow = cda((n2 - RECENT).coerceAtLeast(0), n2)
-        val r = ref
+        val r = fixedRef ?: ref
         val good = params.fromQbot && i.surface == 1 && windKnown
         val conf = if (good) 2 else 1
         out = when {
+            fixedRef != null && n2 < RECENT -> Out(1, 0, 0, cNow.toFloat(), (r ?: 0.0).toFloat(), head.toFloat(), i.surface, ev)
             r == null && n2 < RECENT -> Out(1, 0, 0, cNow.toFloat(), 0f, head.toFloat(), i.surface, ev)
             r == null -> Out(2, 0, conf, cNow.toFloat(), cNow.toFloat(), head.toFloat(), i.surface, ev)
             else -> Out(2, ((cNow - r) * wFactor).roundToInt(), if (n2 >= 20) conf else 1, cNow.toFloat(), r.toFloat(),
@@ -186,6 +191,8 @@ class AeroCore(var params: AeroParams = AeroParams.FALLBACK, val stepRel: Double
 data class AeroParams(
     val massKg: Double, val eta: Double, val crrAsphalt: Double, val crrGravel: Double,
     val windFactor: Double, val fromQbot: Boolean, val version: String,
+    /** 21.10 (v5): zwykle CdA rowerow z Centrum CdA (aeroModel.cdaByBike, klucze Grail / Grizl / Monster) */
+    val cdaByBike: Map<String, Double> = emptyMap(),
 ) {
     companion object {
         /** wiatr z prognozy Open-Meteo (10 m) -> przy rowerzyscie. QBot (QEXT2_AERO_V3_TASK.md „windScale”, 19.10): mnoznik k z jazd
@@ -204,6 +211,14 @@ data class AeroParams(
             return if (!wf.isNaN() && wf in 0.0..1.2) wf else WIND_FACTOR
         }
 
+        /** aeroModel.cdaByBike -> mapa; wartosci poza 0,2..0,9 pomijane (odporne na bledy) */
+        fun cdaByBike(o: org.json.JSONObject): Map<String, Double> {
+            val cb = o.optJSONObject("cdaByBike") ?: return emptyMap()
+            val m = LinkedHashMap<String, Double>()
+            for (k in cb.keys()) { val c = cb.optDouble(k, Double.NaN); if (!c.isNaN() && c in 0.2..0.9) m[k] = c }
+            return m
+        }
+
         /** null = zly / pusty JSON */
         fun fromJson(json: String?): AeroParams? = try {
             val o = org.json.JSONObject(json ?: "")
@@ -215,7 +230,40 @@ data class AeroParams(
             if (rider.isNaN() || rider !in 40.0..200.0 || ca.isNaN() || cg.isNaN() || ca !in 0.002..0.03 || cg !in 0.002..0.04) null
             else AeroParams(rider + extra, o.optDouble("eta", 0.976).takeIf { it in 0.85..1.0 } ?: 0.976, ca, cg,
                 windScale(o), true,
-                o.optString("version", "?") + "/" + o.optString("updatedAt", ""))
+                o.optString("version", "?") + "/" + o.optString("updatedAt", ""), cdaByBike(o))
         } catch (e: Exception) { null }
+    }
+}
+
+
+/** 21.10 (v5, decyzja Michala): spokojny ekran AERO. Wartosc odswiezana co [periodMs] (srednia dW z tego okresu),
+ *  zaokraglona do [stepW] W; krotkie przerwy (zakret, hamowanie: stan != 2) do [holdMs] trzymaja ostatnia wartosc zamiast „—”.
+ *  Na jezdzie 21.10 surowa liczba zmieniala sie w 70 % sekund, srednio o ~7 W. FIT dostaje dalej surowe dW co sekunde. */
+class AeroDisplay(val periodMs: Long = 5_000L, val stepW: Int = 5, val holdMs: Long = 15_000L) {
+    private var sum = 0.0
+    private var n = 0
+    private var lastShow = 0L
+    private var lastValid = 0L
+    var shown = AeroCore.Out(); private set
+
+    fun reset() { sum = 0.0; n = 0; lastShow = 0L; lastValid = 0L; shown = AeroCore.Out() }
+
+    fun feed(o: AeroCore.Out, tMs: Long): AeroCore.Out {
+        if (o.state != 2) {
+            if (shown.state == 2 && tMs - lastValid <= holdMs) return shown
+            sum = 0.0; n = 0; lastShow = 0L
+            shown = o
+            return shown
+        }
+        lastValid = tMs
+        sum += o.dW; n++
+        if (shown.state != 2 || tMs - lastShow >= periodMs) {
+            val r = (Math.round(sum / n / stepW) * stepW).toInt()
+            shown = o.copy(dW = r)
+            lastShow = tMs; sum = 0.0; n = 0
+        } else if (o.conf != shown.conf) {
+            shown = shown.copy(conf = o.conf)
+        }
+        return shown
     }
 }

@@ -19,6 +19,12 @@ object AeroEstimator {
         private set
 
     private val core = AeroCore()
+    private val disp = AeroDisplay()   // 21.10 (v5): spokojny ekran, co 5 s, do 5 W
+    private var lastRefLog: Double? = null
+
+    /** Widok na Karoo (KOKPIT 2): odswiezany co 5 s, zaokraglony do 5 W. FIT dalej z `out` (surowe dW co sekunde). */
+    @Volatile var shown = Out()
+        private set
     private var lastT = 0L
     private var paramsT = 0L
     @Volatile private var modelJson: String? = null
@@ -29,7 +35,19 @@ object AeroEstimator {
     /** wersja modelu QBota albo null (zapas) -- do dziennika */
     fun modelVersion(): String? = AeroParams.fromJson(modelJson)?.version
 
-    @Synchronized fun reset() { core.reset(); lastT = 0L; out = Out() }
+    @Synchronized fun reset() { core.reset(); disp.reset(); lastT = 0L; out = Out(); shown = Out(); lastRefLog = null }
+
+    /** v5: stale odniesienie = CdA wykrytego roweru z Centrum CdA (aeroModel.cdaByBike). Brak QBota / roweru / wartosci
+     *  -> null (stary tryb, odniesienie z jazdy). Rower jest znany po ~60 s jazdy (BikeDetector). */
+    private fun refFor(agg: RideDataAggregator?): Double? {
+        val p = core.params
+        if (!p.fromQbot) return null
+        val name = when (try { agg?.detectedBike() } catch (_: Exception) { null }) {
+            BikeDetector.Bike.GRAIL -> "Grail"; BikeDetector.Bike.GRIZL -> "Grizl"; BikeDetector.Bike.MONSTER -> "Monster"
+            else -> null
+        }
+        return name?.let { p.cdaByBike[it] }
+    }
 
     private fun surfaceNow(agg: RideDataAggregator?): Int = try {
         val pos = agg?.getRoutePositionM()
@@ -44,6 +62,13 @@ object AeroEstimator {
         if (now - paramsT > 60_000L) {
             core.params = AeroParams.fromJson(modelJson) ?: AeroParams.fallback(AthleteDataStore.load().bodyWeightKg.toDouble())
             paramsT = now
+        }
+        val fr = refFor(agg)
+        core.fixedRef = fr
+        if (fr != lastRefLog) {
+            lastRefLog = fr
+            com.qext2.primary.util.RideFileLog.append("AERO_REF " + (if (fr == null) "brak (odniesienie z jazdy)" else
+                String.format(java.util.Locale.US, "bike=%s cda=%.3f", agg?.detectedBike(), fr)))
         }
         val fresh = p.powerFreshnessMs < 3_000L && p.speedFreshnessMs < 3_000L && p.cadenceFreshnessMs < 5_000L
         val o = core.step(AeroCore.In(
@@ -61,6 +86,8 @@ object AeroEstimator {
                 else "AERO_RESET $e")
         }
         out = Out(o.state, o.dW, o.conf, o.cdaNow, o.cdaRef, o.windHead, o.surface)
+        val s = disp.feed(o, now)
+        shown = Out(s.state, s.dW, s.conf, s.cdaNow, s.cdaRef, s.windHead, s.surface)
     }
 
     /** tekst wartosci do pola: "—" brak, "···" zbiera, "−11" / "+6" / "0" W */

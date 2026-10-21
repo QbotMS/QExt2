@@ -79,3 +79,19 @@ z prognozy Open-Meteo na 10 m pasuje do jazdy dopiero po pomnożeniu przez k ≈
 - FIT `qext2_aero_wind_head` = wartość już po pomnożeniu (bez zmian w zapisie); `qext2_aero_ver` = 4.
 - Test `petla_windScale_025_vs_bez_skalowania`: pętla przy wietrze 3 / 4,5 / 6 m/s na 10 m, przy rowerze 0,25 × tyle —
   z mnożnikiem 0,25 zero fałszywych zmian; bez mnożnika (prognoza wprost) błąd 120 / 242 / 471 W i 18–20 fałszywych zmian.
+
+## v5 — stałe odniesienie + spokojny ekran (21.10.2026, QExt2 0.4.21, ver w FIT = 5)
+Decyzja Michała 21.10 po jeździe na Grailu: wartości „skakały w obie strony, trudno zrozumieć, jaki jest punkt odniesienia”.
+Dane jazdy 21.10: 33 przestawienia odniesienia w 71 min (co ~2 min), liczba zmieniała się w 70 % sekund, średnio o ~7 W.
+- **Zero = zwykłe CdA roweru z Centrum CdA QBota** (`aeroModel.cdaByBike`, klucze Grail / Grizl / Monster; mediana z 120 dni).
+  Wynik = CdA z ostatnich 30 s vs to stałe CdA, przy bieżącej prędkości (minus = mniej oporu niż zwykle). Bez kroków i bez
+  przestawiania zera (`AeroCore.fixedRef`). Brak QBota / roweru / wartości → stary tryb v4 (odniesienie z jazdy).
+  Rower znany po ~60 s jazdy; dziennik: `AERO_REF bike=GRAIL cda=0.405` albo `AERO_REF brak`.
+- **Ekran** (`AeroDisplay`, pole KOKPIT 2): odświeżany co 5 s (średnia z tych 5 s), zaokrąglony do 5 W; krótkie przerwy
+  (zakręt, hamowanie) do 15 s trzymają ostatnią wartość zamiast „—”. FIT `qext2_aero_dw_w` dalej surowe co sekundę.
+- **Rower** (`BikeDetector`): po numerze przerzutki AXS — 27856 = Grail, 10625 = Grizl (reguła Michała). Wcześniej po Quarqu,
+  ale `knownQuarqSourceId` nigdy nie był ustawiany → każdy rower z AXS = GRIZL (21.10: Grail rozpoznany jako GRIZL).
+- Sprawdzian zgodności poziomów: jazda 21.10 — pole QExt2 mediana CdA 0,441, Centrum CdA QBota 0,433 (różnica ~2 %).
+- Nawierzchnia dalej z trasy prowadzonej na Karoo; bez trasy szuter pokaże się jako „+W” (żółta kropka = niska pewność).
+- Testy: `AeroFixedRefTest` (stałe zero, dropy −14 % CdA wyraźnie na minusie, pętla z wiatrem 4 m/s bez przestawiania zera,
+  ekran co 5 s / do 5 W, przytrzymanie w przerwie, `cdaByBike` z JSON).
