@@ -77,7 +77,7 @@ class InfoDataType : DataTypeImpl("qext2", "qext2-info") {
                     val bmp = if (d == null) null else try {
                         withContext(Dispatchers.Default) {
                             StatsV2Renderer.renderInfo(w, h, d, com.qext2.primary.demo.RecDemo.infoWx(now, d), InfoWeather.scale, now,
-                                now - 6 * 3_600_000L, now + 2 * 3_600_000L + 40 * 60_000L)
+                                now - 6 * 3_600_000L, com.qext2.primary.demo.RecDemo.duskMs(now))
                         }
                     } catch (e: Exception) {
                         RideFileLog.append("RENDER_FAIL INFO rec msg=${e.message}"); null

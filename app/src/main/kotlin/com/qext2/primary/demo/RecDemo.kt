@@ -7,7 +7,6 @@ import android.graphics.Color
 import android.graphics.Paint
 import com.qext2.primary.data.AthleteDataStore
 import com.qext2.primary.gate.GateController
-import com.qext2.primary.info.InfoDemo
 import com.qext2.primary.info.InfoWx
 import com.qext2.primary.kokpit.DynItem
 import com.qext2.primary.kokpit.Kokpit2Route
@@ -101,11 +100,11 @@ object RecDemo {
         val turn = turns.firstOrNull { it.first > km }
         return KokpitNavData(
             msg = msg(o), doneKm = km, totalKm = tot, leftKm = tot - km,
-            duskMs = now + 2 * 3_600_000L + 40 * 60_000L, twilightLabel = "zmrok", etaMs = etaMs(now, km),
+            duskMs = duskMs(now), twilightLabel = "zmrok", etaMs = etaMs(now, km),
             ahead = ahead(km).map { it.first to RouteMessageEngine.surfColor(it.second) },
             stopsKm = stops(km), gradePct = f(o, "grade"), ascDone = o.getInt("ascDone"), ascLeft = o.getInt("ascLeft"),
             tempC = s.optDouble("tempC", 14.0).toFloat(), rainNowMmH = null,
-            rainSoon = RainSoon(35, 60, 1.2f, "RAIN", 14f), sky = s.optString("sky", "PARTLY"),
+            rainSoon = RainSoon(35, 60, 1.2f, "RAIN", 11f), sky = s.optString("sky", "PARTLY"),
             windMps = s.optDouble("windMps", 4.5).toFloat(), windRelDeg = o.getInt("windRelDeg"),
             windSignedMps = f(o, "windSignedMps"), windTotalMps = s.optDouble("windMps", 4.5).toFloat(),
             turnDistM = turn?.let { ((it.first - km) * 1000f).toDouble() }, turnKind = turn?.second,
@@ -179,7 +178,7 @@ object RecDemo {
             carbRate = s.optInt("carbRate", 70), carbSpent = (o.getInt("kcal") * 0.55f / 4f).toInt(),
             fluidRate = s.optDouble("fluidRate", 0.6).toFloat(), cadAvg = s.optInt("cadAvg", 84),
             batDrain = s.optDouble("batDrain", 6.5).toFloat(), batLeftSec = 6L * 3600L + 20L * 60L,
-            twilightMs = now + 2 * 3_600_000L + 40 * 60_000L, twilightDawn = false,
+            twilightMs = duskMs(now), twilightDawn = false,
             winNp = (0 until wnp.length()).map { wnp.getInt(it) } + o.getInt("np5"),
             winEf = (0 until wef.length()).map { wef.getDouble(it).toFloat() as Float? } + 1.40f,
             winPartial = true, typEf = s.optDouble("typEf", 1.42).toFloat(), cpW = cp,
@@ -194,8 +193,34 @@ object RecDemo {
         )
     }
 
-    /** Pogoda INFO: zmyslona (InfoDemo), od biezacego km scenariusza do mety. */
-    fun infoWx(now: Long, d: StatsV2Data): InfoWx = InfoDemo.wx(now, d.doneKm, d.totalKm ?: (d.doneKm + 40f))
+    /** Zmrok w scenariuszu: dzis 17:20 (pazdziernik); gdy do 17:20 zostaly < 2 h -> za 2:40 (bez "zmrok 12:54" rano). */
+    fun duskMs(now: Long): Long {
+        val z = java.time.ZoneId.systemDefault()
+        val t = java.time.LocalDate.now(z).atTime(17, 20).atZone(z).toInstant().toEpochMilli()
+        return if (t - now > 2 * 3_600_000L) t else now + 2 * 3_600_000L + 40 * 60_000L
+    }
+
+    /** Pogoda INFO (zmyslona, jak InfoDemo): deszcz zaczyna sie za ~35 min (11 km przy 19,1 km/h) -- tak jak komunikat KOKPIT
+     *  "deszcz za 35'"; INFO liczy poczatek od 0,3 mm/h. Ten sam wzor w qext2-nagranie.js (symulator w Garazu). */
+    fun infoWx(now: Long, d: StatsV2Data): InfoWx {
+        val kmNow = d.doneKm
+        val end = maxOf(d.totalKm ?: (kmNow + 40f), kmNow + 30f)
+        val items = ArrayList<com.qext2.primary.info.WxItem>()
+        fun g(x: Float, c: Float, w: Float): Float { val q = (x - c) / w; return kotlin.math.exp(-q * q) }
+        var km = kmNow
+        while (km <= end) {
+            val dd = km - kmNow
+            val hw = 5.5f * kotlin.math.sin(dd / 6f) + 2.5f * kotlin.math.sin(dd / 1.9f) + 1.0f * kotlin.math.cos(dd / 13f)
+            val mm = (1.6f * g(dd, RAIN_KM, 5f) + 0.9f * g(dd, 60f, 6f)).let { if (it < 0.05f) 0f else it }
+            items.add(com.qext2.primary.info.WxItem(km, dd / 19.1f * 60f, 11f - 4f * maxOf(0f, dd - 30f) / maxOf(1f, end - kmNow) - 1.6f * g(dd, RAIN_KM, 8f),
+                mm, minOf(95f, 10f + 80f * g(dd, RAIN_KM, 10f) + 50f * g(dd, 60f, 10f)), hw, if (hw > 0f) hw * 1.45f + 1.5f else 2f))
+            km += 0.5f
+        }
+        return InfoWx(true, items, now, 120f)
+    }
+
+    /** srodek opadu (km przed toba): poczatek >= 0,3 mm/h = 17,6 - 1,29 x 5 = 11,1 km = 35 min */
+    private const val RAIN_KM = 17.6f
 
     private val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#E5484D"); alpha = 210 }
 
