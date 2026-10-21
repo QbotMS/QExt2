@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.provider.Settings
 import com.qext2.primary.BuildConfig
+import com.qext2.primary.launcher.DebugDialogClicker
 import com.qext2.primary.util.RideFileLog
 import org.json.JSONObject
 
@@ -15,6 +16,9 @@ import org.json.JSONObject
  *  2. BLEDY   - 3 bledy techniczne (wyjatek) pod rzad; blokada trwa do zmiany buildu QExt2 albo wersji Karoo;
  *  3. PETLA   - usluga QExt2 wystartowala >= 5 razy w 5 min (padanie jak 0.4.7) -> wszystkie ryzykowne funkcje
  *               wylaczone do restartu Karoo, reszta QExt2 dziala.
+ * 0.4.20 (ciemny-2110): "Tryb ciemny Karoo" wylaczony w SETUP QBota (darkmenu w qext2Disable) wylacza wszystko, co z nim
+ * zwiazane: ciemne menu, debugowanie Wi-Fi, budzenie hotspotu (sluzy tylko ciemnemu menu) i usluge zatwierdzajaca okno
+ * debugowania (zdejmowana z ustawien systemu). Ciemny wyglad znika dopiero po restarcie Karoo.
  * Opis: QBot docs/wiki/qext2/autotest-karoo.md
  */
 object FeatureGuard {
@@ -30,6 +34,7 @@ object FeatureGuard {
 
     @Volatile private var prefs: SharedPreferences? = null
     @Volatile private var remote: Set<String> = emptySet()
+    @Volatile private var appCtx: Context? = null
     @Volatile var crashLoop = false
         private set
 
@@ -39,6 +44,8 @@ object FeatureGuard {
             val p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             prefs = p
             remote = (p.getStringSet("remote", emptySet()) ?: emptySet()).toSet()
+            appCtx = ctx.applicationContext
+            applyDarkOff()   // 0.4.20: tryb ciemny wylaczony w QBocie -> usluga okna zdjeta, debugowanie Wi-Fi wyl.
             // nowy build QExt2 albo nowa wersja Karoo -> stare blokady "BLEDY" kasowane (funkcja dostaje nowa szanse)
             val sig = BuildConfig.VERSION_CODE.toString() + "|" + KarooHealth.systemSig(ctx)
             if (p.getString("sig", null) != sig) {
@@ -67,6 +74,7 @@ object FeatureGuard {
         crashLoop -> "petla"
         f in remote -> "zdalnie"
         prefs?.getBoolean("off_$f", false) == true -> "bledy"
+        f == HOTSPOT -> reason(DARKMENU)   // 0.4.20: hotspot budzony tylko dla ciemnego menu
         else -> null
     }
 
@@ -77,6 +85,26 @@ object FeatureGuard {
         remote = s
         prefs?.edit()?.putStringSet("remote", s)?.apply()
         try { RideFileLog.append("GUARD REMOTE off=" + s.joinToString(",").ifEmpty { "-" }) } catch (_: Throwable) {}
+        applyDarkOff()
+    }
+
+    /** 0.4.20: przelacznik "Tryb ciemny Karoo" w SETUP QBota wylaczony (darkmenu w liscie zdalnej). */
+    fun darkModeOff(): Boolean = DARKMENU in remote
+
+    /** 0.4.20: przy wylaczonym trybie ciemnym zdejmuje usluge zatwierdzajaca okno z ustawien systemu i pilnuje,
+     *  zeby debugowanie Wi-Fi bylo wylaczone. Nigdy nie rzuca. */
+    private fun applyDarkOff() {
+        if (!darkModeOff()) return
+        val c = appCtx ?: return
+        try {
+            DebugDialogClicker.disarm()
+            val r = DebugDialogClicker.disableInSystem(c)
+            val cr = c.contentResolver
+            if (Settings.Global.getInt(cr, "adb_wifi_enabled", 0) != 0) Settings.Global.putInt(cr, "adb_wifi_enabled", 0)
+            if (r != "ABSENT") RideFileLog.append("DARKMODE OFF (SETUP QBota): usluga okna $r, debugowanie Wi-Fi wyl.")
+        } catch (e: Throwable) {
+            try { RideFileLog.append("DARKMODE_OFF_FAIL ${e.javaClass.simpleName}") } catch (_: Throwable) {}
+        }
     }
 
     /** Wynik dzialania funkcji. ok=false tylko dla bledu technicznego (wyjatek), nie dla braku Wi-Fi itp. */

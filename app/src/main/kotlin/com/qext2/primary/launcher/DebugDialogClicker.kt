@@ -43,6 +43,22 @@ class DebugDialogClicker : AccessibilityService() {
             false
         }
 
+        /** 0.4.20: zdejmuje usluge z ustawien systemu (tryb ciemny wylaczony w QBocie). Wynik: REMOVED | ABSENT | ERR:... */
+        fun disableInSystem(ctx: Context): String = try {
+            val cr = ctx.contentResolver
+            val me = ComponentName(ctx, DebugDialogClicker::class.java).flattenToString()
+            val list = (Settings.Secure.getString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: "")
+                .split(':').filter { it.isNotBlank() }
+            if (list.none { it.equals(me, true) }) "ABSENT" else {
+                val rest = list.filterNot { it.equals(me, true) }
+                Settings.Secure.putString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, rest.joinToString(":"))
+                if (rest.isEmpty()) Settings.Secure.putInt(cr, Settings.Secure.ACCESSIBILITY_ENABLED, 0)
+                "REMOVED"
+            }
+        } catch (e: Exception) {
+            "ERR:" + e.javaClass.simpleName
+        }
+
         /** Aktywne sprawdzenie (DarkMenu odpytuje co 0,5 s): true = okno zatwierdzone. */
         fun pokeNow(): Boolean = instance?.tryClick(null) == true
     }
