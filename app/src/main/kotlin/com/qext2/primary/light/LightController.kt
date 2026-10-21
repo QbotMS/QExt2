@@ -66,6 +66,10 @@ object LightController {
     fun cycle() {
         val id = lightId
         val c = control
+        // 0.4.19: bezpiecznik (wylacznik zdalny z QBota / petla padania) - tapniecie nic nie wysyla do lampy
+        com.qext2.primary.health.FeatureGuard.reason(com.qext2.primary.health.FeatureGuard.LIGHT)?.let { why ->
+            show("sterowanie wył."); log("LIGHT_TAP guard=$why"); return
+        }
         if (id == null) { show("brak lampy"); log("LIGHT_TAP no_light"); return }
         if (c == null || !c.ready()) { c?.bind(); show("brak sterowania"); log("LIGHT_TAP not_ready"); return }
         // 0.4.12: wczesniej odrzucony tryb blokowal przelaczanie (kazde tapniecie probowalo tego samego).

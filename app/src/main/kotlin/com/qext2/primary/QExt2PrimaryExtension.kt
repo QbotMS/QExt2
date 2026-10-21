@@ -68,6 +68,8 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
     @Volatile private var rideRecording = false
     private var rideStateConsumerId: String? = null
     private var ridePingJob: Job? = null
+    @Volatile private var sdkConnected = false
+    private var healthJob: Job? = null
 
     companion object {
         var instance: QExt2PrimaryExtension? = null
@@ -90,6 +92,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         com.qext2.primary.util.RideLogUpload.init(getExternalFilesDir(null) ?: filesDir)   // 20.10.2026: dziennik jazdy -> QBot
         com.qext2.primary.hrv.H10Recorder.init(this, getExternalFilesDir(null) ?: filesDir)   // 0.4.14: pas Polar H10 (HRV z jazdy)
         com.qext2.primary.util.RideFileLog.append("START QExt2 versionCode=${BuildConfig.VERSION_CODE}")
+        com.qext2.primary.health.FeatureGuard.init(this)   // 0.4.19: bezpieczniki funkcji nieoficjalnych (autotest Karoo)
         val surfaceCache = SurfaceProfileCache(
             qbotBaseUrl = BuildConfig.QBOT_BASE_URL,
             qbotBearer = BuildConfig.QBOT_BEARER,
@@ -102,6 +105,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         _karooSystem = system
         _karooSystemFlow.value = system
         system.connect { connected ->
+            sdkConnected = connected
             serviceScope.launch {
                 if (connected) {
                     if (_aggregator == null) {
@@ -151,6 +155,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                     com.qext2.primary.util.RideLogUpload.trySend(system)   // 20.10.2026: zalegle dzienniki jazdy
                     com.qext2.primary.hrv.H10Recorder.trySend(system)   // 0.4.14: zalegle nagrania RR z pasa H10
                     startHomeBgPolling()   // 20.10.2026 (0.4.5): tlo ekranu startowego z QBota
+                    scheduleHealthCheck()   // 0.4.19: autotest Karoo (raz na start uslugi, poza jazda)
                 } else {
                     batteryPollJob?.cancel()
                     batteryPollJob = null
@@ -624,6 +629,10 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                                 com.qext2.primary.launcher.HomeBackground.saveSourceUrl(this@QExt2PrimaryExtension, u)
                                 if (first) refreshHomeBg()
                             }
+                            // 0.4.19: wylacznik zdalny funkcji nieoficjalnych (SETUP QBota > QExt2 > Autotest Karoo)
+                            json.optJSONArray("qext2Disable")?.let { a ->
+                                com.qext2.primary.health.FeatureGuard.setRemote((0 until a.length()).map { a.optString(it) })
+                            }
                             val adjusted = data.applyBaroAdjustment(false)
                             _aggregator?.updateAthleteData(adjusted)
                             AthleteDataStore.saveLastRefresh()
@@ -776,7 +785,8 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
             repeat(3) {
                 if (com.qext2.primary.launcher.DarkMenu.doneThisBoot(this@QExt2PrimaryExtension) ||
                     com.qext2.primary.launcher.DarkMenu.onWifi(this@QExt2PrimaryExtension)) return@launch
-                _karooSystem?.let { com.qext2.primary.launcher.HotspotWake.request(this@QExt2PrimaryExtension, it, "no_wifi") }
+                if (com.qext2.primary.health.FeatureGuard.allowed(com.qext2.primary.health.FeatureGuard.HOTSPOT))
+                    _karooSystem?.let { com.qext2.primary.launcher.HotspotWake.request(this@QExt2PrimaryExtension, it, "no_wifi") }
                 delay(10 * 60_000L + 5_000L)
             }
         }
@@ -795,12 +805,32 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         }
     }
 
+    /** 0.4.19: autotest Karoo - raz na start uslugi, ok. 4 min po starcie Karoo (po probach ciemnego menu), nigdy w czasie
+     *  nagrywania jazdy. Testy w osobnym watku, wysylka raportu do QBota na watku glownym (docs QBota: wiki/qext2/autotest-karoo.md). */
+    private fun scheduleHealthCheck() {
+        if (healthJob != null) return
+        healthJob = serviceScope.launch {
+            delay((240_000L - android.os.SystemClock.elapsedRealtime()).coerceAtLeast(60_000L))
+            while (rideRecording) delay(60_000L)
+            Thread {
+                val rep = com.qext2.primary.health.KarooHealth.buildReport(this@QExt2PrimaryExtension, sdkConnected)
+                if (rep != null) serviceScope.launch {
+                    _karooSystem?.let { com.qext2.primary.health.KarooHealth.send(this@QExt2PrimaryExtension, it, rep) }
+                }
+            }.apply { isDaemon = true; start() }
+        }
+    }
+
     private var darkThread: Thread? = null
 
     private fun runDarkMenu() {
         if (rideRecording || darkThread?.isAlive == true) return
+        if (!com.qext2.primary.health.FeatureGuard.allowed(com.qext2.primary.health.FeatureGuard.DARKMENU)) return   // 0.4.19 bezpiecznik
         darkThread = Thread {
             val r = try { com.qext2.primary.launcher.DarkMenu.ensure(this) } catch (e: Throwable) { "ERR:" + e.javaClass.simpleName }
+            if (r != "DONE_THIS_BOOT" && r != "GIVEUP" && r != "NO_WIFI") com.qext2.primary.launcher.DarkMenu.lastResult = r
+            if (r.startsWith("SET")) com.qext2.primary.health.FeatureGuard.report(com.qext2.primary.health.FeatureGuard.DARKMENU, true)
+            else if (r.startsWith("ERR")) com.qext2.primary.health.FeatureGuard.report(com.qext2.primary.health.FeatureGuard.DARKMENU, false)
             if (r != "DONE_THIS_BOOT" && r != "GIVEUP" && r != "NO_WIFI") com.qext2.primary.util.RideFileLog.append("DARKMENU $r")
             // 0.4.7: po starcie Karoo Wi-Fi/mDNS bywa jeszcze niegotowe -> ponow za 60 s (limit 3 proby w DarkMenu)
             if (r.startsWith("CONNECT_FAIL") || r.startsWith("ERR")) serviceScope.launch { delay(60_000L); runDarkMenu() }
@@ -809,6 +839,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
 
     private fun refreshHomeBg() {
         if (rideRecording) return
+        if (!com.qext2.primary.health.FeatureGuard.allowed(com.qext2.primary.health.FeatureGuard.HOMEBG)) return   // 0.4.19 bezpiecznik
         val src = com.qext2.primary.launcher.HomeBackground.sourceUrl(this)
         if (src == null) { com.qext2.primary.util.RideFileLog.append("HOMEBG_SKIP brak adresu z QBota"); return }
         karooHttpGet(src, emptyMap()) { code, body ->
@@ -819,6 +850,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                     val url = org.json.JSONObject(body).optString("url", "")
                     if (url.startsWith("https://")) {
                         val r = com.qext2.primary.launcher.HomeBackground.apply(this, url)
+                        com.qext2.primary.health.FeatureGuard.report(com.qext2.primary.health.FeatureGuard.HOMEBG, !r.startsWith("ERR"))
                         com.qext2.primary.util.RideFileLog.append("HOMEBG $r ${url.substringAfterLast('/')}")
                     } else com.qext2.primary.util.RideFileLog.append("HOMEBG_FAIL brak url")
                 } catch (e: Exception) {
@@ -838,6 +870,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         weatherPollJob?.cancel()
         weatherPollJob = null
         homeBgJob?.cancel()
+        healthJob?.cancel()
         wifiCb?.let { cb -> try { (getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager).unregisterNetworkCallback(cb) } catch (_: Exception) {} }
         wifiCb = null
         homeBgJob = null

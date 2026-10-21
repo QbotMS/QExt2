@@ -89,6 +89,15 @@ class LightControl(private val context: Context) {
 
     fun ready(): Boolean = lightCmdBinder != null && modeCreator != null
 
+    /** 0.4.19 autotest: stan polaczenia z usluga (do raportu) */
+    fun diag(): String = "bind=$bound usluga=${lightCmdBinder != null} klasy=${modeCreator != null}"
+
+    /** 0.4.19 autotest: rozlaczenie testowej instancji */
+    fun unbind() {
+        try { if (bound) context.unbindService(conn) } catch (_: Exception) {}
+        bound = false; lightCmdBinder = null
+    }
+
     /** 0.4.11: usluga czujnikow Karoo mogla sie zrestartowac - polacz od nowa */
     fun rebind() {
         lightCmdBinder = null

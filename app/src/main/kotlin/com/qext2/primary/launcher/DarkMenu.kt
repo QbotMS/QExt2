@@ -27,6 +27,8 @@ class QAdbManager(private val key: PrivateKey, private val cert: Certificate) : 
 
 object DarkMenu {
     private const val PREFS = "qext2_dark_menu"
+    /** 0.4.19: ostatni wynik proby w tym starcie uslugi (autotest Karoo) */
+    @Volatile var lastResult: String? = null
     // 0.4.9: echo PRZED restartem ekranu startowego, zeby potwierdzenie doszlo zanim adbd zamknie strumien
     private const val CMD = "shell:setprop debug.hwui.force_dark true && echo QEXT2_OK; am force-stop io.hammerhead.launcherapp"
 
