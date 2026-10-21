@@ -54,6 +54,7 @@ class SetupActivity : Activity() {
         AthleteDataStore.init(this)
         com.qext2.primary.demo.RecMode.init(this)   // 0.4.20: tryb NAGRANIE
         com.qext2.primary.hrv.H10Recorder.init(this, getExternalFilesDir(null) ?: filesDir)   // 0.4.14: pas H10
+        com.qext2.primary.osmo.OsmoLink.init(this)   // 0.4.23: kamera DJI Osmo
         root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(18), dp(16), dp(18)) }
         setContentView(ScrollView(this).apply { setBackgroundColor(bg); addView(root) })
         render()
@@ -78,6 +79,7 @@ class SetupActivity : Activity() {
         root.addView(aeroCard())
         root.addView(darkCard())
         root.addView(h10Card())
+        root.addView(osmoCard())   // 0.4.23: kamera DJI Osmo
         root.addView(label("Wersja ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) · ustawienia zapisywane na serwerze", 13, sub).apply {
             setPadding(dp(4), dp(14), 0, 0)
         })
@@ -349,6 +351,36 @@ class SetupActivity : Activity() {
             })
             c.addView(label("Gdy Telegram napisze, że HRV nie dotarło (np. Karoo wyłączone zaraz po jeździe).", 13, sub).apply { setPadding(0, dp(4), 0, 0) })
             c.addView(button("Zmień pas", btn) { h.saveDeviceId(null); h10Msg = null; render() })
+        }
+        return c
+    }
+
+    /** 0.4.23 (21.10.2026, osmo-2110): kamera DJI Osmo Nano - etap 1 (lacze na czas jazdy + dziennik; kropka REC pozniej). */
+    private var osmoMsg: String? = null
+
+    private fun osmoCard(): View {
+        val c = box(card)
+        val o = com.qext2.primary.osmo.OsmoLink
+        val nm = o.name()
+        c.addView(label("Kamera DJI Osmo (stan nagrywania)", 15, sub))
+        c.addView(label(nm ?: "nie wybrana", 19, if (nm != null) txt else orange, bold = true))
+        c.addView(label("Etap testowy: QExt2 łączy się z kamerą na czas jazdy i zapisuje jej stan w dzienniku jazdy. Za pierwszym razem zatwierdź połączenie na ekranie kamery.", 13, sub))
+        osmoMsg?.let { c.addView(label(it, 14, amber).apply { setPadding(0, dp(8), 0, 0) }) }
+        if (!com.qext2.primary.hrv.H10Recorder.hasPermissions(this)) {
+            c.addView(button("Zezwól na Bluetooth", btn) { requestPermissions(com.qext2.primary.hrv.H10Recorder.neededPermissions(), reqBt) })
+            return c
+        }
+        if (nm == null) {
+            c.addView(button("Znajdź kamerę (włącz ją)", btn) {
+                osmoMsg = "Szukam kamery…"; render()
+                o.search { n -> osmoMsg = if (n != null) "Znaleziono: $n." else "Nie znaleziono. Włącz kamerę i spróbuj ponownie."; render() }
+            })
+        } else {
+            c.addView(button("Połącz i sprawdź", btn) {
+                osmoMsg = "Łączę z kamerą… (zatwierdź na kamerze, jeśli zapyta)"; render()
+                o.check { m -> osmoMsg = m; render() }
+            })
+            c.addView(button("Zmień kamerę", btn) { o.forget(); osmoMsg = null; render() })
         }
         return c
     }

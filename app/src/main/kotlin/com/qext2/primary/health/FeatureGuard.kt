@@ -26,7 +26,8 @@ object FeatureGuard {
     const val HOMEBG = "homebg"
     const val LIGHT = "light"
     const val HOTSPOT = "hotspot"
-    val ALL = listOf(DARKMENU, HOMEBG, LIGHT, HOTSPOT)
+    const val OSMO = "osmo"   // 0.4.23: kamera DJI Osmo (Bluetooth, protokol nieoficjalny)
+    val ALL = listOf(DARKMENU, HOMEBG, LIGHT, HOTSPOT, OSMO)
 
     private const val PREFS = "qext2_guard"
     private const val K_LOCAL_DARK = "local_dark_off"

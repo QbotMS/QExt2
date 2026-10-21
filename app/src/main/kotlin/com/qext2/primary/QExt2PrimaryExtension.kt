@@ -92,6 +92,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         com.qext2.primary.util.RideFileLog.init(getExternalFilesDir(null) ?: filesDir)
         com.qext2.primary.util.RideLogUpload.init(getExternalFilesDir(null) ?: filesDir)   // 20.10.2026: dziennik jazdy -> QBot
         com.qext2.primary.hrv.H10Recorder.init(this, getExternalFilesDir(null) ?: filesDir)   // 0.4.14: pas Polar H10 (HRV z jazdy)
+        com.qext2.primary.osmo.OsmoLink.init(this)   // 0.4.23: kamera DJI Osmo - stan nagrywania (etap 1: dziennik)
         com.qext2.primary.util.RideFileLog.append("START QExt2 versionCode=${BuildConfig.VERSION_CODE}")
         com.qext2.primary.health.FeatureGuard.init(this)   // 0.4.19: bezpieczniki funkcji nieoficjalnych (autotest Karoo)
         val surfaceCache = SurfaceProfileCache(
@@ -193,6 +194,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                 com.qext2.primary.util.RideFileLog.append("RIDE_START schema=$FIT_SCHEMA build=${BuildConfig.VERSION_CODE} cp=${a.ftp} ltp=${a.ltpWatts} wp=${a.wPrimeKj} form=${a.todayFactor} profileTs=${a.fetchTimestamp} bike=${_aggregator?.bikeKey()}")
                 if (com.qext2.primary.demo.RecMode.rideIsRec) com.qext2.primary.util.RideFileLog.append("REC_RIDE tryb NAGRANIE: bez H10, bez sygnalu jazdy i dziennika, FIT qext2_demo=1 -- jazde ODRZUCIC na Karoo")
                 else _karooSystem?.let { com.qext2.primary.hrv.H10Recorder.onRideStart(it) }   // 0.4.14: start zapisu RR w pasie H10
+                com.qext2.primary.osmo.OsmoLink.onRideStart()   // 0.4.23: kamera DJI Osmo - lacze na czas jazdy
             }
             rideRecording = true
             if (!com.qext2.primary.demo.RecMode.rideIsRec) startRidePing()
@@ -212,6 +214,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                 com.qext2.primary.util.RideLogUpload.onRideEnd(BuildConfig.VERSION_CODE)
                 _karooSystem?.let { com.qext2.primary.hrv.H10Recorder.onRideEnd(it) }   // 0.4.14: stop + pobranie RR z pasa H10 -> QBot
             }
+            com.qext2.primary.osmo.OsmoLink.onRideEnd()   // 0.4.23: kamera DJI Osmo - rozlacz po jezdzie
             refreshHomeBg()   // 0.4.5: po jezdzie od razu swieze tlo
             _karooSystem?.let { com.qext2.primary.util.RideLogUpload.trySend(it) }
             com.qext2.primary.demo.RecMode.rideIsRec = false   // 0.4.20: koniec jazdy nagrania
