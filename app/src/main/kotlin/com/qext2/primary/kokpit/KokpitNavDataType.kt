@@ -204,6 +204,7 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
             windSignedMps = agg?.getHeadwindSignedMps(),   // KOKPIT 2: kolor strzalki (+ w twarz)
             windTotalMps = agg?.getKarooWindMps(),
             windCached = agg?.windFromCache() == true,
+            camRec = com.qext2.primary.osmo.OsmoLink.dot(),   // 0.4.26: kropka REC kamery DJI Osmo
             turnDistM = nt?.first, turnKind = nt?.second,
             sky = rw?.sky?.name,
             dyn = dynItem(now, s, agg, pos, dtdKm, total, eta, dusk ?: 0L, pois),   // granica: zmrok (nie swit)
@@ -274,7 +275,7 @@ object KokpitNavDemo {
             ahead = ahead, gradePct = (kotlin.math.sin(t / 6f) * 9f), ascDone = (1280 * f).toInt(), ascLeft = (1280 * (1 - f)).toInt(),
             tempC = 24f, rainNowMmH = null, rainSoon = if (sec >= 50L) RainSoon(40, 70, 2f, "STORM", 12f) else null,
             sky = if ((now / 60000L) % 2L == 0L) "PARTLY" else "CLEAR", windMps = 4f, windDirDeg = 300,
-            windRelDeg = ((now / 1000L) * 6 % 360).toInt(), stopsKm = listOf(22f, 41.5f).filter { it < done }, demo = true,
+            windRelDeg = ((now / 1000L) * 6 % 360).toInt(), stopsKm = listOf(22f, 41.5f).filter { it < done }, demo = true, camRec = 2,
         )
     }
 

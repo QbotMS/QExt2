@@ -48,6 +48,8 @@ data class KokpitNavData(
     val dyn: DynItem? = null,
     /** wiatr z zapasu prognozy (brak sieci) - znacznik "P" */
     val windCached: Boolean = false,
+    /** 0.4.26: kamera DJI Osmo - 0 brak (bez kropki), 1 polaczona nie nagrywa (szara), 2 NAGRYWA (czerwona REC) */
+    val camRec: Int = 0,
 )
 
 /** Pole dynamiczne KOKPIT 2: kind = ATD | ASC | WIND | water | shop | food | AVG; warn 0 brak, 1 zolty, 2 czerwony. */

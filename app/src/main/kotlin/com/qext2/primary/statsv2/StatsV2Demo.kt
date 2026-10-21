@@ -68,6 +68,7 @@ object StatsV2Demo {
             ahead = listOf(52f to android.graphics.Color.parseColor("#F2F4F7"), 37f to android.graphics.Color.parseColor("#FFB300"), 7f to android.graphics.Color.parseColor("#FF2A2A")),
             stopsKm = listOf(22f, 41.5f),
             demo = true,
+            camBat = 78, camOn = true,   // 0.4.26
         )
     }
 }

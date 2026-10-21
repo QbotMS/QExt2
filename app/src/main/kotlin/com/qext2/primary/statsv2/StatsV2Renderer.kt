@@ -70,6 +70,9 @@ data class StatsV2Data(
     val light: com.qext2.primary.light.LightController.Ui? = null,
     /** 18.10: ciagle NP z ostatnich 5 min ruchu (StatsCalculator.np5Watts) */
     val np5Now: Int? = null,
+    /** 0.4.26: kamera DJI Osmo - bateria % (null = brak polaczenia), camOn = kamera wybrana w SETUP */
+    val camBat: Int? = null,
+    val camOn: Boolean = false,
 )
 
 object StatsV2Renderer {
@@ -151,8 +154,10 @@ object StatsV2Renderer {
         drawValueCell(c, RectF(2 * col3 + 2 * g, y, BW, y + rows[2]), listOf(P_FLAME), null, "KCAL", "",
             d.kcal?.toString(), 62f, WHITE)
         y += rows[2] + g
-        // 4: PLAN CZASU
-        drawPlan(c, RectF(0f, y, BW, y + rows[3]), d)
+        // 4: PLAN CZASU (62%) | CAM BAT (0.4.26, decyzja Michala 21.10: plan zwezony, bateria kamery DJI Osmo po prawej)
+        val wPlan = (BW - g) * 0.62f
+        drawPlan(c, RectF(0f, y, wPlan, y + rows[3]), d)
+        drawCamBat(c, RectF(wPlan + g, y, BW, y + rows[3]), d)
         y += rows[3] + g
         // 5: TEMPO co godzine
         drawTempo(c, RectF(0f, y, BW, y + rows[4]), d)
@@ -689,8 +694,8 @@ object StatsV2Renderer {
     private fun drawPlan(c: Canvas, r: RectF, d: StatsV2Data) {
         cell(c, r)
         label(c, r, null, "PLAN CZASU", "")
-        if (d.planFromQbot) rightLabel(c, r, listOf(Triple("model czasu QBota", 20f, SUB)))
-        else d.planRefEtaMs?.let { rightLabel(c, r, listOf(Triple("ETA ze startu", 20f, SUB), Triple(clock(it), 24f, WHITE))) }
+        if (d.planFromQbot) rightLabel(c, r, listOf(Triple("QBot", 20f, SUB)))
+        else d.planRefEtaMs?.let { rightLabel(c, r, listOf(Triple("ETA", 20f, SUB), Triple(clock(it), 24f, WHITE))) }
         val l = X(r.left) + F(12f); val T = Y(r.top); val cy = T + F(58f)
         val dm = d.planDeltaMin
         if (dm == null) { none(c, (X(r.left) + X(r.right)) / 2f, cy, "po 1. km z ETA"); return }
@@ -698,17 +703,34 @@ object StatsV2Renderer {
         val col = when { dm >= 5 -> AMBER; dm <= -5 -> Color.parseColor("#4ADE80"); else -> WHITE }
         text(c, s, l, cy, F(52f), col)
         val dd = d.planDriveDelta; val ds = d.planStopDelta
-        val word = if (dd != null && ds != null) "min" else when { dm > 0 -> "min za planem"; dm < 0 -> "min przed planem"; else -> "min · zgodnie z planem" }
+        val word = if (dd != null && ds != null) "min" else when { dm > 0 -> "min za planem"; dm < 0 -> "min przed"; else -> "min · zgodnie" }
         text(c, word, l + textW(s, F(52f)) + F(8f), cy + F(6f), F(22f), UNIT)
         if (dd != null && ds != null) {
+            // 0.4.26: wezsza komorka - jazda i postoje w dwoch wierszach po prawej
             fun sg(v: Int) = (if (v > 0) "+" else if (v < 0) "−" else "") + kotlin.math.abs(v)
             val rr = X(r.right) - F(10f)
-            val sv = sg(ds); text(c, sv, rr, cy, F(34f), if (ds >= 5) AMBER else WHITE, Paint.Align.RIGHT)
-            var x = rr - textW(sv, F(34f)) - F(6f)
-            text(c, "postoje", x, cy + F(2f), F(22f), SUB, Paint.Align.RIGHT); x -= textW("postoje", F(22f)) + F(14f)
-            val jv = sg(dd); text(c, jv, x, cy, F(34f), if (dd >= 5) AMBER else WHITE, Paint.Align.RIGHT); x -= textW(jv, F(34f)) + F(6f)
-            text(c, "jazda", x, cy + F(2f), F(22f), SUB, Paint.Align.RIGHT)
+            fun line(cyl: Float, name: String, v: Int) {
+                val sv = sg(v); text(c, sv, rr, cyl, F(26f), if (v >= 5) AMBER else WHITE, Paint.Align.RIGHT)
+                text(c, name, rr - textW(sv, F(26f)) - F(6f), cyl + F(1f), F(20f), SUB, Paint.Align.RIGHT)
+            }
+            line(cy - F(13f), "jazda", dd)
+            line(cy + F(14f), "postoje", ds)
         }
+    }
+
+    /** 0.4.26 (osmo-2110): bateria kamery DJI Osmo (OsmoLink, stan z Bluetooth). */
+    private fun drawCamBat(c: Canvas, r: RectF, d: StatsV2Data) {
+        cell(c, r)
+        label(c, r, listOf(P_BATT), "CAM BAT", "")
+        val cx = (X(r.left) + X(r.right)) / 2f; val cy = Y(r.top) + F(58f)
+        val b = d.camBat
+        if (b == null) { none(c, cx, cy, if (d.camOn) "brak łącza" else "brak kamery"); return }
+        val col = when { b < 20 -> Color.parseColor("#FF5252"); b < 35 -> AMBER; else -> WHITE }
+        val vs = b.toString()
+        val wv = textW(vs, F(52f)) + F(4f) + textW("%", F(24f))
+        val x0 = cx - wv / 2f
+        text(c, vs, x0, cy, F(52f), col)
+        text(c, "%", x0 + textW(vs, F(52f)) + F(4f), cy + F(8f), F(24f), UNIT)
     }
 
     private fun drawTempo(c: Canvas, r: RectF, d: StatsV2Data) {

@@ -689,7 +689,30 @@ object Kokpit2NavRenderer {
     // ---------- gorny wiersz (2026-10-14): DST | temperatura | opad/niebo | wiatr - STALE KOLUMNY ----------
     private fun rowWeather(c: Canvas, d: KokpitNavData, vw: Float, base: Float) {
         val vs = 42f   // temperatura 42 px (decyzja Michala); DST i wiatr w tym wierszu ta sama wielkosc
-        row(listOf(gDst(c, d, base, vs), gTemp(c, d, base, vs), gWx(c, d, base, vs), gWind(c, d, base, vs)), vw)
+        val gs = listOf(gDst(c, d, base, vs), gTemp(c, d, base, vs), gWx(c, d, base, vs), gWind(c, d, base, vs))
+        row(gs, vw)
+        recDot(c, d.camRec, gs, vw, base, vs)
+    }
+
+    /** 0.4.26 (osmo-2110, decyzja Michala 21.10): kropka kamery DJI Osmo w przerwie miedzy opadem/niebem a wiatrem.
+     *  Czerwona + REC = nagrywa (przy waskiej przerwie sama kropka), szara = kamera polaczona, nie nagrywa, brak = brak kamery.
+     *  Inna niz kropka trybu NAGRANIE (RecMode). Kolumny wiersza sie nie przesuwaja. */
+    private fun recDot(c: Canvas, st: Int, gs: List<G>, vw: Float, base: Float, vs: Float) {
+        if (st <= 0 || gs.size < 4) return
+        val gap = rowGap(gs, vw)
+        val wxEnd = 8f + gs[0].ref + gap + gs[1].ref + gap + gw(gs[2].items, gs[2].inner)
+        val windStart = vw - 8f - gw(gs[3].items, gs[3].inner)
+        val free = windStart - wxEnd
+        if (free < 22f) return
+        val cy = base - vs * CAP / 2f
+        val col = if (st == 2) Color.parseColor("#EF4444") else Color.parseColor("#6B7280")
+        val r = 8f
+        val withText = st == 2 && free >= 74f
+        val total = 2f * r + (if (withText) 5f + w("REC", 18f) else 0f)
+        val x = (wxEnd + windStart) / 2f - total / 2f
+        fp.color = col
+        c.drawCircle(x + r, cy, r, fp)
+        if (withText) t(c, "REC", x + 2f * r + 5f, cy + 18f * CAP / 2f, 18f, col)
     }
 
     /** logo QBot (jak favicon.svg serwisu): pomaranczowe Q z linia tetna, bez tla; kwadrat sz x sz, lewy-gorny rog (x, y) */

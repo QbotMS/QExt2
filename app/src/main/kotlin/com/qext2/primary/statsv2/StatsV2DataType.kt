@@ -244,6 +244,8 @@ class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: 
             planFromQbot = pq != null,
             light = com.qext2.primary.light.LightController.ui(),
             np5Now = s.np5Watts.takeIf { it > 0 },
+            camBat = com.qext2.primary.osmo.OsmoLink.battery.takeIf { it in 0..100 && com.qext2.primary.osmo.OsmoLink.connected },   // 0.4.26
+            camOn = com.qext2.primary.osmo.OsmoLink.address() != null,
             tempo = tp.first,
             tempoPartial = tp.second,
             gate = com.qext2.primary.gate.GateController.ui.value,
