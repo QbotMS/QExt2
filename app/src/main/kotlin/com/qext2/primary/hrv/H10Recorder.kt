@@ -293,6 +293,7 @@ object H10Recorder {
     fun trySend(system: KarooSystemService) {
         sys = system
         val d = dir ?: return
+        if (com.qext2.primary.demo.RecMode.blocked()) { log("H10_SEND_SKIP tryb NAGRANIE"); return }   // 0.4.20
         val tok = BuildConfig.QEXT_READINESS_TOKEN.trim()
         if (tok.isEmpty()) return
         val now = System.currentTimeMillis()

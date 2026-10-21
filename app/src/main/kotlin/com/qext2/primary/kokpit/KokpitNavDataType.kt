@@ -69,11 +69,19 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
                 Log.w(TAG, "QEXT_KOKPIT_NAV_RENDER_FAIL msg=${e.message}", e); com.qext2.primary.util.RideFileLog.append("RENDER_FAIL KOKPIT_NAV msg=${e.message}"); null
             } ?: return
             val rv = RemoteViews(context.packageName, R.layout.field_stats_v2)
-            rv.setImageViewBitmap(R.id.iv_stats_v2, bmp)
+            rv.setImageViewBitmap(R.id.iv_stats_v2, com.qext2.primary.demo.RecDemo.mark(bmp))
             emitter.updateView(rv)
         }
 
         scope.launch {
+            // 0.4.20: tryb NAGRANIE (demo.RecMode) -- scenariusz co 1 s; osobno od przelacznika "dane demo"
+            if (com.qext2.primary.demo.RecDemo.active(context)) {
+                while (isActive) {
+                    com.qext2.primary.demo.RecDemo.nav(System.currentTimeMillis())?.let { emit(it) }
+                    delay(1000L)
+                }
+                return@launch
+            }
             if (if (v2) AthleteDataStore.loadKokpit2Demo() else (!forceLive && AthleteDataStore.loadStatsV2Demo())) {
                 while (isActive) {
                     val d = withContext(Dispatchers.Default) { KokpitNavDemo.at(System.currentTimeMillis()).let { if (v2) Kokpit2Demo.nav(it) else it } }

@@ -66,6 +66,24 @@ class StatsV2DataType(typeId: String = "qext2-stats-v2", private val forceLive: 
         emitter.updateView(rvWithTap(context))
 
         scope.launch {
+            // 0.4.20: tryb NAGRANIE (demo.RecMode) -- scenariusz co 1 s; osobno od przelacznika "dane demo"
+            if (com.qext2.primary.demo.RecDemo.active(context)) {
+                while (isActive) {
+                    val d = com.qext2.primary.demo.RecDemo.stats(System.currentTimeMillis())
+                    val bmp = if (d == null) null else try {
+                        withContext(Dispatchers.Default) { StatsV2Renderer.render(w, h, d) }
+                    } catch (e: Exception) {
+                        com.qext2.primary.util.RideFileLog.append("RENDER_FAIL STATS_V2 rec msg=${e.message}"); null
+                    }
+                    if (bmp != null) {
+                        val rv = rvWithTap(context)
+                        rv.setImageViewBitmap(R.id.iv_stats_v2, com.qext2.primary.demo.RecDemo.mark(bmp))
+                        emitter.updateView(rv)
+                    }
+                    delay(1000L)
+                }
+                return@launch
+            }
             // produkcyjne STATS v2 (forceLive): demo z tego samego przelacznika co KOKPIT 2 (SETUP)
             if (if (forceLive) AthleteDataStore.loadKokpit2Demo() else AthleteDataStore.loadStatsV2Demo()) {
                 Log.i(TAG, "QEXT_STATS_V2_DEMO on")

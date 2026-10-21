@@ -83,6 +83,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         logBuildBaseline()
         runStartupSelfCheck()
         AthleteDataStore.init(this)
+        com.qext2.primary.demo.RecMode.init(this)   // 0.4.20: tryb NAGRANIE
         com.qext2.primary.engine.CadenceAdvisor.load(AthleteDataStore.loadCadenceModel())
         com.qext2.primary.eta.EtaSpeedTable.historyMinPerKm = AthleteDataStore.loadEtaStopsMinPerKm()
         com.qext2.primary.eta.EtaModelJson.apply(AthleteDataStore.loadEtaModel())   // 2026-10-19: model czasu QBota (zapas: wbudowany)
@@ -187,11 +188,14 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         if (recordingNow) {
             if (!rideRecording) {
                 val a = AthleteDataStore.load()
+                // 0.4.20: tryb NAGRANIE -- jazda do filmu: nic do QBota (pas H10, sygnal jazdy, dziennik), w FIT qext2_demo=1
+                com.qext2.primary.demo.RecMode.rideIsRec = com.qext2.primary.demo.RecMode.on()
                 com.qext2.primary.util.RideFileLog.append("RIDE_START schema=$FIT_SCHEMA build=${BuildConfig.VERSION_CODE} cp=${a.ftp} ltp=${a.ltpWatts} wp=${a.wPrimeKj} form=${a.todayFactor} profileTs=${a.fetchTimestamp} bike=${_aggregator?.bikeKey()}")
-                _karooSystem?.let { com.qext2.primary.hrv.H10Recorder.onRideStart(it) }   // 0.4.14: start zapisu RR w pasie H10
+                if (com.qext2.primary.demo.RecMode.rideIsRec) com.qext2.primary.util.RideFileLog.append("REC_RIDE tryb NAGRANIE: bez H10, bez sygnalu jazdy i dziennika, FIT qext2_demo=1 -- jazde ODRZUCIC na Karoo")
+                else _karooSystem?.let { com.qext2.primary.hrv.H10Recorder.onRideStart(it) }   // 0.4.14: start zapisu RR w pasie H10
             }
             rideRecording = true
-            startRidePing()
+            if (!com.qext2.primary.demo.RecMode.rideIsRec) startRidePing()
             stopJob?.cancel(); stopJob = null
             if (_aggregator != null && !aggregatorStreaming) {
                 _aggregator?.startStreaming()
@@ -203,10 +207,14 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
             rideRecording = false
             stopRidePing()
             // 20.10.2026: dziennik tej jazdy -> QBot (SETUP > QExt2 > Dzienniki jazdy); bez sieci czeka i idzie pozniej
-            com.qext2.primary.util.RideLogUpload.onRideEnd(BuildConfig.VERSION_CODE)
-            _karooSystem?.let { com.qext2.primary.hrv.H10Recorder.onRideEnd(it) }   // 0.4.14: stop + pobranie RR z pasa H10 -> QBot
+            if (com.qext2.primary.demo.RecMode.rideIsRec) com.qext2.primary.util.RideFileLog.append("REC_RIDE_END nic nie wysylam do QBota")
+            else {
+                com.qext2.primary.util.RideLogUpload.onRideEnd(BuildConfig.VERSION_CODE)
+                _karooSystem?.let { com.qext2.primary.hrv.H10Recorder.onRideEnd(it) }   // 0.4.14: stop + pobranie RR z pasa H10 -> QBot
+            }
             refreshHomeBg()   // 0.4.5: po jezdzie od razu swieze tlo
             _karooSystem?.let { com.qext2.primary.util.RideLogUpload.trySend(it) }
+            com.qext2.primary.demo.RecMode.rideIsRec = false   // 0.4.20: koniec jazdy nagrania
             _aggregator?.stopStreaming()
             aggregatorStreaming = false
             batteryPollJob?.cancel(); batteryPollJob = null
@@ -353,8 +361,17 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         val fAeroConf = DeveloperField(19.toShort(), 2.toShort(), "qext2_aero_conf", "conf")
         val fAeroWind = DeveloperField(20.toShort(), 136.toShort(), "qext2_aero_wind_head", "m/s")
         val fAeroSurf = DeveloperField(21.toShort(), 2.toShort(), "qext2_aero_surface", "class")
+        // 0.4.20 (21.10.2026): znacznik jazdy w trybie NAGRANIE -- QBot pomija taki plik przy imporcie (fitmodel/qext2_demo.py).
+        // Poza trybem pole NIE jest pisane (plik jazdy bez zmian). Kontrakt: docs/KONTRAKT_DANYCH.md pkt 6.
+        val fDemo = DeveloperField(22.toShort(), 2.toShort(), "qext2_demo", "bool")
         val job = serviceScope.launch {
             while (true) {
+                val demoV = com.qext2.primary.demo.RecPolicy.demoFitValue(com.qext2.primary.demo.RecMode.on(), com.qext2.primary.demo.RecMode.rideIsRec)
+                if (demoV != null) {   // 0.4.20: jazda nagrania -> tylko znacznik, bez pol modelu
+                    emitter.onNext(WriteToRecordMesg(listOf(FieldValue(fDemo, demoV))))
+                    delay(1000L)
+                    continue
+                }
                 val agg = _aggregator
                 if (agg != null && aggregatorStreaming) {
                     val s = agg.statsSnapshot.value

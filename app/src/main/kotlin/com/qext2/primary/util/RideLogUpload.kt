@@ -31,6 +31,7 @@ object RideLogUpload {
     /** Koniec jazdy: przygotuj paczke do wysylki (nie wymaga sieci). */
     fun onRideEnd(build: Int) {
         val d = dir ?: return
+        if (com.qext2.primary.demo.RecMode.blocked()) { RideFileLog.append("RIDE_LOG_SKIP tryb NAGRANIE"); return }   // 0.4.20
         try {
             val all = listOf(File(d, "ride_log.1.txt"), File(d, "ride_log.txt"))
                 .filter { it.exists() }.joinToString("") { it.readText() }
@@ -59,6 +60,7 @@ object RideLogUpload {
     /** Wyslij najstarsza oczekujaca paczke; po sukcesie kolejna. Bez tokenu w buildzie -> nic. */
     fun trySend(system: KarooSystemService) {
         val d = dir ?: return
+        if (com.qext2.primary.demo.RecMode.blocked()) { RideFileLog.append("RIDE_LOG_SEND_SKIP tryb NAGRANIE"); return }   // 0.4.20
         val tok = BuildConfig.QEXT_READINESS_TOKEN.trim()
         if (tok.isEmpty()) return
         val now = System.currentTimeMillis()

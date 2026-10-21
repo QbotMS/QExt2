@@ -66,7 +66,7 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
                 null
             } ?: return
             val rv = RemoteViews(context.packageName, R.layout.field_stats_v2)
-            rv.setImageViewBitmap(R.id.iv_stats_v2, bmp)
+            rv.setImageViewBitmap(R.id.iv_stats_v2, com.qext2.primary.demo.RecDemo.mark(bmp))
             emitter.updateView(rv)
         }
 
@@ -77,6 +77,14 @@ class KokpitInstDataType(typeId: String = "qext2-kokpit-inst", private val force
         var hrN = 0L
 
         scope.launch {
+            // 0.4.20: tryb NAGRANIE (demo.RecMode) -- scenariusz co 1 s; osobno od przelacznika "dane demo"
+            if (com.qext2.primary.demo.RecDemo.active(context)) {
+                while (isActive) {
+                    com.qext2.primary.demo.RecDemo.inst(System.currentTimeMillis())?.let { emit(it) }
+                    delay(1000L)
+                }
+                return@launch
+            }
             if (if (v2) AthleteDataStore.loadKokpit2Demo() else (!forceLive && AthleteDataStore.loadStatsV2Demo())) {
                 while (isActive) {
                     emit(KokpitInstDemo.at(System.currentTimeMillis()).let { if (v2) it.copy(route = Kokpit2Demo.route(System.currentTimeMillis())) else it })

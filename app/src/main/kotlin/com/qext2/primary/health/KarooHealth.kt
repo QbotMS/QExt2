@@ -142,6 +142,7 @@ object KarooHealth {
 
     /** Raport do QBota. Odpowiedz moze niesc liste qext2Disable (wylacznik zdalny) - stosowana od razu. */
     fun send(ctx: Context, system: KarooSystemService, report: JSONObject) {
+        if (com.qext2.primary.demo.RecMode.blocked()) { RideFileLog.append("KAROO_HEALTH_SKIP tryb NAGRANIE"); return }   // 0.4.20
         val tok = BuildConfig.QEXT_READINESS_TOKEN.trim()
         if (tok.isEmpty()) { RideFileLog.append("KAROO_HEALTH_SKIP brak klucza urzadzenia"); return }
         val url = BuildConfig.QEXT_READINESS_URL.ifBlank { "https://qbot.cytr.us/ride-readiness" }

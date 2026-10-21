@@ -192,6 +192,8 @@ object GateController {
     }
 
     private fun send() {
+        // 0.4.20: tryb NAGRANIE (w domu pole jest GOTOWE) -- prawdziwa brama NIE moze sie otworzyc
+        if (com.qext2.primary.demo.RecMode.blocked()) { log("GATE_SEND_SKIP tryb NAGRANIE"); result(State.ERROR, "tryb nagrania"); return }
         val system = QExt2PrimaryExtension.instance?.karooSystem
         if (system == null) {
             result(State.ERROR, "brak Karoo")

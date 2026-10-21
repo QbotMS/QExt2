@@ -52,6 +52,7 @@ class SetupActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         AthleteDataStore.init(this)
+        com.qext2.primary.demo.RecMode.init(this)   // 0.4.20: tryb NAGRANIE
         com.qext2.primary.hrv.H10Recorder.init(this, getExternalFilesDir(null) ?: filesDir)   // 0.4.14: pas H10
         root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(18), dp(16), dp(18)) }
         setContentView(ScrollView(this).apply { setBackgroundColor(bg); addView(root) })
@@ -73,6 +74,7 @@ class SetupActivity : Activity() {
         root.addView(deadlineCard())
         root.addView(cassetteCard())
         root.addView(demoCard())
+        root.addView(recCard())
         root.addView(aeroCard())
         root.addView(h10Card())
         root.addView(label("Wersja ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) · ustawienia zapisywane na serwerze", 13, sub).apply {
@@ -238,6 +240,28 @@ class SetupActivity : Activity() {
             setOnClickListener { AthleteDataStore.saveKokpit2DynAero(!on); render() }
         })
         c.addView(row)
+        return c
+    }
+
+    /** 0.4.20 (21.10.2026): tryb NAGRANIE -- film z ekranu Karoo bez roweru (demo.RecMode). Wlacza i wylacza tylko Michal. */
+    private fun recCard(): View {
+        val rm = com.qext2.primary.demo.RecMode
+        val on = rm.on()
+        val c = box(if (on) Color.parseColor("#3A1416") else card)
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) }
+        col.addView(label("Tryb NAGRANIE (film, bez roweru)", 15, sub))
+        col.addView(label(if (on) "WŁĄCZONY" else "wyłączony", 19, if (on) red else txt, bold = true))
+        col.addView(label(if (on) "Pola grają gotowy scenariusz. Nic nie idzie do QBota, brama zablokowana. Nie wciskaj START; jeśli wciśniesz – po nagraniu ODRZUĆ jazdę."
+            else "KOKPIT 2, STATS v2 i INFO pokazują gotowy scenariusz do nagrania ekranu. Zmiana działa po ponownym wejściu na stronę z polami.", 13, sub))
+        row.addView(col)
+        row.addView(Button(this).apply {
+            text = if (on) "Wyłącz" else "Włącz"; setTextColor(txt); setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, 17 * scale); isAllCaps = false; background = round(btn, 12)
+            layoutParams = LinearLayout.LayoutParams(dp(120), dp(56))
+            setOnClickListener { rm.set(!on); render() }
+        })
+        c.addView(row)
+        if (on) c.addView(button(if (rm.dot()) "Ukryj kropkę na polach" else "Pokaż kropkę na polach", btn) { rm.setDot(!rm.dot()); render() })
         return c
     }
 

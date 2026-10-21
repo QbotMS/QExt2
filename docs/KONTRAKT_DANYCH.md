@@ -59,6 +59,10 @@ Od 0.4.2 (2026-10-19, AERO v3, schemat bez zmian): nr 18 qext2_aero_ver (uint8, 
   0 brak / 1 niska / 2 dobra), nr 20 qext2_aero_wind_head (float32, m/s - wiatr czolowy uzyty w rownaniu, po skalowaniu prognozy),
   nr 21 qext2_aero_surface (uint8, 0 nieznana / 1 asfalt / 2 szuter). Zapisywane co sekunde razem z 4 polami AERO.
 
+Od 0.4.20 (2026-10-21, tryb NAGRANIE, schemat bez zmian): nr 22 qext2_demo (uint8, 1 = jazda w trybie NAGRANIE).
+  Pisane co sekunde TYLKO w jezdzie nagrania, wtedy jako jedyne pole QExt2. Poza trybem pole nie wystepuje.
+  QBot pomija taki plik przy imporcie (fitmodel/qext2_demo.py; qbot_activity_ingest, fit_ingest).
+
 
 ### Dev fields WIATR (17.10.2026, schemat bez zmian)
 | nr | nazwa | typ | jedn. | znaczenie |

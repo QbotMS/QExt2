@@ -29,6 +29,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -37,6 +38,7 @@ private const val TAG = "QExt2Info"
 /**
  * Pole INFO (16.10.2026, docs/INFO.md): TRASA + PRZEWYZSZENIE (przeniesione ze STATS v2) + POGODA na trasie / w kolejnych godzinach.
  * Dotkniecie pola zmienia skale wykresu pogody: 20 km / 50 km / cala reszta (bez trasy: 1 h / 3 h / 6 h).
+ * 21.10.2026 (0.4.20): tryb NAGRANIE (demo.RecMode) -- scenariusz RecDemo co 1 s, bez pobierania pogody (bez wysylania polozenia).
  */
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @Keep
@@ -66,6 +68,29 @@ class InfoDataType : DataTypeImpl("qext2", "qext2-info") {
         emitter.updateView(rv())
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         scope.launch {
+            // 0.4.20: tryb NAGRANIE -- scenariusz co 1 s, pogoda zmyslona (InfoDemo), nic nie idzie do QBota
+            if (com.qext2.primary.demo.RecDemo.active(context)) {
+                RideFileLog.append("REC_DEMO INFO on")
+                while (isActive) {
+                    val now = System.currentTimeMillis()
+                    val d = com.qext2.primary.demo.RecDemo.stats(now)
+                    val bmp = if (d == null) null else try {
+                        withContext(Dispatchers.Default) {
+                            StatsV2Renderer.renderInfo(w, h, d, com.qext2.primary.demo.RecDemo.infoWx(now, d), InfoWeather.scale, now,
+                                now - 6 * 3_600_000L, now + 2 * 3_600_000L + 40 * 60_000L)
+                        }
+                    } catch (e: Exception) {
+                        RideFileLog.append("RENDER_FAIL INFO rec msg=${e.message}"); null
+                    }
+                    if (bmp != null) {
+                        val r = rv()
+                        r.setImageViewBitmap(R.id.iv_info, com.qext2.primary.demo.RecDemo.mark(bmp))
+                        emitter.updateView(r)
+                    }
+                    kotlinx.coroutines.delay(1000L)
+                }
+                return@launch
+            }
             val ext = QExt2PrimaryExtension.instance ?: return@launch
             var lastMs = 0L
             var lastVer = -1L
