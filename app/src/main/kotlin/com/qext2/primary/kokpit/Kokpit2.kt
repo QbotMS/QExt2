@@ -90,7 +90,7 @@ object Kokpit2Demo {
         val dynA = if (com.qext2.primary.data.AthleteDataStore.loadKokpit2DynAero())
             listOf(DynItem("AERO", "−11", "W", 0, 1), DynItem("AERO", "−4", "W", 0, 0), DynItem("AERO", "+6", "W", 0, 1),
                 DynItem("AERO", "···", "W"), DynItem("AERO", "—", "W"))[((now / 4000L) % 5L).toInt()] else dyn
-        val d = d1.copy(turnKind = tk[ti], turnDistM = td[ti], dyn = dynA, aero = AeroTop("−8", 1), routeSrc = "Q", nowMs = now)
+        val d = d1.copy(turnKind = tk[ti], turnDistM = td[ti], dyn = dynA, aero = listOf(AeroTop("−8", 1), AeroTop("−14", 1), AeroTop("+6", 0), AeroTop("+12", 1), AeroTop("−3", 0), AeroTop("···", -1))[((now / 4000L) % 6L).toInt()], routeSrc = "Q", nowMs = now)   // 0.4.30: demo AERO zmienia sie co 4 s (takze 2 cyfry)
         val rel = d.windRelDeg ?: return d
         val ws = d.windMps ?: 4f
         // strzalka = kierunek wiatru wzgledem jazdy: w gore (0 st.) wieje w plecy, w dol w twarz -> czolowy = -ws*cos
