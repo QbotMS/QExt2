@@ -888,7 +888,7 @@ object Kokpit2NavRenderer {
         var x = 3f
         for ((i, g) in gs.withIndex()) {
             val iw = gw(g.items, g.inner)
-            val ox = if (i == gs.size - 1) g.ref - iw else (g.ref - iw) / 2f
+            val ox = when (i) { 0 -> 0f; gs.size - 1 -> g.ref - iw; else -> (g.ref - iw) / 2f }   // 0.4.29: DTD przy lewej krawedzi
             drawG(g.items, x + maxOf(0f, ox), g.inner)
             x += g.ref + gap
         }
