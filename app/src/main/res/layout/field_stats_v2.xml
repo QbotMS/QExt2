@@ -25,27 +25,27 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="85"
+            android:layout_weight="108"
             android:orientation="horizontal">
 
             <TextView
                 android:id="@+id/stats_v2_gate_tap"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
-                android:layout_weight="239"
+                android:layout_weight="211"
                 android:contentDescription="BRAMA" />
 
             <TextView
                 android:id="@+id/stats_v2_light_tap"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
-                android:layout_weight="241"
+                android:layout_weight="269"
                 android:contentDescription="SWIATLO" />
         </LinearLayout>
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="110" />
+            android:layout_weight="87" />
     </LinearLayout>
 </FrameLayout>

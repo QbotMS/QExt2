@@ -10,7 +10,7 @@
     <string name="qext2_active_static_desc">Distance, IF10, speed, temp, W prime balance, wind (no overlay)</string>
     <string name="qext2_stats_name">QExt2 STATS</string>
     <string name="qext2_stats_desc">NP, IF, VI, TSS, reserve, HRD, route, battery, deadline</string>
-    <string name="qext2_stats_v2_name">QExt2 STATS v2 (test)</string>
+    <string name="qext2_stats_v2_name">QExt STATS</string>
     <string name="qext2_kokpit_nav_name">QExt2 KOKPIT nawigacja (test)</string>
     <string name="qext2_kokpit_inst_name">QExt2 KOKPIT instrumenty (test)</string>
     <string name="qext2_stats_live_name">QExt2 STATS v2</string>
@@ -22,12 +22,12 @@
     <string name="qext2_kokpit_inst_desc">Polkole mocy i predkosci, tetno, W bal, kadencja, bieg z kaseta</string>
     <string name="qext2_kokpit_nav_desc">Komunikaty z trasy, km/ETA/zmrok, trasa z nawierzchnia, nachylenie, przewyzszenie, opad, wiatr</string>
     <string name="qext2_stats_v2_desc">STATS rysowane: NP/IF/VI, RSRV/XSS/KCAL, trasa, nawierzchnia, przewyzszenie, CARB, KAD, BAT</string>
-    <string name="qext2_kokpit2_nav_name">QExt2 KOKPIT 2 nav</string>
+    <string name="qext2_kokpit2_nav_name">QExt KOKPIT NAV</string>
     <string name="qext2_kokpit2_nav_desc">Komunikaty (tlo wg waznosci), pogoda, wiatr, nachylenie, DST/DTD/ETA</string>
-    <string name="qext2_kokpit2_instr_name">QExt2 KOKPIT 2 instr</string>
+    <string name="qext2_kokpit2_instr_name">QExt KOKPIT INSTR</string>
     <string name="qext2_kokpit2_instr_desc">Belka trasy, moc ze strefa, predkosc, kadencja, tetno, bieg, W bal</string>
     <string name="qext2_brama_name">QExt2 BRAMA</string>
     <string name="qext2_brama_desc">Otwieranie bramy: 2 dotkniecia, tylko do 300 m od domu</string>
-    <string name="qext2_info_name">QExt2 INFO</string>
+    <string name="qext2_info_name">QExt INFO</string>
     <string name="qext2_info_desc">Trasa, przewyzszenie i pogoda na trasie (dotknij: skala)</string>
 </resources>

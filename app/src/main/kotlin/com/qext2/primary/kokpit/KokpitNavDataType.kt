@@ -55,6 +55,12 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
         emitter.onNext(UpdateGraphicConfig(showHeader = false))
         AthleteDataStore.init(context)
         if (v2) Kokpit2Fonts.init(context)
+        // 0.4.27: DOM (km do domu bez trasy) -- pozycja GPS i punkt domu z bramy QBota, takze gdy STATS nie jest widoczne
+        val karoo = QExt2PrimaryExtension.instance?.karooSystem
+        val locId = if (!v2) null else try {
+            com.qext2.primary.gate.GateController.init(context)
+            karoo?.addConsumer<io.hammerhead.karooext.models.OnLocationChanged>(onEvent = { com.qext2.primary.gate.GateController.onLocation(it.lat, it.lng) })
+        } catch (e: Exception) { null }
         val w = config.viewSize.first.coerceAtLeast(160)
         val h = config.viewSize.second.coerceAtLeast(60)
         Log.i(TAG, "QEXT_KOKPIT_NAV_VIEW size=${w}x$h")
@@ -107,6 +113,7 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
         }
         emitter.setCancellable {
             QExt2PrimaryExtension.instance?.onFieldHidden()
+            locId?.let { id -> karoo?.removeConsumer(id) }
             scope.cancel()
         }
     }
@@ -205,6 +212,12 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
             windTotalMps = agg?.getKarooWindMps(),
             windCached = agg?.windFromCache() == true,
             camRec = com.qext2.primary.osmo.OsmoLink.dot(),   // 0.4.26: kropka REC kamery DJI Osmo
+            // 0.4.27: Q = trase zna QBot (nawierzchnia / punkty / pogoda po trasie), K = trasa tylko w Karoo
+            routeSrc = if (s.hasRoute) (if (segs.isNotEmpty() || pois.isNotEmpty() || com.qext2.primary.info.InfoWeather.data?.route == true) "Q" else "K") else null,
+            // 0.4.27: bez trasy -- km do domu w linii prostej (punkt domu z bramy QBota)
+            homeKm = if (s.hasRoute) null else { com.qext2.primary.gate.GateController.ensureHome(); com.qext2.primary.gate.GateController.distanceM()?.let { it / 1000f } },
+            nowMs = now,
+            aero = com.qext2.primary.engine.AeroEstimator.shown.let { o -> AeroTop(com.qext2.primary.engine.AeroEstimator.valueText(o), if (o.state == 2) (if (o.conf >= 2) 1 else 0) else -1) },
             turnDistM = nt?.first, turnKind = nt?.second,
             sky = rw?.sky?.name,
             dyn = dynItem(now, s, agg, pos, dtdKm, total, eta, dusk ?: 0L, pois),   // granica: zmrok (nie swit)
@@ -217,11 +230,7 @@ class KokpitNavDataType(typeId: String = "qext2-kokpit-nav", private val forceLi
     private fun dynItem(now: Long, s: com.qext2.primary.model.StatsRideSnapshot, agg: com.qext2.primary.engine.RideDataAggregator?,
                         pos: Float, dtdKm: Float, total: Float?, eta: Long?, twMs: Long, pois: List<PoiInfo>): DynItem? {
         fun f1(x: Double) = String.format(java.util.Locale.US, "%.1f", x).replace('.', ',')
-        // 2026-10-17 (decyzja Michala): SETUP AERO -> pole dynamiczne zawsze AERO, bez wyjatkow i bez rotacji
-        if (AthleteDataStore.loadKokpit2DynAero()) {
-            val o = com.qext2.primary.engine.AeroEstimator.shown   // 21.10 (v5): co 5 s, do 5 W
-            return DynItem("AERO", com.qext2.primary.engine.AeroEstimator.valueText(o), "W", 0, if (o.state == 2) (if (o.conf >= 2) 1 else 0) else -1)   // v3: kropka zielona = pewnosc dobra (asfalt, wiatr, QBot), zolta = niska
-        }
+        // 0.4.27: AERO przeniesione do gornego wiersza (KokpitNavData.aero) -- pole dynamiczne bez AERO
         val target = agg?.getDeadlineMs()?.takeIf { it > 0L } ?: twMs.takeIf { it > now }
         if (eta != null && target != null && total != null && dtdKm > 0.1f) {
             val yellow = Kokpit2Config.cp("eta", "yellow_min", 10.0).toLong() * 60_000L

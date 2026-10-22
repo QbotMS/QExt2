@@ -321,15 +321,14 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
         }
     }
 
-    private val _types: List<DataTypeImpl> = listOf(CompositePrimaryDataType(), CompositeActiveDataType(), BpActiveStaticDataType(), StatsDataType(), com.qext2.primary.statsv2.StatsV2DataType(), com.qext2.primary.kokpit.KokpitNavDataType(), com.qext2.primary.kokpit.KokpitInstDataType(),
-        // wersje produkcyjne (zawsze dane z jazdy) obok testowych z demo
-        com.qext2.primary.statsv2.StatsV2DataType("qext2-stats-live", forceLive = true),
-        com.qext2.primary.gate.BramaDataType(),
-        com.qext2.primary.info.InfoDataType(),
-        com.qext2.primary.kokpit.KokpitNavDataType("qext2-kokpit-nav-live", forceLive = true),
-        com.qext2.primary.kokpit.KokpitInstDataType("qext2-kokpit-inst-live", forceLive = true),
+    /** 0.4.27 (decyzja Michala 22.10): tylko 4 uzywane pola -- QExt KOKPIT NAV, QExt KOKPIT INSTR, QExt STATS, QExt INFO.
+     *  Identyfikatory bez zmian (pola na stronach profili Karoo zostaja). Stare pola (PRIMARY, ACTIVE, ACTIVE-static, STATS,
+     *  KOKPIT v1, wersje live, osobna BRAMA) wyrejestrowane; ich kod zostaje na razie w repo (wspolne silniki, np. active/ActiveMessageHub). */
+    private val _types: List<DataTypeImpl> = listOf(
         com.qext2.primary.kokpit.KokpitNavDataType("qext2-kokpit2-nav", v2 = true),
-        com.qext2.primary.kokpit.KokpitInstDataType("qext2-kokpit2-instr", v2 = true))
+        com.qext2.primary.kokpit.KokpitInstDataType("qext2-kokpit2-instr", v2 = true),
+        com.qext2.primary.statsv2.StatsV2DataType(),
+        com.qext2.primary.info.InfoDataType())
     override val types: List<DataTypeImpl> get() = _types
 
     override fun startFit(emitter: Emitter<FitEffect>) {

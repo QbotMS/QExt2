@@ -50,7 +50,18 @@ data class KokpitNavData(
     val windCached: Boolean = false,
     /** 0.4.26: kamera DJI Osmo - 0 brak (bez kropki), 1 polaczona nie nagrywa (szara), 2 NAGRYWA (czerwona REC) */
     val camRec: Int = 0,
+    /** 0.4.27: zrodlo trasy: "Q" = trase zna QBot (pogoda, nawierzchnia, punkty, plan), "K" = tylko Karoo (Komoot, ad hoc); null = bez trasy */
+    val routeSrc: String? = null,
+    /** 0.4.27: bez trasy -- km do domu w linii prostej (punkt domu bramy z QBota) */
+    val homeKm: Float? = null,
+    /** 0.4.27: czas teraz (bez trasy: zegar / odliczanie do zmroku w miejscu ETA) */
+    val nowMs: Long? = null,
+    /** 0.4.27: AERO jako stala pozycja gornego wiersza KOKPIT 2 */
+    val aero: AeroTop? = null,
 )
+
+/** 0.4.27: AERO w gornym wierszu -- tekst wartosci (W) i pewnosc: -1 brak, 0 zbiera dane (zolty), 1 liczy sie (zielony) */
+data class AeroTop(val value: String, val conf: Int)
 
 /** Pole dynamiczne KOKPIT 2: kind = ATD | ASC | WIND | water | shop | food | AVG; warn 0 brak, 1 zolty, 2 czerwony. */
 /** conf (AERO): -1 brak kropki, 0 zolta (v3: niska pewnosc -- szuter, brak trasy/wiatru/QBota), 1 zielona (dobra) */

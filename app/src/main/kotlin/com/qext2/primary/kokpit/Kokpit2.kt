@@ -4,8 +4,10 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.Shader
 import android.graphics.RectF
 import android.graphics.Typeface
 import com.qext2.primary.engine.RideDataAggregator
@@ -88,7 +90,7 @@ object Kokpit2Demo {
         val dynA = if (com.qext2.primary.data.AthleteDataStore.loadKokpit2DynAero())
             listOf(DynItem("AERO", "−11", "W", 0, 1), DynItem("AERO", "−4", "W", 0, 0), DynItem("AERO", "+6", "W", 0, 1),
                 DynItem("AERO", "···", "W"), DynItem("AERO", "—", "W"))[((now / 4000L) % 5L).toInt()] else dyn
-        val d = d1.copy(turnKind = tk[ti], turnDistM = td[ti], dyn = dynA)
+        val d = d1.copy(turnKind = tk[ti], turnDistM = td[ti], dyn = dynA, aero = AeroTop("−8", 1), routeSrc = "Q", nowMs = now)
         val rel = d.windRelDeg ?: return d
         val ws = d.windMps ?: 4f
         // strzalka = kierunek wiatru wzgledem jazdy: w gore (0 st.) wieje w plecy, w dol w twarz -> czolowy = -ws*cos
@@ -173,6 +175,8 @@ object Kokpit2InstRenderer {
     private val YEL = Color.parseColor("#FACC15")
     private val ORANGE = Color.parseColor("#FB923C")
     private val SPEED = Color.parseColor("#F2C230")
+    /** 0.4.27: domyslny kolor predkosci (decyzja Michala 22.10) */
+    private val CYAN = Color.parseColor("#67E8F9")
     /** wielkosc cyfry po przecinku predkosci wzgledem cyfr glownych */
     private const val DEC = 0.55f
     private val WHITE = Color.WHITE
@@ -241,14 +245,14 @@ object Kokpit2InstRenderer {
         t(c, cv, rx, bigBase, big, if (d.cadence != null) WHITE else NONE, true, Paint.Align.RIGHT)
         t(c, "KAD", rx - w(cv, big) - 5f, capTop + 15f * CAP, 15f, UNIT, false, Paint.Align.RIGHT)
 
-        val ref = 40f
+        val ref = 46f   // 0.4.27: NP 5 i srednia wieksze (40 -> 46)
         val refBase = capTop + ref * CAP
         val npTxt = d.cpe5W?.let { kotlin.math.round(it).toInt().toString() } ?: "—"
         t(c, npTxt, cx - g, refBase, ref, if (d.cpe5W != null) WHITE else NONE, true, Paint.Align.RIGHT)
         val ls = 19f
         val lc = trendCol(d.cpTrend)
         val lw = w("NP", ls, false)
-        val lRight = cx - g - w(npTxt, ref) - 2f
+        val lRight = cx - g - maxOf(w(npTxt, ref), w("288", ref)) - 2f   // 0.4.27: podpis w stalym miejscu (wzorzec 288)
         t(c, "NP", lRight, capTop + ls * CAP, ls, lc, false, Paint.Align.RIGHT)
         t(c, "5", lRight - lw / 2f, capTop + ls * CAP + ls * 0.85f, ls, lc, false, Paint.Align.CENTER)
         // 19.10: trojkat trendu NP 5 jak przy sredniej (lustrzanie, z lewej podpisu): zielony w gore = biezaca moc podnosi NP 5
@@ -263,7 +267,7 @@ object Kokpit2InstRenderer {
         t(c, avTxt, cx + g, refBase, ref, if (d.avgSpeedKmh != null) WHITE else NONE)
         // 18.10: znak sredniej wiekszy i grubszy + strzalka: zielona w gore = podnosisz srednia, czerwona w dol = obnizasz
         val sym = 24f
-        val sx0 = cx + g + w(avTxt, ref) + 3f; val sy0 = refBase - ref * CAP / 2f - sym / 2f
+        val sx0 = cx + g + maxOf(w(avTxt, ref), w("28.8", ref)) + 2f; val sy0 = refBase - ref * CAP / 2f - sym / 2f
         avgSym(c, sx0, sy0, sym, if (d.avgSpeedTrend == 0) SUB else trendCol(d.avgSpeedTrend))
         if (d.avgSpeedTrend != 0) {
             val ax = sx0 + sym + 3f; val aw = 14f; val ah = 16f; val ay = sy0 + (sym - ah) / 2f
@@ -334,7 +338,7 @@ object Kokpit2InstRenderer {
         val top = base - vs * CAP
         val pCol = if (d.powerW == null) NONE else if (Kokpit2Config.color("power", "pacing") == "zones" && zone != null) Color.parseColor(PZ[zone].second) else d.powerColor
         // predkosc zolta (jak w starych polach: domyslny kolor predkosci #F2C230), moc biala - latwo odroznic
-        val spCol = if (d.speedKmh == null) NONE else if (Kokpit2Config.color("speed", "yellow") == "white") WHITE else SPEED
+        val spCol = if (d.speedKmh == null) NONE else when (Kokpit2Config.color("speed", "cyan")) { "white" -> WHITE; "yellow" -> SPEED; else -> CYAN }   // 0.4.27: cyjan domyslnie
         tp.textScaleX = sxW
         tp.letterSpacing = lsW
         // moc: do srodka z lewej, kolor z oceny tempa (PacingEngine)
@@ -503,6 +507,18 @@ object Kokpit2NavRenderer {
         }
     }
 
+    /** 0.4.27: sygnalizator kamery w pasku komunikatow przy lewej krawedzi: stale czarne tlo, duza kropka, pod nia male REC
+     *  (czerwone = nagrywa, szare = polaczona); tekst komunikatu zaczyna sie za nim. Zwraca x poczatku tekstu. */
+    private fun recStrip(c: Canvas, d: KokpitNavData, h: Float): Float {
+        if (d.camRec <= 0) return 8f
+        val col = if (d.camRec == 2) Color.parseColor("#EF4444") else Color.parseColor("#6B7280")
+        val ls = 12f; val pitch = 10f; val r0 = 9f; val tot = 2f * r0 + 3f + 3f * pitch; val top = (h - tot) / 2f
+        fp.color = BLACK; c.drawRect(0f, 0f, 24f, h, fp)
+        fp.color = col; c.drawCircle(12f, top + r0, r0, fp)
+        for ((i, ch) in listOf("R", "E", "C").withIndex()) t(c, ch, 12f, top + 2f * r0 + 3f + ls * CAP + i * pitch, ls, col, true, Paint.Align.CENTER)
+        return 30f
+    }
+
     // ---------- komunikat: tlo wg waznosci ----------
     private fun drawMsg(c: Canvas, d: KokpitNavData, vw: Float, h: Float) {
         val m = d.msg
@@ -517,7 +533,7 @@ object Kokpit2NavRenderer {
         val bg = when { crit -> MSG_CRIT; warn -> MSG_WARN; else -> MSG_INFO }
         val fg = if (warn) BLACK else WHITE
         fp.color = bg; c.drawRect(0f, 0f, vw, h, fp)
-        var x = 8f
+        var x = recStrip(c, d, h)
         val demoW = if (d.demo) w("DEMO", 18f) + 8f else 0f
         val right = vw - 8f - demoW
         val leadCol = if (crit || warn) fg else if (m.kind == MsgKind.NONE) UNIT else WHITE
@@ -566,54 +582,74 @@ object Kokpit2NavRenderer {
 
     private fun gTemp(c: Canvas, d: KokpitNavData, base: Float, vs: Float): G {
         val capH = vs * CAP
-        val g = listOf(Item(16f) { x -> thermo(c, x, base, 16f, capH, LBL) },
+        val g = listOf(Item(13f) { x -> thermo(c, x, base, 13f, capH, LBL) },
             if (d.tempC != null) txt(fmt("%.0f", d.tempC) + "°", vs, WHITE, base) else txt("—", vs, NONE, base))
-        return G(g, 16f + 4f + w("-18°", vs), 4f)
+        return G(g, 13f + 4f + w("-18°", vs), 4f)
     }
 
+    /** 0.4.27: sila opadu = 1-3 kropelki (slaby < 2,5 / umiarkowany < 7,6 / ulewa mm/h) */
+    private fun rainLevel(mm: Float?): Int = when { mm == null -> 1; mm < 2.5f -> 1; mm < 7.6f -> 2; else -> 3 }
+    private fun drops(c: Canvas, x: Float, base: Float, n: Int, col: Int) { for (i in 0 until n) drop2(c, x + i * 12f, base - (i % 2) * 3f, 11f, 22f, col) }
+
+    /** 0.4.27: kropla: spiczasty czubek, pelny brzuszek, gradient od jasnego i odblask */
+    private fun drop2(c: Canvas, x: Float, base: Float, wI: Float, hI: Float, col: Int) {
+        val cx = x + wI / 2f; val top = base - hI
+        val p = Path(); p.moveTo(cx, top)
+        p.cubicTo(cx + wI * 0.18f, top + hI * 0.28f, cx + wI * 0.5f, top + hI * 0.5f, cx + wI * 0.5f, top + hI * 0.7f)
+        p.arcTo(RectF(cx - wI * 0.5f, top + hI * 0.7f - wI * 0.5f, cx + wI * 0.5f, top + hI * 0.7f + wI * 0.5f), 0f, 180f, false)
+        p.cubicTo(cx - wI * 0.5f, top + hI * 0.5f, cx - wI * 0.18f, top + hI * 0.28f, cx, top)
+        p.close()
+        fp.shader = LinearGradient(0f, top, 0f, base, Color.parseColor("#DBEAFE"), col, Shader.TileMode.CLAMP)
+        c.drawPath(p, fp); fp.shader = null
+        fp.color = Color.argb(204, 255, 255, 255)
+        val hx = cx - wI * 0.2f; val hy = top + hI * 0.68f
+        c.save(); c.rotate(-17f, hx, hy)
+        c.drawOval(RectF(hx - wI * 0.09f, hy - hI * 0.12f, hx + wI * 0.09f, hy + hI * 0.12f), fp)
+        c.restore()
+    }
+
+    /** szerokosc kolumny pogody (stala): 3 kropelki + minuty + szansa */
+    private fun wxRef(): Float = 36f + 3f + w("88′", 20f) + 3f + w("88%", 15f, false)
+
+    /** 0.4.27: pogoda w JEDNYM wierszu: kropelki + minuty + szansa % (radar: same minuty); bez opadu ikona nieba na srodku kolumny */
     private fun gWx(c: Canvas, d: KokpitNavData, base: Float, vs: Float): G {
         val capH = vs * CAP
         val wx = ArrayList<Item>()
         val rn = d.rainNowMmH; val rs = d.rainSoon
+        val ref = wxRef()
         if (rn != null && rn >= 0.1f) {
-            wx.add(Item(22f) { x -> drop(c, x, base, 22f, 26f, BLUE) })
-            wx.add(txt(fmt("%.1f", rn).replace('.', ','), 36f, BLUE, base))
-            wx.add(txt("mm", 20f, BLUE, base, false))
-        } else if (rs != null && rs.radar) {
-            // radar QBota: natezenie w mm (nie %) + za ile minut
-            wx.add(Item(22f) { x -> drop(c, x, base, 22f, 26f, BLUE) })
-            wx.add(txt(fmt("%.1f", rs.mmPerH).replace('.', ','), 32f, BLUE, base))
-            wx.add(txt("mm", 16f, BLUE, base, false))
-            wx.add(txt("${rs.minutes}′", 18f, BLUE, base))
-        } else if (rs != null && rs.probPct >= 30 && rs.kind != "FOG") {
+            val n1 = rainLevel(rn)
+            wx.add(Item(12f * n1) { x -> drops(c, x, base, n1, BLUE) })
+            wx.add(txt("teraz", 22f, BLUE, base, false))
+        } else if (rs != null && (rs.radar || (rs.probPct >= 30 && rs.kind != "FOG"))) {
             val cl = when (rs.kind) { "STORM" -> RED; "SNOW" -> Color.parseColor("#BFDBFE"); else -> BLUE }
             when (rs.kind) {
-                "STORM" -> wx.add(Item(30f) { x -> storm(c, x, base, 30f, 26f, cl) })
-                "SNOW" -> wx.add(Item(26f) { x -> snow(c, x, base, 26f, cl) })
-                else -> wx.add(Item(22f) { x -> drop(c, x, base, 22f, 26f, cl) })
+                "STORM" -> wx.add(Item(34f) { x -> storm(c, x, base, 34f, 32f, cl) })
+                "SNOW" -> wx.add(Item(30f) { x -> snow(c, x, base, 30f, cl) })
+                else -> { val n2 = rainLevel(rs.mmPerH); wx.add(Item(12f * n2) { x -> drops(c, x, base, n2, cl) }) }
             }
-            wx.add(txt("${rs.probPct}%", 36f, cl, base))
             wx.add(txt("${rs.minutes}′", 20f, cl, base))
+            if (!rs.radar) wx.add(txt("${rs.probPct}%", 15f, cl, base, false))
         } else d.sky?.let { sk ->
+            val iw = if (sk == "CLEAR") 44f else 66f; val ox = (ref - iw) / 2f
             when (sk) {
-                "CLEAR" -> wx.add(Item(30f) { x -> sun(c, x + 15f, base - capH / 2f, 8f, Color.parseColor("#FACC15")) })
-                "PARTLY" -> wx.add(Item(34f) { x ->
-                    sun(c, x + 12f, base - capH * 0.62f, 7f, Color.parseColor("#FACC15"))
-                    cloud(c, x + 3f, base - capH * 0.55f, 31f, capH * 0.55f, Color.parseColor("#E5E7EB"))
+                "CLEAR" -> wx.add(Item(ref) { x -> sun(c, x + ox + 22f, base - capH / 2f, 11f, Color.parseColor("#FACC15")) })
+                "PARTLY" -> wx.add(Item(ref) { x ->
+                    sun(c, x + ox + 20f, base - capH / 2f - 2f, 9f, Color.parseColor("#FACC15"))
+                    cloud(c, x + ox + 8f, base - capH * 0.92f, 58f, capH * 1.0f, Color.parseColor("#E5E7EB"))
                 })
-                "FOG" -> wx.add(Item(30f) { x -> fog(c, x, base, 30f, capH, UNIT) })
-                else -> wx.add(Item(34f) { x -> cloud(c, x, base - capH * 0.75f, 34f, capH * 0.75f, UNIT) })
+                "FOG" -> wx.add(Item(ref) { x -> fog(c, x + ox, base, 66f, capH * 1.15f, UNIT) })
+                else -> wx.add(Item(ref) { x -> cloud(c, x + ox, base - capH * 1.0f, 66f, capH * 1.1f, Color.parseColor("#C9D2DC")) })
             }
         }
         if (rs?.cached == true && wx.isNotEmpty()) wx.add(txt("P", 13f, UNIT, base, false))   // z zapasu prognozy (brak sieci)
-        // wzorzec: opad do 88% za 88 min (zmierzone na Karoo); radar "8,8 mm 88'" miesci sie w nim
-        return G(wx, 30f + 4f + w("88%", 36f) + 4f + w("88′", 20f), 4f)
+        return G(wx, ref, 3f)
     }
 
     private fun gWind(c: Canvas, d: KokpitNavData, base: Float, vs: Float): G {
         val capH = vs * CAP
         val wm = d.windMps
-        val ref = 32f + 4f + w("88", vs) + 4f + 20f * capH / 28f
+        val ref = 24f + 4f + w("88", vs) + 4f + 20f * capH / 28f   // miejsce na wiatr 2-cyfrowy
         if (wm == null) return G(listOf(txt("wiatr —", 20f, NONE, base, false)), ref, 4f)
         val hs = d.windSignedMps
         val wMin = Kokpit2Config.cp("wind", "min_mps", 3.0).toFloat()
@@ -623,31 +659,108 @@ object Kokpit2NavRenderer {
             when { hs >= wMin && hs >= wShare * tot -> RED; hs <= -wMin && -hs >= wShare * tot -> GREEN; else -> WHITE }
         }
         val wg = ArrayList<Item>()
-        d.windRelDeg?.let { rel -> wg.add(Item(32f) { x -> arrow(c, x + 16f, base - capH / 2f, 32f, rel.toFloat(), wcol) }) }
+        d.windRelDeg?.let { rel -> wg.add(Item(24f) { x -> arrow(c, x + 12f, base - capH / 2f, 26f, rel.toFloat(), wcol) }) }
         wg.add(txt(fmt("%.0f", wm), vs, WHITE, base))
         wg.add(Item(20f * capH / 28f) { x -> msUnit(c, x, base, capH) })
         if (d.windCached) wg.add(txt("P", 13f, UNIT, base, false))   // z zapasu prognozy (brak sieci)
         return G(wg, ref, 4f)
     }
 
+    /** 0.4.27: AERO -- logo "CdA" z liter po skosie (C wyzej, d, A nizej), kolor logo = pewnosc */
+    private fun cdaLogo(c: Canvas, base: Float, capH: Float, col: Int): Item = Item(21f) { x ->
+        val ls = 16f; val top = base - capH
+        t(c, "C", x, top + ls * CAP, ls, col)
+        t(c, "d", x + 7f, top + capH * 0.5f + ls * CAP / 2f, ls, col)
+        t(c, "A", x + 13f, base, ls, col)
+    }
+
+    /** 0.4.27: AERO = 4. pozycja gornego wiersza (zielone logo = liczy sie, zolte = zbiera dane, szare = brak), male W */
+    private fun gAero(c: Canvas, d: KokpitNavData, base: Float, vs: Float): G {
+        val capH = vs * CAP; val av = d.aero
+        val ref = 21f + 2f + w("−18", vs) + 2f + w("W", 14f, false)
+        val lc = when { av == null || av.conf < 0 -> LBL; av.conf == 1 -> GREEN; else -> Color.parseColor("#FACC15") }
+        val g = arrayListOf(cdaLogo(c, base, capH, lc), if (av != null) txt(av.value, vs, WHITE, base) else txt("—", vs, NONE, base))
+        if (av != null) g.add(txt("W", 14f, UNIT, base, false))
+        return G(g, ref, 2f)
+    }
+
+    private fun lum(col: Int): Double {
+        fun f(v: Int): Double { val x = v / 255.0; return if (x <= 0.03928) x / 12.92 else Math.pow((x + 0.055) / 1.055, 2.4) }
+        return 0.2126 * f(Color.red(col)) + 0.7152 * f(Color.green(col)) + 0.0722 * f(Color.blue(col))
+    }
+
+    /** 0.4.27 (decyzja Michala: od +-3%): cala kratka nachylenia w kolorze nachylenia, cyfry kontrastowe */
     private fun gGrade(c: Canvas, d: KokpitNavData, base: Float, vs: Float): G {
         val capH = vs * CAP
         val gr = d.gradePct
-        val g = if (gr == null) listOf(Item(26f) { x -> tri(c, x, base, 26f, capH, 3f, NONE) }, txt("—", vs, NONE, base))
-            else listOf(Item(26f) { x -> tri(c, x, base, 26f, capH, gr, gradeColor(gr)) }, txt(fmt("%.0f", gr), vs, WHITE, base), txt("%", 20f, UNIT, base, false))
-        return G(g, 26f + 4f + w("-18", vs) + 4f + w("%", 20f, false), 4f)
+        val ref = 26f + 4f + w("-18", vs) + 4f + w("%", 20f, false)
+        if (gr == null) return G(listOf(Item(26f) { x -> tri(c, x, base, 26f, capH, 3f, NONE) }, txt("—", vs, NONE, base)), ref, 4f)
+        val shade = abs(gr) >= 3f
+        val bg = gradeColor(gr)
+        val fg = if (shade) (if (lum(bg) > 0.3) BLACK else WHITE) else WHITE
+        val g = ArrayList<Item>()
+        if (shade) g.add(Item(0f) { x -> fp.color = bg; c.drawRoundRect(RectF(x - 6f, base - capH - 9f, x + 600f, base + 10f), 6f, 6f, fp) })
+        g.add(Item(26f) { x -> tri(c, x, base, 26f, capH, gr, if (shade) fg else bg) })
+        g.add(txt(fmt("%.0f", gr), vs, fg, base))
+        g.add(txt("%", 20f, if (shade) fg else UNIT, base, false))
+        return G(g, ref, 4f)
     }
 
+    /** 0.4.27: plakietka zrodla trasy: Q (biala) = trase zna QBot, K (obrys) = tylko Karoo */
+    private fun srcBadge(c: Canvas, src: String, base: Float, capH: Float): Item = Item(18f) { x ->
+        val q = src == "Q"; val top = base - capH
+        fp.color = if (q) Color.parseColor("#F2F4F7") else BG
+        c.drawRoundRect(RectF(x, top, x + 18f, base), 4f, 4f, fp)
+        if (!q) { sp.color = UNIT; sp.strokeWidth = 2f; c.drawRoundRect(RectF(x + 1f, top + 1f, x + 17f, base - 1f), 4f, 4f, sp) }
+        t(c, src, x + 9f, base - (capH - 16f * CAP) / 2f, 16f, if (q) BLACK else LBL, true, Paint.Align.CENTER)
+    }
+
+    /** 0.4.27: DTD z plakietka Q/K; bez trasy DOM (km do domu w linii prostej) */
     private fun gDtd(c: Canvas, d: KokpitNavData, base: Float, vs: Float): G {
         val capH = vs * CAP
-        val g = d.leftKm?.let { listOf(vlabel(c, "DTD", base, capH), txt(fmt("%.0f", it), vs, WHITE, base)) }
-            ?: listOf(vlabel(c, "DTD", base, capH), txt("—", vs, NONE, base))
-        return G(g, 10f + 2f + w("888", vs), 2f)
+        val ref = 18f + 3f + 10f + 3f + w("888", vs)
+        val hk = d.homeKm
+        if (d.leftKm == null && hk != null) return G(listOf(vlabel(c, "DOM", base, capH), txt(fmt("%.0f", hk), vs, WHITE, base)), ref, 3f)
+        val g = ArrayList<Item>()
+        d.routeSrc?.let { g.add(srcBadge(c, it, base, capH)) }
+        g.add(vlabel(c, "DTD", base, capH))
+        val lk = d.leftKm
+        g.add(if (lk != null) txt(fmt("%.0f", lk), vs, WHITE, base) else txt("—", vs, NONE, base))
+        return G(g, ref, 3f)
     }
 
+    private fun sunDown(c: Canvas, x: Float, base: Float, sz: Float, col: Int) {
+        val cy = base - sz * 0.22f; val r = sz * 0.32f
+        fp.color = col
+        c.drawArc(RectF(x + sz * 0.4f - r, cy - r, x + sz * 0.4f + r, cy + r), 180f, 180f, true, fp)
+        c.drawRect(x, cy, x + sz * 0.8f, cy + sz * 0.09f, fp)
+        val p = Path(); p.moveTo(x + sz * 0.66f, base - sz * 0.95f); p.lineTo(x + sz, base - sz * 0.95f); p.lineTo(x + sz * 0.83f, base - sz * 0.62f); p.close()
+        c.drawPath(p, fp)
+    }
+
+    private fun clockIco(c: Canvas, x: Float, base: Float, sz: Float, col: Int) {
+        val cx = x + sz / 2f; val cy = base - sz / 2f
+        sp.color = col; sp.strokeWidth = sz * 0.11f
+        c.drawCircle(cx, cy, sz * 0.44f, sp)
+        val p = Path(); p.moveTo(cx, cy - sz * 0.28f); p.lineTo(cx, cy); p.lineTo(cx + sz * 0.22f, cy + sz * 0.1f)
+        c.drawPath(p, sp)
+    }
+
+    /** 0.4.27: ETA; bez trasy -- odliczanie do zmroku (gdy <= 3 h), inaczej zegar */
     private fun gEta(c: Canvas, d: KokpitNavData, base: Float, vs: Float): G {
         val capH = vs * CAP
         val eta = d.etaMs; val dl = d.deadlineMs
+        val ref = 10f + 2f + w("88:88", vs)
+        val now = d.nowMs
+        if (eta == null && d.leftKm == null && now != null) {
+            val du = d.duskMs
+            val left = if (du != null && d.twilightLabel == "zmrok") (du - now) / 60_000L else -1L
+            if (left in 1L..180L) {
+                val hm = "${left / 60}:" + (left % 60).toString().padStart(2, '0')
+                return G(listOf(Item(24f) { x -> sunDown(c, x, base, 24f, ORANGE) }, txt(hm, vs, ORANGE, base)), ref, 3f)
+            }
+            return G(listOf(Item(22f) { x -> clockIco(c, x, base - 2f, 22f, LBL) }, txt(clock(now), vs, WHITE, base)), ref, 3f)
+        }
         val etaCol = if (eta != null && dl != null) when {
             eta > dl -> RED
             dl - eta >= Kokpit2Config.cp("eta", "green_min", 30.0).toLong() * 60_000L -> GREEN
@@ -656,63 +769,84 @@ object Kokpit2NavRenderer {
         } else WHITE
         val g = if (eta != null) listOf(vlabel(c, "ETA", base, capH), txt(clock(eta), vs, etaCol, base))
             else listOf(vlabel(c, "ETA", base, capH), txt("—", vs, NONE, base))
-        return G(g, 10f + 2f + w("88:88", vs), 2f)
+        return G(g, ref, 2f)
     }
 
-    /** pole dynamiczne (2026-10-14): rotacja co 4 s (ATD przewyzszenie do konca / ASC zrobione bez trasy, wiatr w twarz km,
-     *  najblizszy sklep/woda/jedzenie) albo wymagana srednia, gdy ETA blisko granicy (zolta / czerwona) */
+    /** 0.4.27: ikony pola dynamicznego zamiast etykiet */
+    private fun icoBasket(c: Canvas, x: Float, base: Float, sz: Float, col: Int) {
+        val top = base - sz * 0.62f
+        val p = Path(); p.moveTo(x, top); p.lineTo(x + sz, top); p.lineTo(x + sz * 0.84f, base); p.lineTo(x + sz * 0.16f, base); p.close()
+        fp.color = col; c.drawPath(p, fp)
+        sp.color = col; sp.strokeWidth = sz * 0.1f
+        c.drawArc(RectF(x + sz / 2f - sz * 0.32f, top - sz * 0.32f, x + sz / 2f + sz * 0.32f, top + sz * 0.32f), 180f, 180f, false, sp)
+        fp.color = BG
+        for (i in 0 until 3) { val bx = x + sz * (0.3f + 0.2f * i); c.drawRect(bx - sz * 0.04f, top + sz * 0.12f, bx + sz * 0.04f, top + sz * 0.46f, fp) }
+    }
+
+    private fun icoFood(c: Canvas, x: Float, base: Float, sz: Float, col: Int) {
+        val top = base - sz; val fx = x + sz * 0.3f; val kx = x + sz * 0.75f
+        sp.color = col; sp.strokeWidth = sz * 0.11f
+        c.drawLine(fx, top + sz * 0.4f, fx, base, sp)
+        for (o in floatArrayOf(-0.14f, 0f, 0.14f)) c.drawLine(fx + o * sz, top, fx + o * sz, top + sz * 0.36f, sp)
+        c.drawLine(fx - 0.15f * sz, top + sz * 0.38f, fx + 0.15f * sz, top + sz * 0.38f, sp)
+        c.drawLine(kx, top + sz * 0.5f, kx, base, sp)
+        val p = Path(); p.moveTo(kx - sz * 0.06f, top + sz * 0.56f); p.quadTo(kx - sz * 0.08f, top, kx + sz * 0.12f, top); p.lineTo(kx + sz * 0.07f, top + sz * 0.56f); p.close()
+        fp.color = col; c.drawPath(p, fp)
+    }
+
+    private fun icoAero(c: Canvas, x: Float, base: Float, sz: Float, col: Int) {
+        val r = sz * 0.2f; val y = base - r
+        sp.color = col; sp.strokeWidth = sz * 0.09f
+        c.drawCircle(x + r, y, r, sp); c.drawCircle(x + sz * 1.2f - r, y, r, sp)
+        val p = Path(); p.moveTo(x + r, y); p.lineTo(x + sz * 0.55f, y); p.lineTo(x + sz * 1.2f - r, y - sz * 0.05f); c.drawPath(p, sp)
+        c.drawLine(x + sz * 0.4f, y - sz * 0.45f, x + sz * 0.95f, y - sz * 0.35f, sp)
+        fp.color = col; c.drawCircle(x + sz * 1.05f, y - sz * 0.42f, sz * 0.11f, fp)
+    }
+
+    private fun avgSymNav(c: Canvas, x: Float, y: Float, sz: Float, color: Int) {
+        sp.color = color; sp.strokeWidth = sz * 0.16f
+        c.drawCircle(x + sz / 2f, y + sz / 2f, sz * 0.325f, sp)
+        c.drawLine(x + sz * 0.15f, y + sz * 0.85f, x + sz * 0.85f, y + sz * 0.15f, sp)
+    }
+
+    /** pole dynamiczne (2026-10-14): rotacja co 4 s albo wymagana srednia, gdy ETA blisko granicy.
+     *  0.4.27: wartosci wielkosci ETA, ikony zamiast etykiet (koszyk, sztucce, srednia, kropla) */
     private fun gDyn(c: Canvas, d: KokpitNavData, base: Float, vs: Float): G {
-        // 2026-10-17 (Michal): AERO w pelnej wielkosci jak pozostale wartosci wiersza; reszta pola dynamicznego 0.8
-        val aero = d.dyn?.kind == "AERO"
-        val ds = if (aero) vs else vs * 0.8f; val capH = ds * CAP; val us = 16f
-        val ref = if (aero) w("aero", us, false) + 3f + w("−88", ds) + 3f + w("W", us, false) + 3f + 12f
-                  else w("sklep", us, false) + 3f + w("88,8", ds) + 3f + w("km/h", us, false)
+        val ds = vs; val capH = ds * CAP; val us = 16f; val ic = 30f
+        val ref = ic + 3f + w("88,8", ds) + 3f + w("km/h", us, false)
         val di = d.dyn ?: return G(emptyList(), ref, 3f)
         val col = when (di.warn) { 2 -> RED; 1 -> Color.parseColor("#FACC15"); else -> WHITE }
         val g = ArrayList<Item>()
         when (di.kind) {
             "ATD", "ASC" -> g.add(vlabel(c, di.kind, base, capH))
             "WIND" -> g.add(Item(24f) { x -> arrow(c, x + 12f, base - capH / 2f, 24f, 180f, RED) })
-            "water" -> g.add(Item(18f) { x -> drop(c, x, base, 18f, 22f, BLUE) })
-            "AVG" -> g.add(txt("śr.", us, LBL, base, false))
-            "AERO" -> g.add(txt("aero", us, LBL, base, false))
-            "shop" -> g.add(txt("sklep", us, LBL, base, false))
-            else -> g.add(txt("jedz.", us, LBL, base, false))
+            "water" -> g.add(Item(18f) { x -> drop2(c, x + 1f, base, 16f, 26f, Color.parseColor("#3B82F6")) })
+            "AVG" -> g.add(Item(ic) { x -> avgSymNav(c, x, base - ic + 2f, ic - 2f, LBL) })
+            "AERO" -> g.add(Item(ic * 1.2f) { x -> icoAero(c, x, base, ic, LBL) })
+            "shop" -> g.add(Item(ic) { x -> icoBasket(c, x, base, ic, LBL) })
+            else -> g.add(Item(ic) { x -> icoFood(c, x, base, ic, LBL) })
         }
         g.add(txt(di.value, ds, col, base))
         g.add(txt(di.unit, us, UNIT, base, false))
-        if (di.conf >= 0) g.add(Item(12f) { x ->   // AERO: kropka pewnosci (zielona = pewny, zolta = zbiera sie)
+        if (di.conf >= 0) g.add(Item(12f) { x ->
             fp.color = Color.parseColor(if (di.conf == 1) "#4ADE80" else "#FACC15"); c.drawCircle(x + 6f, base - capH / 2f, 5f, fp) })
         return G(g, ref, 3f)
     }
 
-    // ---------- gorny wiersz (2026-10-14): DST | temperatura | opad/niebo | wiatr - STALE KOLUMNY ----------
+    /** 0.4.27: gorny wiersz -- STALA wielkosc 36 px, 5 pozycji w stalych slotach (wzorce najszerszych wartosci, wiatr 2-cyfrowy):
+     *  DST | TEMP | POGODA (na srodku slotu) | AERO | WIATR (do prawej slotu); odstepy 2 px, calosc wysrodkowana w polu */
     private fun rowWeather(c: Canvas, d: KokpitNavData, vw: Float, base: Float) {
-        val vs = 42f   // temperatura 42 px (decyzja Michala); DST i wiatr w tym wierszu ta sama wielkosc
-        val gs = listOf(gDst(c, d, base, vs), gTemp(c, d, base, vs), gWx(c, d, base, vs), gWind(c, d, base, vs))
-        row(gs, vw)
-        recDot(c, d.camRec, gs, vw, base, vs)
-    }
-
-    /** 0.4.26 (osmo-2110, decyzja Michala 21.10): kropka kamery DJI Osmo w przerwie miedzy opadem/niebem a wiatrem.
-     *  Czerwona + REC = nagrywa (przy waskiej przerwie sama kropka), szara = kamera polaczona, nie nagrywa, brak = brak kamery.
-     *  Inna niz kropka trybu NAGRANIE (RecMode). Kolumny wiersza sie nie przesuwaja. */
-    private fun recDot(c: Canvas, st: Int, gs: List<G>, vw: Float, base: Float, vs: Float) {
-        if (st <= 0 || gs.size < 4) return
-        val gap = rowGap(gs, vw)
-        val wxEnd = 8f + gs[0].ref + gap + gs[1].ref + gap + gw(gs[2].items, gs[2].inner)
-        val windStart = vw - 8f - gw(gs[3].items, gs[3].inner)
-        val free = windStart - wxEnd
-        if (free < 22f) return
-        val cy = base - vs * CAP / 2f
-        val col = if (st == 2) Color.parseColor("#EF4444") else Color.parseColor("#6B7280")
-        val r = 8f
-        val withText = st == 2 && free >= 74f
-        val total = 2f * r + (if (withText) 5f + w("REC", 18f) else 0f)
-        val x = (wxEnd + windStart) / 2f - total / 2f
-        fp.color = col
-        c.drawCircle(x + r, cy, r, fp)
-        if (withText) t(c, "REC", x + 2f * r + 5f, cy + 18f * CAP / 2f, 18f, col)
+        val tv = 36f
+        val gs = listOf(gDst(c, d, base, tv), gTemp(c, d, base, tv), gWx(c, d, base, tv), gAero(c, d, base, tv), gWind(c, d, base, tv))
+        val gap = 2f
+        val tot = gs.sumOf { it.ref.toDouble() }.toFloat() + gap * (gs.size - 1)
+        var x = 8f + maxOf(0f, (vw - 16f - tot) / 2f)
+        for ((i, g) in gs.withIndex()) {
+            val iw = gw(g.items, g.inner)
+            val ox = when (i) { 2 -> (g.ref - iw) / 2f; gs.size - 1 -> g.ref - iw; else -> 0f }
+            drawG(g.items, x + maxOf(0f, ox), g.inner)
+            x += g.ref + gap
+        }
     }
 
     /** logo QBot (jak favicon.svg serwisu): pomaranczowe Q z linia tetna, bez tla; kwadrat sz x sz, lewy-gorny rog (x, y) */
@@ -732,14 +866,21 @@ object Kokpit2NavRenderer {
         sp.strokeJoin = Paint.Join.MITER
     }
 
-    // ---------- dolny wiersz (2026-10-14): DTD | ETA | pole dynamiczne | nachylenie - STALE KOLUMNY ----------
+    /** 0.4.27: dolny wiersz -- 4 komorki o stalych szerokosciach (wzorce), rowne odstepy; wartosci na srodku komorki,
+     *  nachylenie przy prawej krawedzi (tlo nachylenia do krawedzi pola) */
     private fun rowKm(c: Canvas, d: KokpitNavData, vw: Float, base: Float) {
-        // 46 px; gdy kolumny sie nie mieszcza (odstep < 8 px) - mniejsze cyfry (min. 38 px)
         var vs = 46f
         fun build(v: Float) = listOf(gDtd(c, d, base, v), gEta(c, d, base, v), gDyn(c, d, base, v), gGrade(c, d, base, v))
         var gs = build(vs)
         while (vs > 38f && rowGap(gs, vw) < 8f) { vs -= 1f; gs = build(vs) }
-        row(gs, vw)
+        val gap = rowGap(gs, vw)
+        var x = 8f
+        for ((i, g) in gs.withIndex()) {
+            val iw = gw(g.items, g.inner)
+            val ox = if (i == gs.size - 1) g.ref - iw else (g.ref - iw) / 2f
+            drawG(g.items, x + maxOf(0f, ox), g.inner)
+            x += g.ref + gap
+        }
     }
 
     /** znak nastepnego manewru: ikona + odleglosc (ta sama wielkosc co wartosci wiersza); szerokosc stala - uklad nie skacze */
@@ -795,11 +936,11 @@ object Kokpit2NavRenderer {
     }
 
     /** trzy litery jedna pod druga: od gornej krawedzi cyfr do linii bazowej */
-    private fun vlabel(c: Canvas, s: String, base: Float, capH: Float): Item = Item(10f) { x ->
-        val ls = 12f; val lc = ls * CAP
+    private fun vlabel(c: Canvas, s: String, base: Float, capH: Float, col: Int = LBL): Item = Item(10f) { x ->
+        val ls = 11f; val lc = ls * CAP
         val top = base - capH
         val ys = listOf(top + lc, (top + base) / 2f + lc / 2f, base)
-        for ((i, ch) in s.take(3).withIndex()) t(c, ch.toString(), x + 5f, ys[i], ls, LBL, true, Paint.Align.CENTER)
+        for ((i, ch) in s.take(3).withIndex()) t(c, ch.toString(), x + 5f, ys[i], ls, col, true, Paint.Align.CENTER)
     }
 
     /** m / s jako ulamek: kreska 3/4 wysokosci cyfr, m i s przyklejone (min. 1 px odstepu) */
