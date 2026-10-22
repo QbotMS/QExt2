@@ -675,6 +675,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
     private fun startRidePing() {
         if (ridePingJob?.isActive == true) return
         com.qext2.primary.kokpit.QbotRadar.reset()
+        com.qext2.primary.kokpit.QbotNews.reset()
         ridePingJob = serviceScope.launch {
             while (true) {
                 try { sendRidePing() } catch (e: Exception) { com.qext2.primary.util.RideFileLog.append("PING_FAIL crash ${e.javaClass.simpleName}") }
@@ -687,6 +688,7 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
     private fun stopRidePing() {
         ridePingJob?.cancel(); ridePingJob = null
         com.qext2.primary.kokpit.QbotRadar.reset()
+        com.qext2.primary.kokpit.QbotNews.reset()
     }
 
     private fun sendRidePing() {
@@ -722,6 +724,8 @@ class QExt2PrimaryExtension : KarooExtension("qext2", BuildConfig.VERSION_NAME) 
                     if (ok) {
                         com.qext2.primary.kokpit.QbotRadar.accept(now, rain)
                         com.qext2.primary.util.RideFileLog.append("PING_OK rain=" + (rain?.let { "za=${it.zaMin} pada=${it.pada} mmh=${it.mmh} dur=${it.durMin}" } ?: "brak"))
+                        val nn = com.qext2.primary.kokpit.QbotNews.ingest(String(s.body!!))   // QEXT2-NEWS
+                        if (nn > 0) com.qext2.primary.util.RideFileLog.append("NEWS +$nn")
                     } else com.qext2.primary.util.RideFileLog.append("PING_FAIL http=${s.statusCode} err=${s.error ?: "-"}")
                 }
             },

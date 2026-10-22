@@ -522,6 +522,95 @@ object Kokpit2NavRenderer {
     }
 
     // ---------- komunikat: tlo wg waznosci ----------
+    // QEXT2-NEWS (0.4.31): ikona wiadomosci 30x20 -- jak newsIcon w symulatorze QBota (qext2-kokpit2.js). Nieznany kraj -> kula.
+    private val NEWS_FLAGS: Map<String, List<String>> = mapOf(
+        "pl" to listOf("h", "#FFFFFF", "#DC143C"), "de" to listOf("h", "#000000", "#DD0000", "#FFCE00"), "at" to listOf("h", "#ED2939", "#FFFFFF", "#ED2939"),
+        "nl" to listOf("h", "#AE1C28", "#FFFFFF", "#21468B"), "hu" to listOf("h", "#CE2939", "#FFFFFF", "#477050"), "lt" to listOf("h", "#FDB913", "#006A44", "#C1272D"),
+        "ee" to listOf("h", "#0072CE", "#000000", "#FFFFFF"), "ua" to listOf("h", "#0057B7", "#FFD700"), "bg" to listOf("h", "#FFFFFF", "#00966E", "#D62612"),
+        "hr" to listOf("h", "#FF0000", "#FFFFFF", "#171796"), "sk" to listOf("h", "#FFFFFF", "#0B4EA2", "#EE1C25"), "si" to listOf("h", "#FFFFFF", "#0000FF", "#FF0000"),
+        "es" to listOf("h", "#AA151B", "#F1BF00", "#F1BF00", "#AA151B"), "lu" to listOf("h", "#EF3340", "#FFFFFF", "#00A3E0"),
+        "it" to listOf("v", "#009246", "#FFFFFF", "#CE2B37"), "fr" to listOf("v", "#0055A4", "#FFFFFF", "#EF4135"), "be" to listOf("v", "#000000", "#FDDA24", "#EF3340"),
+        "ie" to listOf("v", "#169B62", "#FFFFFF", "#FF883E"), "ro" to listOf("v", "#002B7F", "#FCD116", "#CE1126"),
+        "dk" to listOf("x", "#C8102E", "#FFFFFF"), "se" to listOf("x", "#006AA7", "#FECC00"), "no" to listOf("x", "#BA0C2F", "#FFFFFF", "#00205B"), "fi" to listOf("x", "#FFFFFF", "#002F6C"),
+        "ch" to listOf("ch", "#DA291C", "#FFFFFF"), "cz" to listOf("cz", "#FFFFFF", "#D7141A", "#11457E"),
+    )
+    private val nip = Paint(Paint.ANTI_ALIAS_FLAG)
+
+    private fun newsIcon(c: Canvas, code: String, x: Float, cy: Float) {
+        val w = 30f; val h = 20f; val t = cy - h / 2f; val mx = x + w / 2f
+        val f = NEWS_FLAGS[code]
+        nip.reset(); nip.isAntiAlias = true
+        when {
+            code == "sport" -> {
+                nip.style = Paint.Style.FILL; nip.color = Color.WHITE; c.drawCircle(mx, cy, 10f, nip)
+                val pen = Path()
+                for (i in 0 until 5) {
+                    val a = -Math.PI / 2 + i * 2 * Math.PI / 5
+                    val px = mx + 4.2f * Math.cos(a).toFloat(); val py = cy + 4.2f * Math.sin(a).toFloat()
+                    if (i == 0) pen.moveTo(px, py) else pen.lineTo(px, py)
+                }
+                pen.close(); nip.color = Color.parseColor("#111111"); c.drawPath(pen, nip)
+                nip.style = Paint.Style.STROKE; nip.strokeWidth = 1.4f
+                for (i in 0 until 5) {
+                    val a = -Math.PI / 2 + i * 2 * Math.PI / 5
+                    val ca = Math.cos(a).toFloat(); val sa = Math.sin(a).toFloat()
+                    c.drawLine(mx + 4.2f * ca, cy + 4.2f * sa, mx + 10f * ca, cy + 10f * sa, nip)
+                }
+                c.drawCircle(mx, cy, 10f, nip)
+            }
+            code == "local" -> {
+                val pin = Path()
+                pin.arcTo(RectF(mx - 7f, t + 0.5f, mx + 7f, t + 14.5f), 144f, 252f); pin.lineTo(mx, t + h); pin.close()
+                nip.style = Paint.Style.FILL; nip.color = Color.parseColor("#EF4444"); c.drawPath(pin, nip)
+                nip.color = Color.WHITE; c.drawCircle(mx, t + 7.5f, 2.8f, nip)
+            }
+            code == "bike" -> {
+                nip.style = Paint.Style.STROKE; nip.strokeWidth = 2f; nip.strokeJoin = Paint.Join.ROUND; nip.strokeCap = Paint.Cap.ROUND
+                nip.color = Color.parseColor("#67E8F9")
+                val yA = cy + 3.5f; val yT = cy - 4.5f
+                c.drawCircle(x + 6.5f, yA, 5.5f, nip); c.drawCircle(x + 23.5f, yA, 5.5f, nip)
+                val fr = Path()
+                fr.moveTo(x + 6.5f, yA); fr.lineTo(x + 12f, yT); fr.lineTo(x + 21f, yT); fr.lineTo(x + 23.5f, yA)
+                fr.moveTo(x + 6.5f, yA); fr.lineTo(x + 15f, yA); fr.lineTo(x + 21f, yT); fr.moveTo(x + 12f, yT); fr.lineTo(x + 15f, yA)
+                fr.moveTo(x + 11f, yT - 3f); fr.lineTo(x + 14f, yT - 3f); fr.moveTo(x + 21f, yT); fr.lineTo(x + 20f, yT - 3.5f)
+                c.drawPath(fr, nip)
+            }
+            f != null -> {
+                val cols = f.drop(1).map { Color.parseColor(it) }
+                val n = cols.size
+                nip.style = Paint.Style.FILL
+                when (f[0]) {
+                    "h" -> for (i in 0 until n) { nip.color = cols[i]; c.drawRect(x, t + h * i / n, x + w, t + h * (i + 1) / n, nip) }
+                    "v" -> for (i in 0 until n) { nip.color = cols[i]; c.drawRect(x + w * i / n, t, x + w * (i + 1) / n, t + h, nip) }
+                    "x" -> {
+                        nip.color = cols[0]; c.drawRect(x, t, x + w, t + h, nip)
+                        nip.color = cols[1]; c.drawRect(x + 8f, t, x + 13f, t + h, nip); c.drawRect(x, cy - 2.5f, x + w, cy + 2.5f, nip)
+                        if (n > 2) { nip.color = cols[2]; c.drawRect(x + 9.5f, t, x + 11.5f, t + h, nip); c.drawRect(x, cy - 1f, x + w, cy + 1f, nip) }
+                    }
+                    "ch" -> {
+                        nip.color = cols[0]; c.drawRect(x, t, x + w, t + h, nip)
+                        nip.color = cols[1]; c.drawRect(mx - 2f, cy - 7f, mx + 2f, cy + 7f, nip); c.drawRect(mx - 7f, cy - 2f, mx + 7f, cy + 2f, nip)
+                    }
+                    "cz" -> {
+                        nip.color = cols[0]; c.drawRect(x, t, x + w, cy, nip); nip.color = cols[1]; c.drawRect(x, cy, x + w, t + h, nip)
+                        val tr = Path(); tr.moveTo(x, t); tr.lineTo(x + 14f, cy); tr.lineTo(x, t + h); tr.close()
+                        nip.color = cols[2]; c.drawPath(tr, nip)
+                    }
+                }
+                nip.style = Paint.Style.STROKE; nip.strokeWidth = 1f; nip.color = Color.argb(89, 255, 255, 255)
+                c.drawRect(x + 0.5f, t + 0.5f, x + w - 0.5f, t + h - 0.5f, nip)
+            }
+            else -> {   // world i nieznany kraj: kula ziemska
+                nip.style = Paint.Style.FILL; nip.color = Color.parseColor("#1D4ED8"); c.drawCircle(mx, cy, 10f, nip)
+                nip.style = Paint.Style.STROKE; nip.strokeWidth = 1.3f; nip.color = Color.parseColor("#BFDBFE")
+                c.drawCircle(mx, cy, 10f, nip); c.drawOval(RectF(mx - 4.5f, cy - 10f, mx + 4.5f, cy + 10f), nip)
+                c.drawLine(mx - 10f, cy, mx + 10f, cy, nip)
+                c.drawLine(mx - 8.7f, cy - 5f, mx + 8.7f, cy - 5f, nip); c.drawLine(mx - 8.7f, cy + 5f, mx + 8.7f, cy + 5f, nip)
+                c.drawLine(mx, cy - 10f, mx, cy + 10f, nip)
+            }
+        }
+    }
+
     private fun drawMsg(c: Canvas, d: KokpitNavData, vw: Float, h: Float) {
         val m = d.msg
         // poziom (tlo) z ustawien QBota; centrala wg waznosci nadawcy
@@ -536,6 +625,7 @@ object Kokpit2NavRenderer {
         val fg = if (warn) BLACK else WHITE
         fp.color = bg; c.drawRect(0f, 0f, vw, h, fp)
         var x = recStrip(c, d, h)
+        if (m.kind == MsgKind.NEWS) { newsIcon(c, m.icon, x, h / 2f); x += 38f }   // QEXT2-NEWS: ikona przed tekstem
         val demoW = if (d.demo) w("DEMO", 18f) + 8f else 0f
         val right = vw - 8f - demoW
         val leadCol = if (crit || warn) fg else if (m.kind == MsgKind.NONE) UNIT else WHITE
@@ -546,7 +636,7 @@ object Kokpit2NavRenderer {
         fun total(sz: Float): Float = (if (lead.isNotEmpty()) w(lead, sz, false) + sz * 0.3f else 0f) + (if (accent.isNotEmpty()) w(accent, sz) else 0f)
         var s = s0
         if (x + total(s) > right && lead.isNotEmpty() && accent.isNotEmpty() && lead.none { it.isDigit() }) lead = ""   // podpis z liczba (km, %, min) zostaje
-        while (s > 26f && x + total(s) > right) s -= 1f
+        while (s > (if (m.kind == MsgKind.NEWS) 22f else 26f) && x + total(s) > right) s -= 1f   // wiadomosc do 40 znakow: do 22 px
         while (x + total(s) > right && accent.length > 2) accent = accent.dropLast(2) + "…"
         val base = h / 2f + s * CAP / 2f
         if (lead.isNotEmpty()) { t(c, lead, x, base, s, leadCol, false); x += w(lead, s, false) + s * 0.3f }

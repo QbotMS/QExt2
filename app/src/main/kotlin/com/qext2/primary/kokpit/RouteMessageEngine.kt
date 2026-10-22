@@ -43,11 +43,12 @@ data class RouteMsgInput(
     val wprime: WPrimeInfo? = null,
 )
 
-enum class MsgKind { HUB, WPRIME, RAIN, FUEL, DUSK, DESCENT, CLIMB, SURFACE, POI, NONE }
+enum class MsgKind { HUB, WPRIME, RAIN, FUEL, DUSK, DESCENT, CLIMB, SURFACE, POI, NEWS, NONE }
 
 /** lead = zwykly tekst, accent = wyrozniony fragment w kolorze accentColor (#RRGGBB). */
 /** cfgId = id komunikatu w ustawieniach QBota (Setup > QExt2): wl/wyl, poziom, kolejnosc; "" = bez ustawien. */
-data class RouteMsg(val kind: MsgKind, val lead: String, val accent: String, val accentColor: String, val cfgId: String = "")
+/** icon = ikona przed tekstem (tylko NEWS: pl / world / kod kraju / sport / local / bike). */
+data class RouteMsg(val kind: MsgKind, val lead: String, val accent: String, val accentColor: String, val cfgId: String = "", val icon: String = "")
 
 object RouteMessageEngine {
     const val NEAR_KM = 3.0f
@@ -126,7 +127,7 @@ object RouteMessageEngine {
             else if (C.on("dusk_soon") && toDusk in 0..C.pi("dusk_soon", "warn_min", DUSK_WARN_MIN)) out.add(RouteMsg(MsgKind.DUSK, "do zmroku:", "$toDusk min", "#FB923C", "dusk_soon"))
         }
         // bez trasy: pusty pasek zamiast stalego "brak trasy" (2026-10-14; o braku trasy mowi raz komunikat BRAK TRASY na starcie)
-        if (!i.hasRoute) { if (out.isEmpty()) out.add(RouteMsg(MsgKind.NONE, "", "", "#9AA5B1")); return C.sortByOrder(out) }
+        if (!i.hasRoute) { if (out.isEmpty()) out.add(RouteMsg(MsgKind.NONE, "", "", "#9AA5B1")); return withNews(i.nowMs, C.sortByOrder(out)) }
         // 2. trasa w zasiegu (po odleglosci)
         val near = ArrayList<Pair<Float, RouteMsg>>()
         if (C.on("descent")) i.descent?.let { d ->
@@ -160,10 +161,20 @@ object RouteMessageEngine {
             far.minByOrNull { it.first }?.let { out.add(it.second) }
         }
         if (out.isEmpty()) out.add(RouteMsg(MsgKind.NONE, "", "", "#9AA5B1"))
-        return C.sortByOrder(out)
+        return withNews(i.nowMs, C.sortByOrder(out))
     }
 
     fun pick(i: RouteMsgInput): RouteMsg = candidates(i).first()
+
+    /** QEXT2-NEWS (decyzja Michala 22.10): wiadomosc z QBota PRZERYWA komunikaty o podjazdach / nawierzchni
+     *  (i pusty pasek) -- idzie na pierwsze miejsce na ok. 10 s, potem pasek wraca do nich. Gdy na liscie jest cokolwiek
+     *  innego (W', deszcz, jedzenie, zmrok, zjazd, punkt woda/sklep, centrala) -- wiadomosc czeka. */
+    private val NEWS_MAY_INTERRUPT = setOf(MsgKind.CLIMB, MsgKind.SURFACE, MsgKind.NONE)
+    private fun withNews(nowMs: Long, sorted: List<RouteMsg>): List<RouteMsg> {
+        if (!Kokpit2Config.on("news") || sorted.any { it.kind !in NEWS_MAY_INTERRUPT }) return sorted
+        val n = QbotNews.current(nowMs) ?: return sorted
+        return listOf(RouteMsg(MsgKind.NEWS, "", n.text, "#FFFFFF", "news", n.icon)) + sorted.filter { it.kind != MsgKind.NONE }
+    }
 
     fun isUrgent(k: MsgKind) = k == MsgKind.WPRIME || k == MsgKind.RAIN || k == MsgKind.FUEL || k == MsgKind.DUSK
 
