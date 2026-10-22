@@ -462,11 +462,11 @@ object Kokpit2NavRenderer {
     private fun fmt(p: String, vararg a: Any): String = String.format(java.util.Locale.US, p, *a)
 
     private fun t(c: Canvas, s: String, x: Float, base: Float, size: Float, color: Int, b: Boolean = true, align: Paint.Align = Paint.Align.LEFT) {
-        tp.typeface = if (b) bold else reg; tp.textSize = size; tp.color = color; tp.textAlign = align
+        tp.typeface = if (b) bold else reg; tp.textSize = size; tp.textScaleX = sx; tp.color = color; tp.textAlign = align
         c.drawText(s, x, base, tp)
         tp.textAlign = Paint.Align.LEFT
     }
-    private fun w(s: String, size: Float, b: Boolean = true): Float { tp.typeface = if (b) bold else reg; tp.textSize = size; return tp.measureText(s) }
+    private fun w(s: String, size: Float, b: Boolean = true): Float { tp.typeface = if (b) bold else reg; tp.textSize = size; tp.textScaleX = sx; return tp.measureText(s) }
 
     /** element wiersza: szerokosc + rysowanie od x (linia bazowa wiersza znana w srodku) */
     private class Item(val width: Float, val draw: (Float) -> Unit)
@@ -475,6 +475,8 @@ object Kokpit2NavRenderer {
         Item(w(s, size, b)) { x -> t(cv!!, s, x, base, size, color, b) }
 
     private var cv: Canvas? = null
+    /** 0.4.28: zwezenie cyfr wiersza (textScaleX) -- cyfry wysokie, a wiersz miesci sie na szerokosc */
+    private var sx = 1f
 
     @Synchronized
     fun render(width: Int, height: Int, d: KokpitNavData): Bitmap {
@@ -568,28 +570,28 @@ object Kokpit2NavRenderer {
             else { drawG(g.items, x, g.inner); x += g.ref + gap }
         }
     }
-    private fun rowGap(gs: List<G>, vw: Float) = ((vw - 16f) - gs.sumOf { it.ref.toDouble() }.toFloat()) / (gs.size - 1).coerceAtLeast(1)
+    private fun rowGap(gs: List<G>, vw: Float) = ((vw - 6f) - gs.sumOf { it.ref.toDouble() }.toFloat()) / (gs.size - 1).coerceAtLeast(1)   // 0.4.28: brzegi 3 px
 
+    /** 0.4.28: miejsce na 88.8; od 100 km bez ulamka (888 miesci sie w tym samym miejscu) */
     private fun gDst(c: Canvas, d: KokpitNavData, base: Float, vs: Float): G {
         val capH = vs * CAP
         val d10 = kotlin.math.floor(d.doneKm.coerceAtLeast(0f) * 10f).toInt()
-        val dDec = "." + (d10 % 10).toString()
         val dds = vs * 0.55f
-        val g = listOf(vlabel(c, "DST", base, capH), txt((d10 / 10).toString(), vs, WHITE, base),
-            Item(w(dDec, dds)) { x -> t(c, dDec, x, base - capH + dds * CAP, dds, WHITE) })
-        return G(g, 10f + 2f + w("888", vs) + 2f + w(".8", dds), 2f)
+        val g = arrayListOf(vlabel(c, "DST", base, capH), txt((d10 / 10).toString(), vs, WHITE, base))
+        if (d10 < 1000) { val dDec = "." + (d10 % 10).toString(); g.add(Item(w(dDec, dds)) { x -> t(c, dDec, x, base - capH + dds * CAP, dds, WHITE) }) }
+        return G(g, 10f + 2f + maxOf(w("88", vs) + 2f + w(".8", dds), w("888", vs)), 2f)
     }
 
     private fun gTemp(c: Canvas, d: KokpitNavData, base: Float, vs: Float): G {
         val capH = vs * CAP
-        val g = listOf(Item(13f) { x -> thermo(c, x, base, 13f, capH, LBL) },
+        val g = listOf(Item(10f) { x -> thermo(c, x, base, 10f, capH, LBL) },
             if (d.tempC != null) txt(fmt("%.0f", d.tempC) + "°", vs, WHITE, base) else txt("—", vs, NONE, base))
-        return G(g, 13f + 4f + w("-18°", vs), 4f)
+        return G(g, 10f + 3f + w("-18°", vs), 3f)
     }
 
     /** 0.4.27: sila opadu = 1-3 kropelki (slaby < 2,5 / umiarkowany < 7,6 / ulewa mm/h) */
     private fun rainLevel(mm: Float?): Int = when { mm == null -> 1; mm < 2.5f -> 1; mm < 7.6f -> 2; else -> 3 }
-    private fun drops(c: Canvas, x: Float, base: Float, n: Int, col: Int) { for (i in 0 until n) drop2(c, x + i * 12f, base - (i % 2) * 3f, 11f, 22f, col) }
+    private fun drops(c: Canvas, x: Float, base: Float, n: Int, col: Int) { for (i in n - 1 downTo 0) drop2(c, x + i * 5f, base - i * 3f, 11f, 22f, col) }   // 0.4.28: jedna na drugiej
 
     /** 0.4.27: kropla: spiczasty czubek, pelny brzuszek, gradient od jasnego i odblask */
     private fun drop2(c: Canvas, x: Float, base: Float, wI: Float, hI: Float, col: Int) {
@@ -609,7 +611,7 @@ object Kokpit2NavRenderer {
     }
 
     /** szerokosc kolumny pogody (stala): 3 kropelki + minuty + szansa */
-    private fun wxRef(): Float = 36f + 3f + w("88′", 20f) + 3f + w("88%", 15f, false)
+    private fun wxRef(): Float = 21f + 3f + w("88′", 26f) + 3f + w("88%", 20f, false)
 
     /** 0.4.27: pogoda w JEDNYM wierszu: kropelki + minuty + szansa % (radar: same minuty); bez opadu ikona nieba na srodku kolumny */
     private fun gWx(c: Canvas, d: KokpitNavData, base: Float, vs: Float): G {
@@ -619,17 +621,17 @@ object Kokpit2NavRenderer {
         val ref = wxRef()
         if (rn != null && rn >= 0.1f) {
             val n1 = rainLevel(rn)
-            wx.add(Item(12f * n1) { x -> drops(c, x, base, n1, BLUE) })
-            wx.add(txt("teraz", 22f, BLUE, base, false))
+            wx.add(Item(11f + 5f * (n1 - 1)) { x -> drops(c, x, base, n1, BLUE) })
+            wx.add(txt("teraz", 26f, BLUE, base, false))
         } else if (rs != null && (rs.radar || (rs.probPct >= 30 && rs.kind != "FOG"))) {
             val cl = when (rs.kind) { "STORM" -> RED; "SNOW" -> Color.parseColor("#BFDBFE"); else -> BLUE }
             when (rs.kind) {
                 "STORM" -> wx.add(Item(34f) { x -> storm(c, x, base, 34f, 32f, cl) })
                 "SNOW" -> wx.add(Item(30f) { x -> snow(c, x, base, 30f, cl) })
-                else -> { val n2 = rainLevel(rs.mmPerH); wx.add(Item(12f * n2) { x -> drops(c, x, base, n2, cl) }) }
+                else -> { val n2 = rainLevel(rs.mmPerH); wx.add(Item(11f + 5f * (n2 - 1)) { x -> drops(c, x, base, n2, cl) }) }
             }
-            wx.add(txt("${rs.minutes}′", 20f, cl, base))
-            if (!rs.radar) wx.add(txt("${rs.probPct}%", 15f, cl, base, false))
+            wx.add(txt("${rs.minutes}′", 34f, cl, base))
+            if (!rs.radar) wx.add(txt("${rs.probPct}%", 22f, cl, base, false))
         } else d.sky?.let { sk ->
             val iw = if (sk == "CLEAR") 44f else 66f; val ox = (ref - iw) / 2f
             when (sk) {
@@ -693,14 +695,14 @@ object Kokpit2NavRenderer {
     private fun gGrade(c: Canvas, d: KokpitNavData, base: Float, vs: Float): G {
         val capH = vs * CAP
         val gr = d.gradePct
-        val ref = 26f + 4f + w("-18", vs) + 4f + w("%", 20f, false)
-        if (gr == null) return G(listOf(Item(26f) { x -> tri(c, x, base, 26f, capH, 3f, NONE) }, txt("—", vs, NONE, base)), ref, 4f)
+        val ref = 20f + 3f + w("-18", vs) + 4f + w("%", 20f, false)
+        if (gr == null) return G(listOf(Item(20f) { x -> tri(c, x, base, 20f, capH, 3f, NONE) }, txt("—", vs, NONE, base)), ref, 4f)
         val shade = abs(gr) >= 3f
         val bg = gradeColor(gr)
         val fg = if (shade) (if (lum(bg) > 0.3) BLACK else WHITE) else WHITE
         val g = ArrayList<Item>()
-        if (shade) g.add(Item(0f) { x -> fp.color = bg; c.drawRoundRect(RectF(x - 6f, base - capH - 9f, x + 600f, base + 10f), 6f, 6f, fp) })
-        g.add(Item(26f) { x -> tri(c, x, base, 26f, capH, gr, if (shade) fg else bg) })
+        if (shade) g.add(Item(0f) { x -> fp.color = bg; c.drawRoundRect(RectF(x - 6f, base - capH - 4f, x + 600f, base + 10f), 6f, 6f, fp) })
+        g.add(Item(20f) { x -> tri(c, x, base, 20f, capH, gr, if (shade) fg else bg) })
         g.add(txt(fmt("%.0f", gr), vs, fg, base))
         g.add(txt("%", 20f, if (shade) fg else UNIT, base, false))
         return G(g, ref, 4f)
@@ -835,18 +837,25 @@ object Kokpit2NavRenderer {
 
     /** 0.4.27: gorny wiersz -- STALA wielkosc 36 px, 5 pozycji w stalych slotach (wzorce najszerszych wartosci, wiatr 2-cyfrowy):
      *  DST | TEMP | POGODA (na srodku slotu) | AERO | WIATR (do prawej slotu); odstepy 2 px, calosc wysrodkowana w polu */
-    private fun rowWeather(c: Canvas, d: KokpitNavData, vw: Float, base: Float) {
-        val tv = 36f
-        val gs = listOf(gDst(c, d, base, tv), gTemp(c, d, base, tv), gWx(c, d, base, tv), gAero(c, d, base, tv), gWind(c, d, base, tv))
-        val gap = 2f
-        val tot = gs.sumOf { it.ref.toDouble() }.toFloat() + gap * (gs.size - 1)
-        var x = 8f + maxOf(0f, (vw - 16f - tot) / 2f)
-        for ((i, g) in gs.withIndex()) {
-            val iw = gw(g.items, g.inner)
-            val ox = when (i) { 2 -> (g.ref - iw) / 2f; gs.size - 1 -> g.ref - iw; else -> 0f }
-            drawG(g.items, x + maxOf(0f, ox), g.inner)
-            x += g.ref + gap
-        }
+    private fun rowWeather(c: Canvas, d: KokpitNavData, vw: Float, base0: Float) {
+        // 0.4.28: cyfry 46 px (zwezane tylko tyle, ile trzeba, min. 70%), wiersz tuz pod paskiem (base 78), od brzegu do brzegu (3 px);
+        // WIATR do prawej swojego slotu, CdA 6 px przed faktycznym wiatrem, POGODA na srodku miejsca miedzy TEMP a CdA
+        val tv = 46f; val base = 78f; val gap = 3f
+        fun b5() = listOf(gDst(c, d, base, tv), gTemp(c, d, base, tv), gWx(c, d, base, tv), gAero(c, d, base, tv), gWind(c, d, base, tv))
+        fun sumRef(gs: List<G>) = gs.sumOf { it.ref.toDouble() }.toFloat() + gap * (gs.size - 1)
+        sx = 1f
+        var gs = b5()
+        while (sx > 0.7f && sumRef(gs) > vw - 6f) { sx -= 0.02f; gs = b5() }
+        val x0 = 3f + maxOf(0f, (vw - 6f - sumRef(gs)) / 2f)
+        val xs = FloatArray(gs.size)
+        var xx = x0
+        for (i in gs.indices) { xs[i] = xx; xx += gs[i].ref + gap }
+        val gW = gs[4]; val xw = xs[4] + gW.ref - gw(gW.items, gW.inner); drawG(gW.items, xw, gW.inner)
+        val gA = gs[3]; val xa = xw - 6f - gw(gA.items, gA.inner); drawG(gA.items, xa, gA.inner)
+        drawG(gs[0].items, xs[0], gs[0].inner); drawG(gs[1].items, xs[1], gs[1].inner)
+        val gX = gs[2]; val iwx = gw(gX.items, gX.inner)
+        drawG(gX.items, maxOf(xs[2], xs[2] + (xa - 6f - xs[2] - iwx) / 2f), gX.inner)
+        sx = 1f
     }
 
     /** logo QBot (jak favicon.svg serwisu): pomaranczowe Q z linia tetna, bez tla; kwadrat sz x sz, lewy-gorny rog (x, y) */
@@ -868,19 +877,22 @@ object Kokpit2NavRenderer {
 
     /** 0.4.27: dolny wiersz -- 4 komorki o stalych szerokosciach (wzorce), rowne odstepy; wartosci na srodku komorki,
      *  nachylenie przy prawej krawedzi (tlo nachylenia do krawedzi pola) */
-    private fun rowKm(c: Canvas, d: KokpitNavData, vw: Float, base: Float) {
-        var vs = 46f
-        fun build(v: Float) = listOf(gDtd(c, d, base, v), gEta(c, d, base, v), gDyn(c, d, base, v), gGrade(c, d, base, v))
-        var gs = build(vs)
-        while (vs > 38f && rowGap(gs, vw) < 8f) { vs -= 1f; gs = build(vs) }
+    private fun rowKm(c: Canvas, d: KokpitNavData, vw: Float, base0: Float) {
+        // 0.4.28: cyfry STALE 50 px (wczesniej zmniejszane do ~38), przy braku miejsca zwezane (min. 60%), tuz nad dolna krawedzia (base 124)
+        val vs = 50f; val base = 124f
+        fun build() = listOf(gDtd(c, d, base, vs), gEta(c, d, base, vs), gDyn(c, d, base, vs), gGrade(c, d, base, vs))
+        sx = 1f
+        var gs = build()
+        while (sx > 0.6f && rowGap(gs, vw) < 8f) { sx -= 0.02f; gs = build() }
         val gap = rowGap(gs, vw)
-        var x = 8f
+        var x = 3f
         for ((i, g) in gs.withIndex()) {
             val iw = gw(g.items, g.inner)
             val ox = if (i == gs.size - 1) g.ref - iw else (g.ref - iw) / 2f
             drawG(g.items, x + maxOf(0f, ox), g.inner)
             x += g.ref + gap
         }
+        sx = 1f
     }
 
     /** znak nastepnego manewru: ikona + odleglosc (ta sama wielkosc co wartosci wiersza); szerokosc stala - uklad nie skacze */
